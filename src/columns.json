@@ -1,0 +1,46 @@
+{
+  "_instructions": "Map CSV column names to the standard names used by this system. Set any field to null if that column does not exist in data. Pedestrian columns are always optional.",
+
+  "time": {
+    "start_time": "start_time",
+    "end_time":   "end_time",
+    "date":       "date",
+    "day_of_week":  "day_of_week"
+  },
+
+  "approaches": {
+    "N": {
+      "through": "n_approaching_t",
+      "right":   "n_approaching_r",
+      "left":    "n_approaching_l",
+      "peds":    null
+    },
+    "S": {
+      "through": "s_approaching_t",
+      "right":   "s_approaching_r",
+      "left":    "s_approaching_l",
+      "peds":    null
+    },
+    "E": {
+      "through": "e_approaching_t",
+      "right":   "e_approaching_r",
+      "left":    "e_approaching_l",
+      "peds":    null
+    },
+    "W": {
+      "through": "w_approaching_t",
+      "right":   "w_approaching_r",
+      "left":    "w_approaching_l",
+      "peds":    null
+    }
+  },
+
+  "slot_minutes": 15,
+
+  "_notes": [
+    "If  data has no right-turn or left-turn columns, set those to null — they will be treated as 0.",
+    "If  data has no separate date column, set date to null.",
+    "slot_minutes must match the interval between rows in data (e.g. 15 for 15-min counts, 60 for hourly).",
+    "Approaches not in intersection_config active_approaches are ignored even if mapped here."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "intersection_name": "McCowan_Finch",
+  "active_approaches": ["N", "S", "E", "W"],
+  "approaches": {
+    "N": {"lanes": {"through": 2, "right": 1, "left": 1}, "speed_kmh": 50},
+    "S": {"lanes": {"through": 2, "right": 1, "left": 1}, "speed_kmh": 50},
+    "E": {"lanes": {"through": 2, "right": 1, "left": 1}, "speed_kmh": 50},
+    "W": {"lanes": {"through": 2, "right": 1, "left": 1}, "speed_kmh": 50}
+  },
+  "phases":       "2",
+  "min_green_s":  15,
+  "max_green_s":  90,
+  "amber_s":      3,
+  "cycle_s":      120,
+  "edge_length_m": 200
+}

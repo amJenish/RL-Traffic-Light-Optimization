@@ -1,0 +1,51 @@
+{
+  "_comment": "Optimised for GTX 1650 Ti + SUMO on Windows. Edit values to tune.",
+
+  "training": {
+    "n_epochs":    3,
+    "save_every":  10,
+    "log_every":   5,
+    "test_days":   6,
+    "seed":        42
+  },
+
+  "simulation": {
+    "step_length":   5.0,
+    "decision_gap":  30,
+    "begin":         27000,
+    "end":           64800,
+    "gui":           false
+  },
+
+  "observation": {
+    "max_lanes":      16,
+    "max_phase":       3,
+    "max_phase_time": 120.0,
+    "max_vehicles":   20
+  },
+
+  "reward": {
+    "normalise": true,
+    "scale":     1.0
+  },
+
+  "policy": {
+    "learning_rate":   0.0005,
+    "gamma":           0.95,
+    "epsilon_start":   1.0,
+    "epsilon_end":     0.05,
+    "epsilon_decay":   0.99998415,
+    "target_update":   50,
+    "batch_size":      128,
+    "hidden":          256
+  },
+
+  "replay_buffer": {
+    "capacity": 100000
+  },
+
+  "output": {
+    "out_dir":    "src/data",
+    "models_dir": "src/data/models"
+  }
+}
