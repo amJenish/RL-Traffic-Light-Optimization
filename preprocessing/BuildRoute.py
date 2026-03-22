@@ -4,27 +4,41 @@ preprocess.py
 Converts any traffic count CSV into per-day files and SUMO flow files,
 driven entirely by two config files — no hardcoded column names or edge IDs.
 
+Merged from SUMO-Demand-Generation-Pipeline/data_to_rou.py:
+  - normalize_col()  — tolerates any case/spacing in CSV headers
+  - --date-mode      — error | offset | concat (multi-date handling)
+  - --write-sumocfg  — write a .sumocfg for sumo-gui visual inspection
+
 Required inputs:
-    --csv              Path to traffic count CSV
-    --intersection     Path to intersection_config.json  (from build_network widget)
-    --columns          Path to column_map.json           (maps CSV headers)
+    --csv              Path to traffic count CSV (or .xls / .xlsx)
+    --intersection     Path to intersection_config.json
+    --columns          Path to column_map.json  (maps CSV headers)
 
 Outputs:
     data/processed/days/day_NN.csv         One clean CSV per simulated day
     data/processed/split.json              Train / test split + shared config
     data/sumo/flows/flows_day_NN.rou.xml   SUMO demand file per day
+    simulation.sumocfg                     (optional, --write-sumocfg)
 
 Usage:
     python preprocess.py \
         --csv            synthetic_toronto_data.xls \
         --intersection   intersection_config.json \
         --columns        column_map.json
+
+    python preprocess.py \
+        --csv            synthetic_toronto_data.xls \
+        --intersection   intersection_config.json \
+        --columns        column_map.json \
+        --date-mode      concat \
+        --write-sumocfg
 """
 
 import argparse
 import json
 import math
 import os
+import re
 import random
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
@@ -35,6 +49,24 @@ import pandas as pd
 OVERNIGHT_VPH = 12
 SIM_DURATION  = 86400
 
+
+# ---------------------------------------------------------------------------
+# COLUMN NORMALISATION  (from data_to_rou.py)
+# ---------------------------------------------------------------------------
+
+def normalize_col(s: str) -> str:
+    """Lowercase and collapse any runs of whitespace / underscores to '_'.
+
+    This makes column matching case- and spacing-insensitive, so
+    'N Approaching T', 'n_approaching_t', and 'N_Approaching_T' all
+    become 'n_approaching_t'.
+    """
+    return re.sub(r"[\s_]+", "_", s.lower().strip())
+
+
+# ---------------------------------------------------------------------------
+# INTERSECTION / COLUMN MAP LOADING
+# ---------------------------------------------------------------------------
 
 def load_intersection(path):
     with open(path) as f:
@@ -62,21 +94,36 @@ def edge_out_id(approach):
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
 
 
+# ---------------------------------------------------------------------------
+# CSV LOADING  (enhanced: normalizes column names before matching)
+# ---------------------------------------------------------------------------
+
 def load_csv(csv_path, col_map, active_approaches):
-    df = pd.read_csv(csv_path)
-    junk = [c for c in df.columns if c.startswith("Unnamed")]
+    # Support .xls / .xlsx as well as .csv
+    suffix = os.path.splitext(csv_path)[1].lower()
+    if suffix in (".xls", ".xlsx"):
+        try:
+            df = pd.read_excel(csv_path)
+        except Exception:
+            df = pd.read_csv(csv_path)
+    else:
+        df = pd.read_csv(csv_path)
+
+    # Normalize every column name so matching is case/spacing insensitive
+    df = df.rename(columns={c: normalize_col(c) for c in df.columns})
+    junk = [c for c in df.columns if c.startswith("unnamed")]
     df = df.drop(columns=junk)
 
     time_cfg  = col_map.get("time", {})
-    start_col = time_cfg.get("start_time")
-    end_col   = time_cfg.get("end_time")
-    date_col  = time_cfg.get("date")
-    dow_col   = time_cfg.get("day_of_week")
+    start_col = normalize_col(time_cfg.get("start_time") or "") if time_cfg.get("start_time") else None
+    end_col   = normalize_col(time_cfg.get("end_time")   or "") if time_cfg.get("end_time")   else None
+    date_col  = normalize_col(time_cfg.get("date")       or "") if time_cfg.get("date")       else None
+    dow_col   = normalize_col(time_cfg.get("day_of_week") or "") if time_cfg.get("day_of_week") else None
 
     if not start_col or start_col not in df.columns:
         raise ValueError(
             f"start_time column '{start_col}' not found.\n"
-            f"Available: {df.columns.tolist()}\n"
+            f"Available columns: {df.columns.tolist()}\n"
             f"Fix: column_map.json → time → start_time"
         )
 
@@ -96,10 +143,11 @@ def load_csv(csv_path, col_map, active_approaches):
                 f"Approach '{d}' active in intersection_config but not in column_map.json"
             )
         for movement in ["through", "right", "left"]:
-            src = approach_cfg[d].get(movement)
-            dst = f"{d}_{movement}"
-            if src and src in df.columns:
-                df[dst] = df[src]
+            src      = approach_cfg[d].get(movement)
+            src_norm = normalize_col(src) if src else None
+            dst      = f"{d}_{movement}"
+            if src_norm and src_norm in df.columns:
+                df[dst] = df[src_norm]
             else:
                 if src:
                     print(f"  Warning: column '{src}' not found for {d}/{movement} — using 0")
@@ -115,27 +163,69 @@ def load_csv(csv_path, col_map, active_approaches):
     return df
 
 
-def assign_sim_days(df):
+# ---------------------------------------------------------------------------
+# DAY ASSIGNMENT  (enhanced: supports date-mode from data_to_rou.py)
+# ---------------------------------------------------------------------------
+
+def assign_sim_days(df, date_mode: str = "concat"):
+    """Assign a sim_day integer to every row.
+
+    date_mode:
+      concat  (default) — Sort unique dates ascending; assign day 0, 1, …
+                          in that order. Matches original behaviour.
+      offset  — Use (date - first_date).days as the day index so calendar
+                spacing is preserved (e.g. a gap leaves unused day indices).
+      error   — Raise ValueError if more than one distinct date is present.
+    """
     df = df.copy()
-    if "date" in df.columns and df["date"].nunique() > 1:
-        # Unique dates per day — assign sim_day from date order
-        dates = sorted(df["date"].unique())
+
+    if "date" in df.columns:
+        dates = sorted(df["date"].dropna().unique())
+    else:
+        dates = []
+
+    n_dates = len(dates)
+
+    if date_mode == "error" and n_dates > 1:
+        raise ValueError(
+            f"Multiple distinct dates found ({n_dates} days). "
+            f"Use --date-mode concat or offset, or restrict input to a single day."
+        )
+
+    if date_mode == "offset" and n_dates > 1:
+        first = dates[0]
+        try:
+            df["sim_day"] = df["date"].apply(
+                lambda d: (pd.Timestamp(str(d)) - pd.Timestamp(str(first))).days
+            )
+        except Exception:
+            # Fallback to positional cumcount if timestamp parse fails
+            df["sim_day"] = df.groupby("start_time").cumcount()
+
+    elif n_dates > 1:
+        # concat (default): ascending date → ascending day index
         date_to_id = {d: i for i, d in enumerate(dates)}
         df["sim_day"] = df["date"].map(date_to_id)
+
     else:
-        # Fallback — positional cumcount within each slot
+        # Single date or no date column — positional cumcount within each slot
         df["sim_day"] = df.groupby("start_time").cumcount()
+
     df = df.sort_values(["sim_day", "start_time"]).reset_index(drop=True)
     return df
 
 
 def split_days(n_days, n_test, seed=42):
     rng = random.Random(seed)
-    all_days = list(range(n_days))
-    test_days = sorted(rng.sample(all_days, n_test))
+    all_days   = list(range(n_days))
+    test_days  = sorted(rng.sample(all_days, n_test))
     train_days = sorted(set(all_days) - set(test_days))
     return {"train": train_days, "test": test_days}
 
+
+# ---------------------------------------------------------------------------
+# OUTPUT WRITERS
+# ---------------------------------------------------------------------------
 
 def write_day_csvs(df, active, out_dir):
     os.makedirs(out_dir, exist_ok=True)
@@ -146,12 +236,9 @@ def write_day_csvs(df, active, out_dir):
         movement_cols.append(f"{d}_total")
 
     base_cols = ["sim_day", "start_time"]
-    if "end_time" in df.columns:
-        base_cols.append("end_time")
-    if "date" in df.columns:
-        base_cols.append("date")
-    if "day_of_week" in df.columns:
-        base_cols.append("day_of_week")
+    if "end_time"    in df.columns: base_cols.append("end_time")
+    if "date"        in df.columns: base_cols.append("date")
+    if "day_of_week" in df.columns: base_cols.append("day_of_week")
     keep = base_cols + movement_cols
 
     n_days = df["sim_day"].nunique()
@@ -165,7 +252,7 @@ def write_day_csvs(df, active, out_dir):
 def time_to_seconds(t):
     parts = str(t).strip().split(":")
     h, m = int(parts[0]), int(parts[1])
-    s = int(parts[2]) if len(parts) > 2 else 0
+    s    = int(parts[2]) if len(parts) > 2 else 0
     return h * 3600 + m * 60 + s
 
 
@@ -237,14 +324,81 @@ def write_sumo_flows(df, active, slot_minutes, out_dir):
     print(f"  Written {n_days} SUMO flow files → {out_dir}")
 
 
+def write_sumocfg(net_file: str, flows_dir: str, out_path: str,
+                  begin: int = 27000, end: int = 64800) -> None:
+    """Write a .sumocfg for visual inspection with sumo-gui.
+
+    References the built network and all flow files in flows_dir as a
+    comma-separated list so any single day can be loaded via --route-files.
+    Ported from SUMO-Demand-Generation-Pipeline/data_to_rou.py.
+    """
+    route_files = sorted(
+        f for f in os.listdir(flows_dir) if f.endswith(".rou.xml")
+    ) if os.path.isdir(flows_dir) else []
+    route_str = ",".join(route_files) if route_files else "flows_day_00.rou.xml"
+
+    with open(out_path, "w") as f:
+        f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        f.write('<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n')
+        f.write('  xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">\n')
+        f.write('  <input>\n')
+        f.write(f'    <net-file value="{os.path.abspath(net_file)}"/>\n')
+        f.write(f'    <route-files value="{route_str}"/>\n')
+        f.write('  </input>\n')
+        f.write('  <time>\n')
+        f.write(f'    <begin value="{begin}"/>\n')
+        f.write(f'    <end value="{end}"/>\n')
+        f.write('  </time>\n')
+        f.write('</configuration>\n')
+
+    print(f"  sumocfg written → {out_path}")
+    print(f"  Run: sumo-gui -c {out_path}")
+
+
+# ---------------------------------------------------------------------------
+# MAIN
+# ---------------------------------------------------------------------------
+
 def main():
     parser = argparse.ArgumentParser(description="Preprocess traffic CSV for SUMO + RL")
-    parser.add_argument("--csv",          required=True)
-    parser.add_argument("--intersection", required=True)
-    parser.add_argument("--columns",      required=True)
-    parser.add_argument("--out-dir",      default="data")
-    parser.add_argument("--test-days",    type=int, default=6)
-    parser.add_argument("--seed",         type=int, default=42)
+    parser.add_argument("--csv",          required=True,
+                        help="Path to traffic count CSV / XLS / XLSX")
+    parser.add_argument("--intersection", required=True,
+                        help="Path to intersection_config.json")
+    parser.add_argument("--columns",      required=True,
+                        help="Path to column_map.json")
+    parser.add_argument("--out-dir",      default="data",
+                        help="Root output directory (default: data)")
+    parser.add_argument("--test-days",    type=int, default=6,
+                        help="Number of days held out for testing (default: 6)")
+    parser.add_argument("--seed",         type=int, default=42,
+                        help="Random seed for train/test split (default: 42)")
+    parser.add_argument(
+        "--date-mode",
+        choices=("error", "offset", "concat"),
+        default="concat",
+        help=(
+            "How to handle multiple dates in the CSV  "
+            "(from SUMO-Demand-Generation-Pipeline/data_to_rou.py):\n"
+            "  concat  — Stack days 0, 1, … by ascending date order [default]\n"
+            "  offset  — Use (date − first_date).days as the day index\n"
+            "  error   — Fail if more than one distinct date is present"
+        ),
+    )
+    parser.add_argument(
+        "--write-sumocfg",
+        action="store_true",
+        help=(
+            "Write a simulation.sumocfg for sumo-gui visual inspection  "
+            "(from SUMO-Demand-Generation-Pipeline/data_to_rou.py). "
+            "Requires BuildNetwork.py to have already built the .net.xml."
+        ),
+    )
+    parser.add_argument(
+        "--sumocfg-out",
+        default="simulation.sumocfg",
+        help="Output path for the .sumocfg file (default: simulation.sumocfg)",
+    )
     args = parser.parse_args()
 
     print(f"Loading intersection config: {args.intersection}")
@@ -263,9 +417,9 @@ def main():
     print(f"Loading CSV: {args.csv}")
     df = load_csv(args.csv, col_map, active)
 
-    print("Assigning simulated day IDs …")
-    df     = assign_sim_days(df)
-    n_days = df["sim_day"].nunique()
+    print(f"Assigning simulated day IDs (date-mode={args.date_mode}) …")
+    df      = assign_sim_days(df, date_mode=args.date_mode)
+    n_days  = df["sim_day"].nunique()
     n_slots = df["start_time"].nunique()
     print(f"  {n_days} simulated days  |  {n_slots} slots per day")
 
@@ -284,7 +438,7 @@ def main():
 
     print("Creating train/test split …")
     split = split_days(n_days, args.test_days, args.seed)
-    # Build day_of_week map if available
+
     dow_map = {}
     if "day_of_week" in df.columns:
         for day_id in range(n_days):
@@ -315,7 +469,20 @@ def main():
     print(f"  Saved → {split_path}")
     print(f"\nEdge IDs written to flow files:")
     for d in active:
-        print(f"  {d}: {edge_in_id(d)} → {edge_out_id(d)}")
+        print(f"  {d}: {edge_in_id(d)} → {edge_out_id(OPPOSITE[d])}")
+
+    if args.write_sumocfg:
+        net_dir  = os.path.join(args.out_dir, "sumo", "network")
+        net_file = os.path.join(net_dir, f"{name}.net.xml")
+        if os.path.exists(net_file):
+            write_sumocfg(net_file, flows_dir, args.sumocfg_out,
+                          begin=27000, end=64800)
+        else:
+            print(
+                f"  Warning: network file not found at {net_file} — skipping sumocfg.\n"
+                f"  Run BuildNetwork.py first, then re-run with --write-sumocfg."
+            )
+
     print(f"\nDone. Run the RL trainer with:")
     print(f"  python train.py --data {args.out_dir}/processed/split.json")
 

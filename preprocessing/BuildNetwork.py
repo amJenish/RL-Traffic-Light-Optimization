@@ -5,6 +5,10 @@ Takes an intersection config (JSON) and generates a SUMO-compatible
 network using node, edge, connection, and traffic light files,
 then calls netconvert to produce the final .net.xml.
 
+Merged from SUMO-Demand-Generation-Pipeline/generate_edge_mapping.py:
+  - write_edge_mapping() — generates edge_mapping.csv after netconvert so
+    data_to_rou.py can be used with the built network without typing edge IDs.
+
 Usage:
     python build_network.py --config intersection_config.json
     python build_network.py --config intersection_config.json --out-dir data/sumo/network
@@ -32,8 +36,10 @@ Phases:
 """
 
 import argparse
+import csv
 import json
 import os
+import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -328,6 +334,54 @@ def write_tll(cfg: dict, out_dir: str) -> str:
 
 
 
+# EDGE MAPPING  (from generate_edge_mapping.py)
+
+def write_edge_mapping(cfg: dict, out_dir: str) -> str:
+    """
+    Generate edge_mapping.csv alongside the network files.
+
+    Computes all 12 (approach × movement) → [in_edge, out_edge] pairs
+    directly from the intersection config using the known naming convention
+    edge_{D}_in / edge_{D}_out produced by write_edges().
+
+    This file can then be passed to preprocessing/data_to_rou.py via
+    --edge-mapping so that tool can build rou.xml files without needing
+    to re-inspect the network geometry.
+
+    Ported from SUMO-Demand-Generation-Pipeline/generate_edge_mapping.py.
+    """
+    active  = cfg["active_approaches"]
+    name    = cfg["intersection_name"]
+    slug    = re.sub(r"[^a-zA-Z0-9]+", "_", name).strip("_")
+    mov_abbr = {"through": "t", "right": "r", "left": "l"}
+
+    rows = []
+    for d in active:
+        for movement, out_direction in TURN_TARGETS[d].items():
+            if out_direction not in active:
+                continue
+            rows.append({
+                "location_slug": slug,
+                "approach":      d.lower(),
+                "movement":      mov_abbr[movement],
+                "edges":         f"edge_{d}_in edge_{out_direction}_out",
+            })
+
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, "edge_mapping.csv")
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(
+            f, fieldnames=["location_slug", "approach", "movement", "edges"]
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f"  Edge mapping written → {path}")
+    print(f"  Use with: python preprocessing/data_to_rou.py <csv> "
+          f"--net {out_dir}/{name}.net.xml --edge-mapping {path}")
+    return path
+
+
 # NETCONVERT CALL
 
 def run_netconvert(cfg: dict, out_dir: str,
@@ -367,6 +421,9 @@ def run_netconvert(cfg: dict, out_dir: str,
 
     # Step 2 — post-process: apply our timing constraints to phases
     _apply_timing_constraints(out_net, min_green, max_green, amber_s, mode)
+
+    # Step 3 — generate edge_mapping.csv for use with data_to_rou.py
+    write_edge_mapping(cfg, out_dir)
 
     print(f"  Network written → {out_net}")
     return out_net
