@@ -1,0 +1,44 @@
+[
+  {
+    "total_reward": -61.4375,
+    "steps": 252,
+    "mean_loss": null,
+    "epsilon": null,
+    "day_id": 1
+  },
+  {
+    "total_reward": -59.1875,
+    "steps": 252,
+    "mean_loss": null,
+    "epsilon": null,
+    "day_id": 7
+  },
+  {
+    "total_reward": -62.0,
+    "steps": 252,
+    "mean_loss": null,
+    "epsilon": null,
+    "day_id": 15
+  },
+  {
+    "total_reward": -56.0,
+    "steps": 252,
+    "mean_loss": null,
+    "epsilon": null,
+    "day_id": 17
+  },
+  {
+    "total_reward": -46.75,
+    "steps": 252,
+    "mean_loss": null,
+    "epsilon": null,
+    "day_id": 40
+  },
+  {
+    "total_reward": -49.125,
+    "steps": 252,
+    "mean_loss": null,
+    "epsilon": null,
+    "day_id": 47
+  }
+]
