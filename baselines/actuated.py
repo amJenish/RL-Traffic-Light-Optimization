@@ -28,11 +28,6 @@ normalised halting-vehicle counts for each controlled lane (0.0–1.0,
 where 1.0 = max_vehicles halting on that lane).  All remaining elements
 (phase info, temporal encoding) are ignored by this policy.
 
-    obs[0 : max_lanes]   →  normalised halting count per lane
-    obs[max_lanes]       →  phase_norm          (ignored)
-    obs[max_lanes + 1]   →  time_in_phase_norm  (ignored)
-    obs[max_lanes + 2:]  →  hour/dow sin-cos     (ignored)
-
 Queue metric
 -------------
 The policy computes the mean normalised halting count across all
@@ -57,16 +52,16 @@ Usage
     from baselines.actuated import ActuatedPolicy
 
     policy = ActuatedPolicy(
-        max_lanes       = 16,    # must match QueueObservation max_lanes
-        min_green_steps = 1,     # min_green_s / decision_gap
-        max_green_steps = 3,     # max_green_s / decision_gap
-        queue_threshold = 0.1,   # ~2 vehicles out of max_vehicles=20
+        max_lanes = 16, # must match QueueObservation max_lanes
+        min_green_steps = 1, # min_green_s / decision_gap
+        max_green_steps = 3, # max_green_s / decision_gap
+        queue_threshold = 0.1, # ~2 vehicles out of max_vehicles=20
     )
     agent = Agent(
-        environment   = env,
-        observation   = obs_builder,
-        reward        = reward,
-        policy        = policy,
+        environment = env,
+        observation = obs_builder,
+        reward = reward,
+        policy = policy,
         replay_buffer = replay_buffer,
     )
 """
@@ -86,8 +81,8 @@ _ROOT = os.path.dirname(_HERE)
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from modelling.components.policy.base import BasePolicy                  # noqa: E402
-from modelling.components.replay_buffer.base import BaseReplayBuffer     # noqa: E402
+from modelling.components.policy.base import BasePolicy                  
+from modelling.components.replay_buffer.base import BaseReplayBuffer     
 
 
 class ActuatedPolicy(BasePolicy):
@@ -100,9 +95,9 @@ class ActuatedPolicy(BasePolicy):
     ``min_green_steps`` (prevents oscillation).
 
     Args:
-        max_lanes:       Number of lane slots in the observation vector.
-                         Must match ``QueueObservation.max_lanes``
-                         (default 16 from config.json).
+        max_lanes:  Number of lane slots in the observation vector.
+                    Must match ``QueueObservation.max_lanes``
+                    (default 16 from config.json).
         min_green_steps: Minimum decision steps before any switch is allowed.
                          Derive from intersection.json: min_green_s ÷ decision_gap.
         max_green_steps: Maximum decision steps before a switch is forced.
@@ -130,7 +125,7 @@ class ActuatedPolicy(BasePolicy):
         if not (0.0 <= queue_threshold <= 1.0):
             raise ValueError("queue_threshold must be in [0.0, 1.0]")
 
-        self._max_lanes       = max_lanes
+        self._max_lanes = max_lanes
         self._min_green_steps = min_green_steps
         self._max_green_steps = max_green_steps
         self._queue_threshold = queue_threshold
@@ -176,10 +171,10 @@ class ActuatedPolicy(BasePolicy):
 
         Decision logic (evaluated in priority order)
         ---------------------------------------------
-        1. steps >= max_green_steps          → must switch   (action 1)
-        2. steps <  min_green_steps          → cannot switch  (action 0)
-        3. mean_queue < queue_threshold      → queue drained, switch (action 1)
-        4. otherwise                         → queue still active, hold (action 0)
+        1. steps >= max_green_steps → must switch   (action 1)
+        2. steps < min_green_steps → cannot switch  (action 0)
+        3. mean_queue < queue_threshold → queue drained, switch (action 1)
+        4. otherwise → queue still active, hold (action 0)
 
         Args:
             obs:    Observation vector from QueueObservation. The first
@@ -192,7 +187,7 @@ class ActuatedPolicy(BasePolicy):
         if tls_id not in self._steps_since_switch:
             self._steps_since_switch[tls_id] = self._min_green_steps
 
-        steps      = self._steps_since_switch[tls_id]
+        steps = self._steps_since_switch[tls_id]
         mean_queue = self._mean_queue(obs)
 
         # Priority 1 — hard upper bound
@@ -230,8 +225,8 @@ class ActuatedPolicy(BasePolicy):
         """Save policy configuration to a JSON file."""
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         config = {
-            "policy":          "ActuatedPolicy",
-            "max_lanes":       self._max_lanes,
+            "policy": "ActuatedPolicy",
+            "max_lanes": self._max_lanes,
             "min_green_steps": self._min_green_steps,
             "max_green_steps": self._max_green_steps,
             "queue_threshold": self._queue_threshold,
@@ -243,7 +238,7 @@ class ActuatedPolicy(BasePolicy):
         """Load policy configuration from a JSON file."""
         with open(path) as f:
             config = json.load(f)
-        self._max_lanes       = config["max_lanes"]
+        self._max_lanes = config["max_lanes"]
         self._min_green_steps = config["min_green_steps"]
         self._max_green_steps = config["max_green_steps"]
         self._queue_threshold = config["queue_threshold"]

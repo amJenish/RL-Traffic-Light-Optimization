@@ -64,37 +64,37 @@ def _build_agent(cfg: dict, int_cfg: dict, policy, sumo_home: str, gui: bool):
     _check_file(net_file, f"SUMO network file")
 
     obs_builder = QueueObservation(
-        max_lanes      = ocfg["max_lanes"],
-        max_phase      = ocfg["max_phase"],
+        max_lanes = ocfg["max_lanes"],
+        max_phase = ocfg["max_phase"],
         max_phase_time = ocfg["max_phase_time"],
-        max_vehicles   = ocfg["max_vehicles"],
+        max_vehicles = ocfg["max_vehicles"],
     )
 
     environment = SumoEnvironment(
-        net_file     = net_file,
-        step_length  = scfg["step_length"],
+        net_file = net_file,
+        step_length = scfg["step_length"],
         decision_gap = scfg["decision_gap"],
-        gui          = gui,
-        sumo_home    = sumo_home,
-        begin        = scfg.get("begin", 27000),
-        end          = scfg.get("end",   64800),
+        gui = gui,
+        sumo_home = sumo_home,
+        begin = scfg.get("begin", 27000),
+        end = scfg.get("end",   64800),
     )
 
     reward = WaitTimeReward(
         normalise = rcfg["normalise"],
-        scale     = rcfg["scale"],
+        scale = rcfg["scale"],
     )
 
     replay_buffer = UniformReplayBuffer(
         capacity = cfg["replay_buffer"]["capacity"],
-        seed     = cfg["training"]["seed"],
+        seed = cfg["training"]["seed"],
     )
 
     return Agent(
-        environment   = environment,
-        observation   = obs_builder,
-        reward        = reward,
-        policy        = policy,
+        environment = environment,
+        observation = obs_builder,
+        reward = reward,
+        policy = policy,
         replay_buffer = replay_buffer,
     )
 
@@ -125,18 +125,18 @@ def _run_baseline(
     agent = _build_agent(cfg, int_cfg, policy, sumo_home, gui)
 
     split_path = os.path.join(cfg["output"]["out_dir"], "processed", "split.json")
-    flows_dir  = os.path.join(cfg["output"]["out_dir"], "sumo", "flows")
-    tmp_dir    = os.path.join(
+    flows_dir = os.path.join(cfg["output"]["out_dir"], "sumo", "flows")
+    tmp_dir = os.path.join(
         cfg["output"]["models_dir"],
         f"_tmp_{name.lower().replace(' ', '_').replace('-', '_')}",
     )
 
     trainer = Trainer(
-        agent      = agent,
+        agent = agent,
         split_path = split_path,
-        flows_dir  = flows_dir,
+        flows_dir = flows_dir,
         output_dir = tmp_dir,
-        n_epochs   = 0,
+        n_epochs = 0,
     )
 
     results = trainer.run()
@@ -152,11 +152,11 @@ def _print_table(logs: dict) -> None:
     _banner("Results Comparison")
 
     day_ids = sorted({m["day_id"] for entries in logs.values() for m in entries})
-    col_w   = 16
+    col_w = 16
 
     # Header
     header = f"{'Day':<6}" + "".join(f"{name:>{col_w}}" for name in logs)
-    sep    = "-" * len(header)
+    sep = "-" * len(header)
     print(header)
     print(sep)
 
@@ -214,7 +214,7 @@ def main():
         sys.path.insert(0, root)
 
     # Validate inputs
-    _check_file(args.config,       "config.json")
+    _check_file(args.config, "config.json")
     _check_file(args.intersection, "intersection.json")
     if not args.sumo_home:
         _abort(
@@ -242,11 +242,11 @@ def main():
 
     fixed_policy = FixedTimePolicy(
         fixed_green_steps = 30,      # one switch every 30 × 150 s = 75 min
-        min_green_steps   = min_green,
-        max_green_steps   = max_green,
+        min_green_steps = min_green,
+        max_green_steps = max_green,
     )
     actuated_policy = ActuatedPolicy(
-        max_lanes       = max_lanes,
+        max_lanes = max_lanes,
         min_green_steps = min_green,
         max_green_steps = max_green,
         queue_threshold = 0.1,       # ~2 vehicles per lane (max_vehicles=20)
@@ -258,13 +258,13 @@ def main():
     print(f"  SUMO home     : {args.sumo_home}")
 
     # Run evaluations
-    fixed_log    = _run_baseline("Fixed-Time", fixed_policy,    cfg, int_cfg, args.sumo_home, args.gui)
+    fixed_log = _run_baseline("Fixed-Time", fixed_policy,    cfg, int_cfg, args.sumo_home, args.gui)
     actuated_log = _run_baseline("Actuated",   actuated_policy, cfg, int_cfg, args.sumo_home, args.gui)
 
     # Persist results
-    models_dir    = cfg["output"]["models_dir"]
+    models_dir = cfg["output"]["models_dir"]
     os.makedirs(models_dir, exist_ok=True)
-    fixed_path    = os.path.join(models_dir, "baseline_fixed_time_log.json")
+    fixed_path = os.path.join(models_dir, "baseline_fixed_time_log.json")
     actuated_path = os.path.join(models_dir, "baseline_actuated_log.json")
 
     with open(fixed_path, "w") as f:
@@ -286,7 +286,7 @@ def main():
         print(f"\nNote: {dqn_path} not found — DQN omitted from comparison table.")
 
     logs["Fixed-Time"] = fixed_log
-    logs["Actuated"]   = actuated_log
+    logs["Actuated"] = actuated_log
 
     _print_table(logs)
 

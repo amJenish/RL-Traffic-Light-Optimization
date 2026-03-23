@@ -2,10 +2,10 @@
 Generates comparison plots for Fixed-Time, Actuated, and DQN policies.
 
 Produces four figures saved to src/data/models/plots/:
-  1. bar_mean_reward.png     — mean total reward per model
-  2. box_reward_dist.png     — reward distribution across the 6 test days
+  1. bar_mean_reward.png — mean total reward per model
+  2. box_reward_dist.png — reward distribution across the 6 test days
   3. line_reward_per_day.png — per-day reward for all three models overlaid
-  4. learning_curve.png      — DQN training reward over 150 episodes
+  4. learning_curve.png — DQN training reward over 150 episodes
 """
 
 import json
@@ -16,22 +16,22 @@ import numpy as np
 
 # ── paths ─────────────────────────────────────────────────────────────────────
 MODELS_DIR = pathlib.Path("src/data/models")
-PLOTS_DIR  = MODELS_DIR / "plots"
+PLOTS_DIR = MODELS_DIR / "plots"
 PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 def _load(name: str) -> list[dict]:
     with open(MODELS_DIR / name) as f:
         return json.load(f)
 
-fixed_log    = _load("baseline_fixed_time_log.json")
+fixed_log = _load("baseline_fixed_time_log.json")
 actuated_log = _load("baseline_actuated_log.json")
-dqn_log      = _load("test_log.json")
-train_log    = _load("train_log.json")
+dqn_log = _load("test_log.json")
+train_log = _load("train_log.json")
 
 # ── helpers ───────────────────────────────────────────────────────────────────
-MODELS   = ["Fixed-Time", "Actuated", "DQN"]
-COLORS   = ["#4C72B0", "#DD8452", "#55A868"]
-LOGS     = [fixed_log, actuated_log, dqn_log]
+MODELS = ["Fixed-Time", "Actuated", "DQN"]
+COLORS = ["#4C72B0", "#DD8452", "#55A868"]
+LOGS = [fixed_log, actuated_log, dqn_log]
 
 def rewards(log):
     return [entry["total_reward"] for entry in log]
@@ -52,7 +52,7 @@ plt.rcParams.update(STYLE)
 # ── 1. Bar chart — mean reward ─────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(6, 4))
 means = [np.mean(rewards(log)) for log in LOGS]
-bars  = ax.bar(MODELS, means, color=COLORS, width=0.5, zorder=3)
+bars = ax.bar(MODELS, means, color=COLORS, width=0.5, zorder=3)
 ax.bar_label(bars, fmt="%.2f", padding=4, fontsize=9)
 ax.set_ylabel("Mean Total Reward")
 ax.set_title("Mean Test Reward by Policy")
@@ -115,7 +115,7 @@ plt.close(fig)
 print("Saved line_reward_per_day.png")
 
 # ── 4. Learning curve — DQN training ─────────────────────────────────────
-episodes  = [e["episode"]      for e in train_log]
+episodes = [e["episode"]      for e in train_log]
 tr_reward = [e["total_reward"] for e in train_log]
 
 # Smooth with a rolling mean for readability

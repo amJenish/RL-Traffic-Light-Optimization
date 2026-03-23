@@ -37,15 +37,15 @@ Usage
     from baselines.fixed_time import FixedTimePolicy
 
     policy = FixedTimePolicy(
-        fixed_green_steps = 6,      # hold green for 6 × 30 s = 3 min
-        min_green_steps   = 1,      # from intersection.json min_green_s / decision_gap
-        max_green_steps   = 3,      # from intersection.json max_green_s / decision_gap
+        fixed_green_steps = 6, # hold green for 6 × 30 s = 3 min
+        min_green_steps = 1, # from intersection.json min_green_s / decision_gap
+        max_green_steps = 3, # from intersection.json max_green_s / decision_gap
     )
     agent = Agent(
-        environment   = env,
-        observation   = obs_builder,
-        reward        = reward,
-        policy        = policy,
+        environment = env,
+        observation = obs_builder,
+        reward = reward,
+        policy = policy,
         replay_buffer = replay_buffer,
     )
 """
@@ -84,12 +84,12 @@ class FixedTimePolicy(BasePolicy):
                            green phase before switching.  One decision step
                            equals ``decision_gap × step_length`` simulation
                            seconds (default config: 30 × 5 s = 150 s).
-        min_green_steps:   Minimum steps that must pass before a switch is
-                           allowed.  Should be derived from intersection.json
-                           ``min_green_s`` ÷ decision_gap.
-        max_green_steps:   Maximum steps before a switch is forced.
-                           Should be derived from intersection.json
-                           ``max_green_s`` ÷ decision_gap.
+        min_green_steps: Minimum steps that must pass before a switch is
+                         allowed.  Should be derived from intersection.json
+                         ``min_green_s`` ÷ decision_gap.
+        max_green_steps: Maximum steps before a switch is forced.
+                         Should be derived from intersection.json
+                         ``max_green_s`` ÷ decision_gap.
     """
 
     def __init__(
@@ -106,8 +106,8 @@ class FixedTimePolicy(BasePolicy):
             raise ValueError("max_green_steps must be >= min_green_steps")
 
         self._fixed_green_steps = fixed_green_steps
-        self._min_green_steps   = min_green_steps
-        self._max_green_steps   = max_green_steps
+        self._min_green_steps = min_green_steps
+        self._max_green_steps = max_green_steps
 
         # Step counter per traffic light ID, reset each episode.
         self._steps_since_switch: dict[str, int] = {}
@@ -128,7 +128,7 @@ class FixedTimePolicy(BasePolicy):
         4. Otherwise                                 → hold (action 0).
 
         Args:
-            obs:    Observation vector (not used — fixed-time ignores queue state).
+            obs: Observation vector (not used — fixed-time ignores queue state).
             tls_id: Traffic light ID for per-signal step tracking.
 
         Returns:
@@ -168,10 +168,10 @@ class FixedTimePolicy(BasePolicy):
         """Save policy configuration to a JSON file."""
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         config = {
-            "policy":            "FixedTimePolicy",
+            "policy": "FixedTimePolicy",
             "fixed_green_steps": self._fixed_green_steps,
-            "min_green_steps":   self._min_green_steps,
-            "max_green_steps":   self._max_green_steps,
+            "min_green_steps": self._min_green_steps,
+            "max_green_steps": self._max_green_steps,
         }
         with open(path, "w") as f:
             json.dump(config, f, indent=2)
@@ -181,8 +181,8 @@ class FixedTimePolicy(BasePolicy):
         with open(path) as f:
             config = json.load(f)
         self._fixed_green_steps = config["fixed_green_steps"]
-        self._min_green_steps   = config["min_green_steps"]
-        self._max_green_steps   = config["max_green_steps"]
+        self._min_green_steps = config["min_green_steps"]
+        self._max_green_steps = config["max_green_steps"]
 
     # ------------------------------------------------------------------
     # MODE SWITCHING  (no-op — no exploration to enable/disable)
