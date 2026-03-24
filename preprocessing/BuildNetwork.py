@@ -78,58 +78,115 @@ TURN_TARGETS = {
 # PHASE DEFINITIONS
 
 
-def build_phases(active: list[str], mode: str, amber_s: int, min_green_s: int,
-                 cycle_s: int) -> list[dict]:
-    """
-    Returns a list of phase dicts:
-      { "duration": int, "state": str, "name": str }
-    state string length = number of controlled links (computed later).
-    For now we return symbolic phase specs; state strings are filled in
-    build_tll() once we know the exact link order.
-    """
-    # Each phase dict carries a set of "green groups" — which approach+movement
-    # gets green. The actual state string is built from these.
-    has_ns = "N" in active and "S" in active
-    has_ew = "E" in active and "W" in active
+def _has_movement(approaches: dict, active: list[str], group: list[str],
+                  movement: str) -> bool:
+    """True if any approach in *group* that is also *active* has lanes for *movement*.
+    When no lane config is provided for an approach, the movement is assumed to exist."""
+    for d in group:
+        if d not in active:
+            continue
+        app = approaches.get(d)
+        if app is None:
+            return True
+        if app.get("lanes", {}).get(movement, 0) > 0:
+            return True
+    return False
 
-    green_time = (cycle_s - 2 * amber_s) // (2 if mode == "2" else 4)
+
+def build_phases(active: list[str], mode: str, amber_s: int, min_green_s: int,
+                 cycle_s: int, approaches: dict | None = None) -> list[dict]:
+    """
+    Build phase specs driven by the intersection config.
+
+    Only includes a dedicated left-turn phase (in 4-phase mode) if at least
+    one approach in the group actually has left-turn lanes.  Only includes
+    a group (NS / EW) if at least one of its approaches is active.
+    """
+    if approaches is None:
+        approaches = {}
+
+    ns_dirs = [d for d in ("N", "S") if d in active]
+    ew_dirs = [d for d in ("E", "W") if d in active]
+
+    n_green_phases = 0
+    if ns_dirs:
+        n_green_phases += 1
+    if ew_dirs:
+        n_green_phases += 1
+    if mode == "4":
+        if ns_dirs and _has_movement(approaches, active, ns_dirs, "left"):
+            n_green_phases += 1
+        if ew_dirs and _has_movement(approaches, active, ew_dirs, "left"):
+            n_green_phases += 1
+
+    n_green_phases = max(n_green_phases, 1)
+    green_time = (cycle_s - n_green_phases * amber_s) // n_green_phases
     green_time = max(green_time, min_green_s)
     green_time = max(green_time, 10)
 
+    phases = []
+
     if mode == "2":
-        return [
-            {"name": "NS_green",  "green_groups": [("N","through"),("N","right"),("N","left"),
-                                                    ("S","through"),("S","right"),("S","left")],
-             "duration": green_time},
-            {"name": "NS_amber",  "green_groups": [], "amber_groups": [("N","all"),("S","all")],
-             "duration": amber_s},
-            {"name": "EW_green",  "green_groups": [("E","through"),("E","right"),("E","left"),
-                                                    ("W","through"),("W","right"),("W","left")],
-             "duration": green_time},
-            {"name": "EW_amber",  "green_groups": [], "amber_groups": [("E","all"),("W","all")],
-             "duration": amber_s},
-        ]
+        if ns_dirs:
+            grp = []
+            for d in ns_dirs:
+                for m in ("through", "right", "left"):
+                    grp.append((d, m))
+            phases.append({"name": "NS_green", "green_groups": grp,
+                           "duration": green_time})
+            phases.append({"name": "NS_amber", "green_groups": [],
+                           "amber_groups": [(d, "all") for d in ns_dirs],
+                           "duration": amber_s})
+
+        if ew_dirs:
+            grp = []
+            for d in ew_dirs:
+                for m in ("through", "right", "left"):
+                    grp.append((d, m))
+            phases.append({"name": "EW_green", "green_groups": grp,
+                           "duration": green_time})
+            phases.append({"name": "EW_amber", "green_groups": [],
+                           "amber_groups": [(d, "all") for d in ew_dirs],
+                           "duration": amber_s})
+
     else:  # 4-phase
-        return [
-            {"name": "NS_thru",   "green_groups": [("N","through"),("N","right"),
-                                                    ("S","through"),("S","right")],
-             "duration": green_time},
-            {"name": "NS_amber1", "green_groups": [], "amber_groups": [("N","thru"),("S","thru")],
-             "duration": amber_s},
-            {"name": "NS_left",   "green_groups": [("N","left"),("S","left")],
-             "duration": green_time},
-            {"name": "NS_amber2", "green_groups": [], "amber_groups": [("N","left"),("S","left")],
-             "duration": amber_s},
-            {"name": "EW_thru",   "green_groups": [("E","through"),("E","right"),
-                                                    ("W","through"),("W","right")],
-             "duration": green_time},
-            {"name": "EW_amber1", "green_groups": [], "amber_groups": [("E","thru"),("W","thru")],
-             "duration": amber_s},
-            {"name": "EW_left",   "green_groups": [("E","left"),("W","left")],
-             "duration": green_time},
-            {"name": "EW_amber2", "green_groups": [], "amber_groups": [("E","left"),("W","left")],
-             "duration": amber_s},
-        ]
+        if ns_dirs:
+            thru_grp = []
+            for d in ns_dirs:
+                thru_grp.extend([(d, "through"), (d, "right")])
+            phases.append({"name": "NS_thru", "green_groups": thru_grp,
+                           "duration": green_time})
+            phases.append({"name": "NS_amber1", "green_groups": [],
+                           "amber_groups": [(d, "all") for d in ns_dirs],
+                           "duration": amber_s})
+
+            if _has_movement(approaches, active, ns_dirs, "left"):
+                left_grp = [(d, "left") for d in ns_dirs]
+                phases.append({"name": "NS_left", "green_groups": left_grp,
+                               "duration": green_time})
+                phases.append({"name": "NS_amber2", "green_groups": [],
+                               "amber_groups": [(d, "left") for d in ns_dirs],
+                               "duration": amber_s})
+
+        if ew_dirs:
+            thru_grp = []
+            for d in ew_dirs:
+                thru_grp.extend([(d, "through"), (d, "right")])
+            phases.append({"name": "EW_thru", "green_groups": thru_grp,
+                           "duration": green_time})
+            phases.append({"name": "EW_amber1", "green_groups": [],
+                           "amber_groups": [(d, "all") for d in ew_dirs],
+                           "duration": amber_s})
+
+            if _has_movement(approaches, active, ew_dirs, "left"):
+                left_grp = [(d, "left") for d in ew_dirs]
+                phases.append({"name": "EW_left", "green_groups": left_grp,
+                               "duration": green_time})
+                phases.append({"name": "EW_amber2", "green_groups": [],
+                               "amber_groups": [(d, "left") for d in ew_dirs],
+                               "duration": amber_s})
+
+    return phases
 
 def write_nodes(cfg: dict, out_dir: str) -> str:
     active   = cfg["active_approaches"]
@@ -259,7 +316,8 @@ def write_tll(cfg: dict, out_dir: str) -> str:
     min_green  = cfg.get("min_green_s", 15)
     cycle_s    = cfg.get("cycle_s", 120)
 
-    phases = build_phases(active, mode, amber_s, min_green, cycle_s)
+    phases = build_phases(active, mode, amber_s, min_green, cycle_s,
+                          approaches=cfg.get("approaches", {}))
 
     # Build ordered link list: (from_edge, to_edge, from_lane)
     # This defines the state string order

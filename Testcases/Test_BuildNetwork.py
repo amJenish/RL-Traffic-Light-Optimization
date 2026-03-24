@@ -184,10 +184,19 @@ class TestBuildPhases(unittest.TestCase):
         self.assertIn("EW_green", names)
 
     def test_4phase_has_left_turn_phases(self):
-        phases = bn.build_phases(["N","S","E","W"], "4", 3, 15, 120)
+        approaches = {d: {"lanes": {"through": 2, "right": 1, "left": 1}} for d in "NSEW"}
+        phases = bn.build_phases(["N","S","E","W"], "4", 3, 15, 120, approaches)
         names  = [p["name"] for p in phases]
         self.assertIn("NS_left", names)
         self.assertIn("EW_left", names)
+
+    def test_4phase_no_left_lanes_skips_left_phases(self):
+        approaches = {d: {"lanes": {"through": 2, "right": 1, "left": 0}} for d in "NSEW"}
+        phases = bn.build_phases(["N","S","E","W"], "4", 3, 15, 120, approaches)
+        names  = [p["name"] for p in phases]
+        self.assertNotIn("NS_left", names)
+        self.assertNotIn("EW_left", names)
+        self.assertEqual(len(phases), 4)
 
     def test_amber_phases_have_no_green_groups(self):
         phases = bn.build_phases(["N","S","E","W"], "2", 3, 15, 120)
@@ -482,7 +491,7 @@ class TestWriteTll(unittest.TestCase):
                          f"State strings have inconsistent lengths: {lengths}")
 
     def test_state_strings_only_contain_valid_chars(self):
-        valid = set("GyrR")
+        valid = set("GgyrR")
         for ph in self.tl.findall("phase"):
             state = ph.get("state", "")
             bad   = set(state) - valid

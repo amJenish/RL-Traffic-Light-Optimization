@@ -1,6 +1,0 @@
-{
-  "policy": "FixedTimePolicy",
-  "fixed_green_steps": 1,
-  "min_green_steps": 1,
-  "max_green_steps": 1
-}

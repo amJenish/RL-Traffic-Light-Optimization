@@ -1,23 +1,25 @@
 """
-modeling/components/policy/dqn.py
------------------------------------
-Deep Q-Network (DQN) policy implementation.
+modeling/components/policy/double_dqn.py
+------------------------------------------
+Double DQN policy implementation.
+
+Fixes vanilla DQN's overestimation bias by decoupling action selection
+from action evaluation in the Bellman target:
+
+    Vanilla DQN:   r + gamma * max_a' Q_target(s', a')
+    Double  DQN:   r + gamma * Q_target(s', argmax_a' Q_online(s', a'))
+
+The online network picks the best next action, but the target network
+evaluates it.  Everything else (architecture, epsilon-greedy, replay,
+target sync) is identical to DQN.
 
 Architecture:
-    Linear(obs_dim → 128) → ReLU
-    Linear(128 → 128)     → ReLU
-    Linear(128 → n_actions)
-
-Training:
-    - Epsilon-greedy exploration with linear decay
-    - Experience replay via the passed replay buffer
-    - Periodic target network synchronisation
-    - Bellman target: r + gamma * (1 - done) * max_a' Q_target(s', a')
-    - MSE loss
+    Linear(obs_dim -> hidden) -> ReLU
+    Linear(hidden  -> hidden) -> ReLU
+    Linear(hidden  -> n_actions)
 """
 
 import os
-from typing import Any
 
 import numpy as np
 import torch
@@ -26,7 +28,6 @@ import torch.optim as optim
 
 from .base import BasePolicy
 from ..replay_buffer.base import BaseReplayBuffer
-
 
 
 # NEURAL NETWORK
@@ -47,15 +48,18 @@ class _QNetwork(nn.Module):
 
 
 
-# DQN POLICY
+# DOUBLE DQN POLICY
 
-class DQNPolicy(BasePolicy):
+class DoubleDQNPolicy(BasePolicy):
     """
-    Deep Q-Network policy with epsilon-greedy exploration.
+    Double DQN policy with epsilon-greedy exploration.
 
     Pure learning component — selects actions based on Q-values with
     epsilon-greedy exploration.  Phase timing constraints (min/max green)
     are enforced by the Agent, not here.
+
+    The only difference from vanilla DQN is the Bellman target computation
+    in update().
 
     Args:
         obs_dim:          Size of the observation vector.
@@ -129,7 +133,11 @@ class DQNPolicy(BasePolicy):
 
     def update(self, replay_buffer: BaseReplayBuffer) -> float | None:
         """
-        One DQN update step using a batch from the replay buffer.
+        Double DQN update step.
+
+        Key difference from vanilla DQN: the online network selects
+        the best next action, but the target network evaluates its value.
+        This reduces the overestimation bias inherent in standard DQN.
 
         Returns loss value or None if buffer not ready.
         """
@@ -145,14 +153,17 @@ class DQNPolicy(BasePolicy):
         next_states = torch.tensor(next_states, device=self._device)
         dones       = torch.tensor(dones,       device=self._device)
 
-        # Current Q values
         q_current = self._online(states).gather(
             1, actions.unsqueeze(1)
         ).squeeze(1)
 
-        # Bellman target
         with torch.no_grad():
-            q_next  = self._target(next_states).max(1).values
+            # Online network picks the best next action
+            best_next_actions = self._online(next_states).argmax(1)
+            # Target network evaluates that action's value
+            q_next = self._target(next_states).gather(
+                1, best_next_actions.unsqueeze(1)
+            ).squeeze(1)
             q_target = rewards + self._gamma * (1 - dones) * q_next
 
         loss = self._loss_fn(q_current, q_target)
@@ -161,14 +172,12 @@ class DQNPolicy(BasePolicy):
         loss.backward()
         self._optimiser.step()
 
-        # Decay epsilon
         if not self._eval_mode:
             self._epsilon = max(
                 self._epsilon_end,
                 self._epsilon * self._epsilon_decay,
             )
 
-        # Sync target network
         self._update_count += 1
         if self._update_count % self._target_update == 0:
             self._target.load_state_dict(self._online.state_dict())
@@ -194,7 +203,7 @@ class DQNPolicy(BasePolicy):
         self._online.load_state_dict(ck["online"])
         self._target.load_state_dict(ck["target"])
         self._optimiser.load_state_dict(ck["optimiser"])
-        self._epsilon     = ck.get("epsilon",      self._epsilon_end)
+        self._epsilon      = ck.get("epsilon",      self._epsilon_end)
         self._update_count = ck.get("update_count", 0)
 
     def set_eval_mode(self) -> None:

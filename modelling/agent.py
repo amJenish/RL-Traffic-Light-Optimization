@@ -5,6 +5,11 @@ The Agent holds all RL components and exposes a clean interface
 that the Trainer calls. It never builds components internally —
 all components are injected from outside.
 
+Decision timing is adaptive:
+  - During min_green lockout: fast-forward (no decisions, no transitions stored)
+  - After min_green expires:  decide every simulation step
+  - At max_green:             force switch
+
 Usage:
     agent = Agent(
         environment   = SumoEnvironment(...),
@@ -12,11 +17,15 @@ Usage:
         reward        = WaitTimeReward(...),
         policy        = DQNPolicy(...),
         replay_buffer = UniformReplayBuffer(...),
+        step_length   = 5.0,
+        min_green_s   = 15,
+        max_green_s   = 90,
     )
     trainer = Trainer(agent=agent, split=split_cfg)
     trainer.run()
 """
 
+import math
 import numpy as np
 from typing import Any
 
@@ -29,7 +38,10 @@ from modelling.components.replay_buffer.base import BaseReplayBuffer
 
 class Agent:
     """
-    Composes all RL components and coordinates a single episode step.
+    Composes all RL components with adaptive decision timing.
+
+    Phase timing constraints (min/max green) are enforced here so
+    the Policy stays a pure learning component.
 
     Args:
         environment:   Simulation wrapper (e.g. SumoEnvironment).
@@ -37,6 +49,9 @@ class Agent:
         reward:        Reward function (e.g. WaitTimeReward).
         policy:        Learning policy (e.g. DQNPolicy).
         replay_buffer: Experience store (e.g. UniformReplayBuffer).
+        step_length:   Simulation step size in seconds (must match environment).
+        min_green_s:   Minimum seconds a phase must stay before switching.
+        max_green_s:   Maximum seconds before a switch is forced.
     """
 
     def __init__(
@@ -46,12 +61,22 @@ class Agent:
         reward:        BaseReward,
         policy:        BasePolicy,
         replay_buffer: BaseReplayBuffer,
+        step_length:   float = 5.0,
+        min_green_s:   float = 15.0,
+        max_green_s:   float = 90.0,
     ):
         self.environment   = environment
         self.observation   = observation
         self.reward        = reward
         self.policy        = policy
         self.replay_buffer = replay_buffer
+
+        self._step_length       = step_length
+        self._min_green_steps   = max(1, math.ceil(min_green_s / step_length))
+        self._max_green_steps   = max(1, math.ceil(max_green_s / step_length))
+
+        # Per-TLS: how many sim steps since last phase switch
+        self._steps_in_phase: dict[str, int] = {}
 
         # Episode-level metrics
         self._episode_reward: float = 0.0
@@ -93,6 +118,10 @@ class Agent:
                 "a traffic light at J_centre."
             )
 
+        # Assume initial phase is already established
+        for tls_id in tls_ids:
+            self._steps_in_phase[tls_id] = self._min_green_steps
+
         return self._get_observations()
 
     def step(self, obs: dict[str, np.ndarray]) -> tuple[
@@ -102,59 +131,76 @@ class Agent:
         float | None,            # loss (if update performed)
     ]:
         """
-        Execute one decision step for all controlled traffic lights.
+        Execute one adaptive decision cycle.
 
-        1. Select actions for each tls_id
-        2. Apply actions to the simulation
-        3. Advance simulation by one decision gap
-        4. Collect next observations and rewards
-        5. Store transitions and perform a learning update
-
-        Args:
-            obs: Current observations keyed by tls_id.
-
-        Returns:
-            (next_obs, rewards, done, loss)
+        1. Fast-forward through any remaining min_green lockout
+        2. Observe current state (post fast-forward)
+        3. Select action (or force switch at max_green)
+        4. Apply action and advance 1 simulation step
+        5. Collect reward, store transition, update policy
         """
         tls_ids = self.environment.get_tls_ids()
 
-        # 1. Select actions
-        actions = {
-            tls_id: self.policy.select_action(obs[tls_id], tls_id)
-            for tls_id in tls_ids
-        }
+        # --- Fast-forward through min_green lockout ---
+        max_remaining = max(
+            max(0, self._min_green_steps - self._steps_in_phase.get(tid, self._min_green_steps))
+            for tid in tls_ids
+        )
 
-        # 2. Apply actions to SUMO
+        if max_remaining > 0:
+            self.environment.step(max_remaining)
+            for tid in tls_ids:
+                self._steps_in_phase[tid] = (
+                    self._steps_in_phase.get(tid, self._min_green_steps)
+                    + max_remaining
+                )
+
+            if self.environment.is_done():
+                return self._get_observations(), {}, True, None
+
+            obs = self._get_observations()
+
+        # --- Real decision point ---
+        actions = {}
+        for tid in tls_ids:
+            if self._steps_in_phase.get(tid, 0) >= self._max_green_steps:
+                actions[tid] = 1
+            else:
+                actions[tid] = self.policy.select_action(obs[tid], tid)
+
         self._apply_actions(actions)
 
-        # 3. Advance simulation
-        self.environment.step_decision()
+        # Advance by 1 simulation step
+        self.environment.step(1)
+        for tid in tls_ids:
+            if actions[tid] == 1:
+                self._steps_in_phase[tid] = 0
+            else:
+                self._steps_in_phase[tid] = (
+                    self._steps_in_phase.get(tid, 0) + 1
+                )
 
         done = self.environment.is_done()
 
-        # 4. Collect next observations and rewards
         next_obs = self._get_observations()
         rewards  = {
-            tls_id: self.reward.compute(self.environment.traci, tls_id)
-            for tls_id in tls_ids
+            tid: self.reward.compute(self.environment.traci, tid)
+            for tid in tls_ids
         }
 
-        # Cooperative reward — all agents share the sum
         total_reward = sum(rewards.values())
         self._episode_reward += total_reward
         self._episode_steps  += 1
 
-        # 5. Store transitions
-        for tls_id in tls_ids:
+        for tid in tls_ids:
             self.replay_buffer.push(
-                state      = obs[tls_id],
-                action     = actions[tls_id],
+                state      = obs[tid],
+                action     = actions[tid],
                 reward     = total_reward,
-                next_state = next_obs[tls_id],
+                next_state = next_obs[tid],
                 done       = float(done),
             )
 
-        # 6. Learning update
         loss = self.policy.update(self.replay_buffer)
         if loss is not None:
             self._episode_losses.append(loss)

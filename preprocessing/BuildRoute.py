@@ -269,13 +269,41 @@ def time_to_seconds(t):
     return h * 3600 + m * 60 + s
 
 
-def write_sumo_flows(df, active, slot_minutes, out_dir):
+def _allowed_movements(active, int_cfg):
+    """Return a set of (approach, movement) tuples that have physical lanes
+    AND whose turn target is an active approach (handles T-intersections)."""
+    allowed = set()
+    approaches = int_cfg.get("approaches", {})
+    for d in active:
+        lanes = approaches.get(d, {}).get("lanes", {})
+        for movement in ("through", "right", "left"):
+            if lanes.get(movement, 0) == 0:
+                continue
+            target = TURN_TARGETS.get(d, {}).get(movement)
+            if target and target in active:
+                allowed.add((d, movement))
+    return allowed
+
+
+def write_sumo_flows(df, active, slot_minutes, out_dir, int_cfg=None):
     os.makedirs(out_dir, exist_ok=True)
     slots_sorted = sorted(df["start_time"].unique())
     data_start   = time_to_seconds(slots_sorted[0])
     data_end     = time_to_seconds(slots_sorted[-1]) + slot_minutes * 60
     vph_factor   = 60.0 / slot_minutes
     n_days       = df["sim_day"].nunique()
+
+    if int_cfg is None:
+        int_cfg = {}
+
+    allowed = _allowed_movements(active, int_cfg)
+
+    max_speed_kmh = max(
+        (int_cfg.get("approaches", {}).get(d, {}).get("speed_kmh", 50)
+         for d in active),
+        default=50,
+    )
+    max_speed_ms = max_speed_kmh / 3.6
 
     for day_id in range(n_days):
         day_df = df[df["sim_day"] == day_id].sort_values("start_time")
@@ -286,7 +314,8 @@ def write_sumo_flows(df, active, slot_minutes, out_dir):
 
         vt = ET.SubElement(root, "vType")
         vt.set("id","passenger"); vt.set("accel","2.6"); vt.set("decel","4.5")
-        vt.set("sigma","0.5");    vt.set("length","5");  vt.set("maxSpeed","13.9")
+        vt.set("sigma","0.5");    vt.set("length","5")
+        vt.set("maxSpeed", f"{max_speed_ms:.2f}")
 
         fid = [0]
 
@@ -304,21 +333,21 @@ def write_sumo_flows(df, active, slot_minutes, out_dir):
             f.set("departSpeed", "max")
             fid[0] += 1
 
-        # Overnight baseline — distribute evenly across all three movements
-        if data_start > 0:
-            for d in active:
-                for movement, target in TURN_TARGETS[d].items():
-                    add_flow(0, data_start, d, target, OVERNIGHT_VPH / 3)
+        n_allowed = max(len(allowed), 1)
 
-        # Main data slots — one flow per approach per movement
+        if data_start > 0:
+            for d, movement in sorted(allowed):
+                target = TURN_TARGETS[d][movement]
+                add_flow(0, data_start, d, target, OVERNIGHT_VPH / n_allowed)
+
         for _, row in day_df.iterrows():
             begin = time_to_seconds(row["start_time"])
             end   = begin + slot_minutes * 60
-            for d in active:
-                for movement, target in TURN_TARGETS[d].items():
-                    add_flow(begin, end, d, target, row[f"{d}_{movement}"] * vph_factor)
+            for d, movement in sorted(allowed):
+                target = TURN_TARGETS[d][movement]
+                add_flow(begin, end, d, target,
+                         row[f"{d}_{movement}"] * vph_factor)
 
-        # Taper to overnight — preserve movement proportions from last data slot
         remaining = SIM_DURATION - data_end
         if remaining > 0:
             last_row = day_df.iloc[-1]
@@ -327,11 +356,12 @@ def write_sumo_flows(df, active, slot_minutes, out_dir):
                 t_frac = i / max(n_taper - 1, 1)
                 begin  = data_end + i * slot_minutes * 60
                 end    = min(begin + slot_minutes * 60, SIM_DURATION)
-                for d in active:
-                    for movement, target in TURN_TARGETS[d].items():
-                        last_vph = last_row[f"{d}_{movement}"] * vph_factor
-                        add_flow(begin, end, d, target,
-                                 last_vph * (1 - t_frac) + (OVERNIGHT_VPH / 3) * t_frac)
+                for d, movement in sorted(allowed):
+                    target = TURN_TARGETS[d][movement]
+                    last_vph = last_row[f"{d}_{movement}"] * vph_factor
+                    add_flow(begin, end, d, target,
+                             last_vph * (1 - t_frac)
+                             + (OVERNIGHT_VPH / n_allowed) * t_frac)
 
         raw   = ET.tostring(root, encoding="unicode")
         lines = minidom.parseString(raw).toprettyxml(indent="  ").split("\n")
@@ -454,7 +484,7 @@ def main():
     write_day_csvs(df, active, days_dir)
 
     print("Writing SUMO flow files …")
-    write_sumo_flows(df, active, slot_minutes, flows_dir)
+    write_sumo_flows(df, active, slot_minutes, flows_dir, int_cfg)
 
     print("Creating train/test split …")
     split = split_days(n_days, args.test_days, args.seed)

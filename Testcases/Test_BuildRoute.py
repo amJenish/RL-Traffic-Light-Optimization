@@ -37,7 +37,7 @@ SRC_DIR      = os.path.join(PROJECT_ROOT, "src")
 
 PATH_INTERSECTION = os.path.join(SRC_DIR, "intersection.json")
 PATH_COLUMNS      = os.path.join(SRC_DIR, "columns.json")
-PATH_CSV          = os.path.join(SRC_DIR, "data", "synthetic_toronto_data.xls")
+PATH_CSV          = os.path.join(SRC_DIR, "data", "synthetic_toronto_data.csv")
 PATH_BUILDROUTE   = os.path.join(PROJECT_ROOT, "preprocessing", "BuildRoute.py")
 
 # ---------------------------------------------------------------------------
@@ -50,7 +50,7 @@ def _check_required_files():
         ("preprocessing/BuildRoute.py",              PATH_BUILDROUTE),
         ("src/intersection.json",                    PATH_INTERSECTION),
         ("src/columns.json",                         PATH_COLUMNS),
-        ("src/data/synthetic_toronto_data.xls",      PATH_CSV),
+        ("src/data/synthetic_toronto_data.csv",      PATH_CSV),
     ]:
         if not os.path.exists(path):
             missing.append(f"  MISSING: {label}\n          expected at: {path}")
@@ -65,7 +65,7 @@ def _check_required_files():
         print("  │   ├── intersection.json")
         print("  │   ├── columns.json")
         print("  │   └── data/")
-        print("  │       └── synthetic_toronto_data.xls")
+        print("  │       └── synthetic_toronto_data.csv")
         print("  └── Testcases/")
         print("      └── test_BuildRoute.py")
         sys.exit(1)
@@ -99,9 +99,9 @@ with open(PATH_COLUMNS) as f:
 ACTIVE    = REAL_INTERSECTION["active_approaches"]
 SLOT_MINS = REAL_COLUMNS.get("slot_minutes", 15)
 
-N_DAYS  = 60
+N_DAYS  = 56
 N_SLOTS = 32
-N_TRAIN = 54
+N_TRAIN = 50
 N_TEST  = 6
 
 EXPECTED_FIRST_SLOT = "07:30:00"
@@ -214,7 +214,7 @@ class TestSimDayAssignment(unittest.TestCase):
     def test_correct_number_of_days(self):
         self.assertEqual(self.df["sim_day"].nunique(), N_DAYS)
 
-    def test_day_range_zero_to_59(self):
+    def test_day_range_zero_to_max(self):
         self.assertEqual(self.df["sim_day"].min(), 0)
         self.assertEqual(self.df["sim_day"].max(), N_DAYS - 1)
 
@@ -223,7 +223,7 @@ class TestSimDayAssignment(unittest.TestCase):
         self.assertTrue((counts == N_SLOTS).all())
 
     def test_slots_sorted_within_each_day(self):
-        for day_id in [0, 1, 30, 59]:
+        for day_id in [0, 1, 30, N_DAYS - 1]:
             times = self.df[self.df["sim_day"] == day_id]["start_time"].tolist()
             self.assertEqual(times, sorted(times))
 
@@ -251,7 +251,7 @@ class TestDayCSVFiles(unittest.TestCase):
             )
 
     def test_each_file_has_32_rows(self):
-        for i in [0, 1, 30, 59]:
+        for i in [0, 1, 30, N_DAYS - 1]:
             df = pd.read_csv(os.path.join(self.days_dir, f"day_{i:02d}.csv"))
             self.assertEqual(len(df), N_SLOTS)
 
@@ -269,7 +269,7 @@ class TestDayCSVFiles(unittest.TestCase):
         self.assertEqual(peds, [])
 
     def test_sim_day_matches_filename(self):
-        for i in [0, 15, 59]:
+        for i in [0, 15, N_DAYS - 1]:
             df = pd.read_csv(os.path.join(self.days_dir, f"day_{i:02d}.csv"))
             self.assertTrue((df["sim_day"] == i).all())
 
@@ -356,14 +356,18 @@ class TestSumoFlowFiles(unittest.TestCase):
                       if f.get("begin") == str(EXPECTED_DATA_START)]
         self.assertGreater(len(data_flows), 0)
 
-    def test_no_overlapping_flows_per_approach(self):
+    def test_no_overlapping_flows_per_route(self):
         root = ET.parse(os.path.join(self.flows_dir, "flows_day_00.rou.xml")).getroot()
-        for d in ACTIVE:
-            edge  = br.edge_in_id(d)
-            flows = sorted([(int(f.get("begin")), int(f.get("end")))
-                             for f in root.findall("flow") if f.get("from") == edge])
-            for i in range(len(flows) - 1):
-                self.assertLessEqual(flows[i][1], flows[i+1][0])
+        from collections import defaultdict
+        routes = defaultdict(list)
+        for f in root.findall("flow"):
+            key = (f.get("from"), f.get("to"))
+            routes[key].append((int(f.get("begin")), int(f.get("end"))))
+        for key, intervals in routes.items():
+            intervals.sort()
+            for i in range(len(intervals) - 1):
+                self.assertLessEqual(intervals[i][1], intervals[i+1][0],
+                                     f"Overlapping flows on route {key}")
 
     def test_all_vph_positive(self):
         root = ET.parse(os.path.join(self.flows_dir, "flows_day_00.rou.xml")).getroot()

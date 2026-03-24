@@ -3,30 +3,17 @@ main.py
 --------
 Single entry point for the full RL traffic signal optimisation pipeline.
 
-Steps:
-  1. Load config.json and validate all input files
-  2. Run BuildRoute  → day CSVs + SUMO flow files + split.json
-  3. Run BuildNetwork → SUMO .net.xml
-  4. Construct all components using config values
-  5. Construct Agent
-  6. Construct Trainer
-  7. Run training + evaluation
+All configuration lives at the top of this file. Edit the variables in the
+CONFIGURATION section to control file paths, data splits, component choices,
+hyperparameters, and output locations — then run:
 
-Usage:
-    python main.py \\
-        --csv           src/data/synthetic_toronto_data.xls \\
-        --intersection  src/intersection.json \\
-        --columns       src/columns.json \\
-        --sumo-home     "C:\\Program Files (x86)\\Eclipse\\Sumo"
-
-    python main.py \\
-        --csv           src/data/synthetic_toronto_data.xls \\
-        --intersection  src/intersection.json \\
-        --columns       src/columns.json \\
-        --sumo-home     "C:\\Program Files (x86)\\Eclipse\\Sumo" \\
-        --config        config.json \\
-        --gui
+    python main.py
+    python main.py --gui
 """
+
+# ---------------------------------------------------------------------------
+# IMPORTS
+# ---------------------------------------------------------------------------
 
 import argparse
 import importlib.util
@@ -34,13 +21,95 @@ import json
 import os
 import sys
 
+ROOT = os.path.dirname(os.path.abspath(__file__))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
-# ---------------------------------------------------------------------------
-# HELPERS
-# ---------------------------------------------------------------------------
+from modelling.components.environment.sumo_environment import SumoEnvironment
+from modelling.components.observation.queue_observation import QueueObservation
+from modelling.components.reward.wait_time              import WaitTimeReward
+from modelling.components.policy.dqn                    import DQNPolicy
+from modelling.components.replay_buffer.uniform         import UniformReplayBuffer
+from modelling.agent   import Agent
+from modelling.trainer import Trainer
+
+
+
+#  CONFIGURATIONS - these variables control the entire pipeline
+
+
+#  File Paths ------------------------------------------------------------
+CSV_PATH          = "src/data/synthetic_toronto_data.csv"
+INTERSECTION_PATH = "src/intersection.json"
+COLUMNS_PATH      = "src/columns.json"
+SUMO_HOME         = os.environ.get(
+    "SUMO_HOME", r"C:\Program Files (x86)\Eclipse\Sumo"
+)
+
+# Data Split & Training -------------------------------------------------
+TRAIN_SIZE = 5          # number of days of data used for training
+TEST_SIZE  = 5          # number of days held out for testing
+EPOCHS     = 60        # full passes through the training days
+
+# --- Component Selection ---------------------------------------------------
+#   Swap any of these to use a different implementation.
+EnvironmentClass  = SumoEnvironment
+ObservationClass  = QueueObservation
+RewardClass       = WaitTimeReward
+PolicyClass       = DQNPolicy
+ReplayBufferClass = UniformReplayBuffer
+
+# --- Simulation ------------------------------------------------------------
+STEP_LENGTH  = 10.0       # SUMO simulation step (seconds)
+SIM_BEGIN    = 28800      # sim start time (seconds)
+SIM_END      = 50400      # sim end time
+
+# --- Phase Timing ----------------------------------------------------------
+#   min/max green are in SECONDS. The Agent converts to sim steps internally.
+#   Between min and max, the agent decides every simulation step whether to
+#   switch or hold. Below min it fast-forwards; at max it forces a switch.
+MIN_GREEN_S  = 15        # minimum seconds a phase stays green
+MAX_GREEN_S  = 90        # maximum seconds before forced switch
+
+# --- Observation -----------------------------------------------------------
+MAX_LANES      = 16
+MAX_PHASE      = 3
+MAX_PHASE_TIME = 120.0
+MAX_VEHICLES   = 20
+
+# --- Reward ----------------------------------------------------------------
+REWARD_NORMALISE = True
+REWARD_SCALE     = 1.0
+
+# --- Policy (DQN) ---------------------------------------------------------
+LEARNING_RATE  = 0.001
+GAMMA          = 0.99
+EPSILON_START  = 1.0
+EPSILON_END    = 0.05
+EPSILON_DECAY  = 0.99998415
+TARGET_UPDATE  = 50
+BATCH_SIZE     = 128
+HIDDEN_SIZE    = 128
+N_ACTIONS      = 2       # 0 = keep phase, 1 = advance phase
+
+# --- Replay Buffer ---------------------------------------------------------
+BUFFER_CAPACITY = 100_000
+
+# --- Misc ------------------------------------------------------------------
+SEED       = 42
+SAVE_EVERY = 20          # save checkpoint every N episodes
+LOG_EVERY  = 1           # print metrics every N episodes
+
+# --- Output ----------------------------------------------------------------
+OUT_DIR    = "src/data"
+MODELS_DIR = "src/data/models"
+
+
+# ===========================================================================
+#  HELPERS
+# ===========================================================================
 
 def _load_module(name: str, filepath: str):
-    """Dynamically import a .py file by path."""
     spec   = importlib.util.spec_from_file_location(name, filepath)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -63,112 +132,138 @@ def _banner(text: str):
     print(f"{'='*60}")
 
 
-# ---------------------------------------------------------------------------
-# STEP 1 — LOAD AND VALIDATE
-# ---------------------------------------------------------------------------
+# ===========================================================================
+#  STEP 1 — VALIDATE INPUTS
+# ===========================================================================
 
-def load_config(config_path: str) -> dict:
-    _check_file(config_path, "config.json")
-    with open(config_path) as f:
-        cfg = json.load(f)
-    print(f"Config loaded from {config_path}")
-    return cfg
-
-
-def validate_inputs(args):
-    _check_file(args.csv,          "CSV data file")
-    _check_file(args.intersection, "intersection.json")
-    _check_file(args.columns,      "columns.json")
-
-    root = os.path.dirname(os.path.abspath(__file__))
+def validate_inputs(sumo_home: str):
+    _check_file(CSV_PATH,          "CSV data file")
+    _check_file(INTERSECTION_PATH, "intersection.json")
+    _check_file(COLUMNS_PATH,      "columns.json")
     _check_file(
-        os.path.join(root, "preprocessing", "BuildRoute.py"),
-        "preprocessing/BuildRoute.py"
+        os.path.join(ROOT, "preprocessing", "BuildRoute.py"),
+        "preprocessing/BuildRoute.py",
     )
     _check_file(
-        os.path.join(root, "preprocessing", "BuildNetwork.py"),
-        "preprocessing/BuildNetwork.py"
+        os.path.join(ROOT, "preprocessing", "BuildNetwork.py"),
+        "preprocessing/BuildNetwork.py",
     )
-
-    if not args.sumo_home:
+    if not sumo_home:
         _abort(
-            "SUMO_HOME not set. Pass --sumo-home or set the SUMO_HOME "
-            "environment variable.\n"
-            "Example: C:\\Program Files (x86)\\Eclipse\\Sumo"
+            "SUMO_HOME not set. Set the SUMO_HOME environment variable or "
+            "edit SUMO_HOME at the top of main.py."
         )
-    if not os.path.exists(args.sumo_home):
-        _abort(f"SUMO not found at: {args.sumo_home}")
-
+    if not os.path.exists(sumo_home):
+        _abort(f"SUMO not found at: {sumo_home}")
     print("All input files validated.")
 
 
-# ---------------------------------------------------------------------------
-# STEP 2 — BUILD ROUTES
-# ---------------------------------------------------------------------------
+# ===========================================================================
+#  STEP 2 — BUILD ROUTES
+# ===========================================================================
 
-def run_build_route(args, cfg: dict) -> dict:
+def run_build_route() -> dict:
     _banner("Step 1/3 — Building routes and day CSVs")
 
-    root       = os.path.dirname(os.path.abspath(__file__))
-    br         = _load_module("BuildRoute",
-                               os.path.join(root, "preprocessing", "BuildRoute.py"))
-    out_dir    = cfg["output"]["out_dir"]
-    test_days  = cfg["training"]["test_days"]
-    seed       = cfg["training"]["seed"]
+    br = _load_module(
+        "BuildRoute",
+        os.path.join(ROOT, "preprocessing", "BuildRoute.py"),
+    )
 
-    sys.argv = [
-        "BuildRoute.py",
-        "--csv",          args.csv,
-        "--intersection", args.intersection,
-        "--columns",      args.columns,
-        "--out-dir",      out_dir,
-        "--test-days",    str(test_days),
-        "--seed",         str(seed),
-    ]
-    br.main()
+    int_cfg      = br.load_intersection(INTERSECTION_PATH)
+    col_map      = br.load_column_map(COLUMNS_PATH)
+    active       = int_cfg["active_approaches"]
+    name         = int_cfg["intersection_name"]
+    slot_minutes = col_map.get("slot_minutes", 15)
 
-    split_path = os.path.join(out_dir, "processed", "split.json")
-    _check_file(split_path, "split.json (BuildRoute output)")
+    print(f"  Intersection : {name}")
+    print(f"  Approaches   : {active}")
+    print(f"  Slot duration: {slot_minutes} min")
 
-    with open(split_path) as f:
-        split = json.load(f)
+    df = br.load_csv(CSV_PATH, col_map, active)
+    df = br.assign_sim_days(df, date_mode="concat")
 
-    print(f"Routes built. Train: {len(split['train'])} days | Test: {len(split['test'])} days")
+    n_days_available = df["sim_day"].nunique()
+    needed = TRAIN_SIZE + TEST_SIZE
+    if needed > n_days_available:
+        _abort(
+            f"TRAIN_SIZE ({TRAIN_SIZE}) + TEST_SIZE ({TEST_SIZE}) = {needed} "
+            f"but only {n_days_available} days available in the CSV."
+        )
+
+    print(f"  CSV has {n_days_available} days | using {needed} "
+          f"(train={TRAIN_SIZE}, test={TEST_SIZE})")
+
+    processed_dir = os.path.join(OUT_DIR, "processed")
+    days_dir      = os.path.join(processed_dir, "days")
+    flows_dir     = os.path.join(OUT_DIR, "sumo", "flows")
+
+    # Only keep the days we need
+    used_days = list(range(needed))
+    df_used   = df[df["sim_day"].isin(used_days)].copy()
+
+    br.write_day_csvs(df_used, active, days_dir)
+    br.write_sumo_flows(df_used, active, slot_minutes, flows_dir, int_cfg)
+
+    split = br.split_days(needed, TEST_SIZE, SEED)
+
+    min_red = int_cfg.get("min_red_s", 15)
+    split.update({
+        "intersection_name": name,
+        "active_approaches": active,
+        "min_red_seconds":   min_red,
+        "n_days":            needed,
+        "n_slots":           df["start_time"].nunique(),
+        "slot_minutes":      slot_minutes,
+        "edge_ids": {
+            d: {"in": br.edge_in_id(d), "out": br.edge_out_id(d)}
+            for d in active
+        },
+    })
+
+    split_path = os.path.join(processed_dir, "split.json")
+    os.makedirs(processed_dir, exist_ok=True)
+    with open(split_path, "w") as f:
+        json.dump(split, f, indent=2)
+
+    print(f"  Train: {len(split['train'])} days | Test: {len(split['test'])} days")
+    print(f"  Saved -> {split_path}")
     return split
 
 
-# ---------------------------------------------------------------------------
-# STEP 3 — BUILD NETWORK
-# ---------------------------------------------------------------------------
+# ===========================================================================
+#  STEP 3 — BUILD NETWORK
+# ===========================================================================
 
-def run_build_network(args, cfg: dict) -> str:
+def run_build_network(sumo_home: str) -> str:
     _banner("Step 2/3 — Building SUMO network")
 
-    root       = os.path.dirname(os.path.abspath(__file__))
-    bn         = _load_module("BuildNetwork",
-                               os.path.join(root, "preprocessing", "BuildNetwork.py"))
-    out_dir    = os.path.join(cfg["output"]["out_dir"], "sumo", "network")
+    bn = _load_module(
+        "BuildNetwork",
+        os.path.join(ROOT, "preprocessing", "BuildNetwork.py"),
+    )
+    net_out_dir = os.path.join(OUT_DIR, "sumo", "network")
 
-    with open(args.intersection) as f:
+    with open(INTERSECTION_PATH) as f:
         int_cfg = json.load(f)
 
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(net_out_dir, exist_ok=True)
 
-    nod = bn.write_nodes(int_cfg,       out_dir)
-    edg = bn.write_edges(int_cfg,       out_dir)
-    con = bn.write_connections(int_cfg, out_dir)
-    tll = bn.write_tll(int_cfg,         out_dir)
+    nod = bn.write_nodes(int_cfg,       net_out_dir)
+    edg = bn.write_edges(int_cfg,       net_out_dir)
+    con = bn.write_connections(int_cfg,  net_out_dir)
+    tll = bn.write_tll(int_cfg,         net_out_dir)
 
-    name    = int_cfg["intersection_name"]
-    net_file = os.path.join(out_dir, f"{name}.net.xml")
+    name     = int_cfg["intersection_name"]
+    net_file = os.path.join(net_out_dir, f"{name}.net.xml")
 
     try:
-        bn.run_netconvert(int_cfg, out_dir, nod, edg, con, tll)
+        bn.run_netconvert(int_cfg, net_out_dir, nod, edg, con, tll)
     except FileNotFoundError:
         _abort(
             "netconvert not found. Make sure SUMO is installed and its bin/ "
             "folder is on your PATH.\n"
-            f"Expected binary in: {os.path.join(args.sumo_home, 'bin')}"
+            f"Expected binary in: {os.path.join(sumo_home, 'bin')}"
         )
 
     _check_file(net_file, f"{name}.net.xml (BuildNetwork output)")
@@ -176,92 +271,62 @@ def run_build_network(args, cfg: dict) -> str:
     return net_file
 
 
-# ---------------------------------------------------------------------------
-# STEP 4 — CONSTRUCT COMPONENTS
-# ---------------------------------------------------------------------------
+# ===========================================================================
+#  STEP 4 — CONSTRUCT COMPONENTS, AGENT, TRAINER
+# ===========================================================================
 
-def build_components(args, cfg: dict, split: dict, net_file: str):
+def build_pipeline(net_file: str, use_gui: bool) -> Trainer:
     _banner("Step 3/3 — Constructing RL components")
 
-    # Add project root to path so modeling imports resolve
-    root = os.path.dirname(os.path.abspath(__file__))
-    if root not in sys.path:
-        sys.path.insert(0, root)
+    with open(INTERSECTION_PATH) as f:
+        int_cfg = json.load(f)
 
-    # Lazy import — torch required for DQN
-    try:
-        from modelling.components.environment.sumo_environment import SumoEnvironment
-        from modelling.components.observation.queue_observation import QueueObservation
-        from modelling.components.reward.wait_time             import WaitTimeReward
-        from modelling.components.policy.dqn                   import DQNPolicy
-        from modelling.components.replay_buffer.uniform        import UniformReplayBuffer
-        from modelling.agent   import Agent
-        from modelling.trainer import Trainer
-    except ImportError as e:
-        _abort(
-            f"Import failed: {e}\n"
-            f"Make sure torch is installed: pip install torch"
-        )
-
-    ocfg  = cfg["observation"]
-    rcfg  = cfg["reward"]
-    pcfg  = cfg["policy"]
-    rbcfg = cfg["replay_buffer"]
-    scfg  = cfg["simulation"]
-
-    # Override GUI flag if passed on command line
-    use_gui = args.gui or scfg.get("gui", False)
-
-    obs_builder = QueueObservation(
-        max_lanes      = ocfg["max_lanes"],
-        max_phase      = ocfg["max_phase"],
-        max_phase_time = ocfg["max_phase_time"],
-        max_vehicles   = ocfg["max_vehicles"],
+    obs_builder = ObservationClass(
+        max_lanes      = MAX_LANES,
+        max_phase      = MAX_PHASE,
+        max_phase_time = MAX_PHASE_TIME,
+        max_vehicles   = MAX_VEHICLES,
     )
 
-    environment = SumoEnvironment(
+    environment = EnvironmentClass(
         net_file     = net_file,
-        step_length  = scfg["step_length"],
-        decision_gap = scfg["decision_gap"],
+        step_length  = STEP_LENGTH,
         gui          = use_gui,
-        sumo_home    = args.sumo_home,
-        begin        = scfg.get("begin", 27000),
-        end          = scfg.get("end",   64800),
+        sumo_home    = SUMO_HOME,
+        begin        = SIM_BEGIN,
+        end          = SIM_END,
     )
 
-    with open(args.intersection) as f:
-        _int_cfg = json.load(f)
-
-    reward = WaitTimeReward(
-        normalise = rcfg["normalise"],
-        scale     = rcfg["scale"],
+    reward = RewardClass(
+        normalise = REWARD_NORMALISE,
+        scale     = REWARD_SCALE,
     )
 
-    policy = DQNPolicy(
-        obs_dim       = obs_builder.size(),
-        n_actions     = 2,
-        lr            = pcfg["learning_rate"],
-        gamma         = pcfg["gamma"],
-        epsilon_start = pcfg["epsilon_start"],
-        epsilon_end   = pcfg["epsilon_end"],
-        epsilon_decay = pcfg["epsilon_decay"],
-        target_update = pcfg["target_update"],
-        batch_size    = pcfg["batch_size"],
-        hidden        = pcfg["hidden"],
-        min_green_steps = _int_cfg.get("min_green_s", 15),
-        max_green_steps = _int_cfg.get("max_green_s", 90),
+    policy = PolicyClass(
+        obs_dim         = obs_builder.size(),
+        n_actions       = N_ACTIONS,
+        lr              = LEARNING_RATE,
+        gamma           = GAMMA,
+        epsilon_start   = EPSILON_START,
+        epsilon_end     = EPSILON_END,
+        epsilon_decay   = EPSILON_DECAY,
+        target_update   = TARGET_UPDATE,
+        batch_size      = BATCH_SIZE,
+        hidden          = HIDDEN_SIZE,
     )
 
-    replay_buffer = UniformReplayBuffer(
-        capacity = rbcfg["capacity"],
-        seed     = cfg["training"]["seed"],
+    replay_buffer = ReplayBufferClass(
+        capacity = BUFFER_CAPACITY,
+        seed     = SEED,
     )
 
-    print(f"  Environment   : SumoEnvironment (gui={use_gui})")
-    print(f"  Observation   : QueueObservation (size={obs_builder.size()})")
-    print(f"  Reward        : WaitTimeReward")
-    print(f"  Policy        : DQNPolicy (device={policy.device})")
-    print(f"  Replay buffer : UniformReplayBuffer (capacity={rbcfg['capacity']:,})")
+    print(f"  Environment   : {EnvironmentClass.__name__} (gui={use_gui})")
+    print(f"  Observation   : {ObservationClass.__name__} (size={obs_builder.size()})")
+    print(f"  Reward        : {RewardClass.__name__}")
+    print(f"  Policy        : {PolicyClass.__name__} (device={policy.device})")
+    print(f"  Replay buffer : {ReplayBufferClass.__name__} (capacity={BUFFER_CAPACITY:,})")
+    print(f"  Phase timing  : min={MIN_GREEN_S}s  max={MAX_GREEN_S}s  "
+          f"(decide every {STEP_LENGTH}s after min)")
 
     agent = Agent(
         environment   = environment,
@@ -269,70 +334,57 @@ def build_components(args, cfg: dict, split: dict, net_file: str):
         reward        = reward,
         policy        = policy,
         replay_buffer = replay_buffer,
+        step_length   = STEP_LENGTH,
+        min_green_s   = MIN_GREEN_S,
+        max_green_s   = MAX_GREEN_S,
     )
 
-    flows_dir  = os.path.join(cfg["output"]["out_dir"], "sumo", "flows")
-    split_path = os.path.join(cfg["output"]["out_dir"], "processed", "split.json")
-    models_dir = cfg["output"]["models_dir"]
-    tcfg       = cfg["training"]
+    split_path = os.path.join(OUT_DIR, "processed", "split.json")
+    flows_dir  = os.path.join(OUT_DIR, "sumo", "flows")
 
     trainer = Trainer(
         agent      = agent,
         split_path = split_path,
         flows_dir  = flows_dir,
-        output_dir = models_dir,
-        n_epochs   = tcfg["n_epochs"],
-        save_every = tcfg["save_every"],
-        log_every  = tcfg["log_every"],
+        output_dir = MODELS_DIR,
+        n_epochs   = EPOCHS,
+        save_every = SAVE_EVERY,
+        log_every  = LOG_EVERY,
     )
 
     return trainer
 
 
-# ---------------------------------------------------------------------------
-# MAIN
-# ---------------------------------------------------------------------------
+# ===========================================================================
+#  MAIN
+# ===========================================================================
 
 def main():
     parser = argparse.ArgumentParser(
         description="RL Traffic Signal Optimiser — full pipeline"
     )
-    parser.add_argument("--csv",          required=True,
-                        help="Path to traffic count CSV")
-    parser.add_argument("--intersection", required=True,
-                        help="Path to intersection.json")
-    parser.add_argument("--columns",      required=True,
-                        help="Path to columns.json")
-    parser.add_argument("--sumo-home",    
-                        default=os.environ.get("SUMO_HOME", ""),
-                        help="Path to SUMO installation directory")
-    parser.add_argument("--config",       default="config.json",
-                        help="Path to config.json (default: config.json)")
-    parser.add_argument("--gui",          action="store_true",
-                        help="Launch sumo-gui instead of headless sumo")
+    parser.add_argument(
+        "--gui", action="store_true",
+        help="Launch sumo-gui instead of headless sumo",
+    )
     args = parser.parse_args()
+    use_gui = args.gui
 
     _banner("RL Traffic Signal Optimiser")
-    print(f"  CSV           : {args.csv}")
-    print(f"  Intersection  : {args.intersection}")
-    print(f"  Columns       : {args.columns}")
-    print(f"  SUMO home     : {args.sumo_home}")
-    print(f"  Config        : {args.config}")
+    print(f"  CSV           : {CSV_PATH}")
+    print(f"  Intersection  : {INTERSECTION_PATH}")
+    print(f"  Columns       : {COLUMNS_PATH}")
+    print(f"  SUMO home     : {SUMO_HOME}")
+    print(f"  Train size    : {TRAIN_SIZE} days")
+    print(f"  Test size     : {TEST_SIZE} days")
+    print(f"  Epochs        : {EPOCHS}")
 
-    # 1. Load and validate
-    cfg = load_config(args.config)
-    validate_inputs(args)
+    validate_inputs(SUMO_HOME)
 
-    # 2. Build routes
-    split = run_build_route(args, cfg)
+    split    = run_build_route()
+    net_file = run_build_network(SUMO_HOME)
+    trainer  = build_pipeline(net_file, use_gui)
 
-    # 3. Build network
-    net_file = run_build_network(args, cfg)
-
-    # 4. Construct components + agent + trainer
-    trainer = build_components(args, cfg, split, net_file)
-
-    # 5. Run
     _banner("Training")
     results = trainer.run()
 
@@ -340,9 +392,12 @@ def main():
     print(f"  Train episodes : {len(results['train_log'])}")
     print(f"  Test episodes  : {len(results['test_log'])}")
     if results["test_log"]:
-        mean_test = sum(m["total_reward"] for m in results["test_log"]) / len(results["test_log"])
+        mean_test = (
+            sum(m["total_reward"] for m in results["test_log"])
+            / len(results["test_log"])
+        )
         print(f"  Mean test reward : {mean_test:.2f}")
-    print(f"\nModels and logs saved to: {cfg['output']['models_dir']}")
+    print(f"\nModels and logs saved to: {MODELS_DIR}")
 
 
 if __name__ == "__main__":
