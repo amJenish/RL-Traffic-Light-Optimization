@@ -1,23 +1,6 @@
-"""
-modeling/components/policy/dqn.py
------------------------------------
-Deep Q-Network (DQN) policy implementation.
-
-Architecture:
-    Linear(obs_dim → 128) → ReLU
-    Linear(128 → 128)     → ReLU
-    Linear(128 → n_actions)
-
-Training:
-    - Epsilon-greedy exploration with linear decay
-    - Experience replay via the passed replay buffer
-    - Periodic target network synchronisation
-    - Bellman target: r + gamma * (1 - done) * max_a' Q_target(s', a')
-    - MSE loss
-"""
+"""DQN policy — epsilon-greedy action selection with experience replay and a target network."""
 
 import os
-from typing import Any
 
 import numpy as np
 import torch
@@ -28,11 +11,8 @@ from .base import BasePolicy
 from ..replay_buffer.base import BaseReplayBuffer
 
 
-
-# NEURAL NETWORK
-
 class _QNetwork(nn.Module):
-    """Simple 2-hidden-layer Q-network."""
+    """Two hidden-layer feedforward Q-network."""
 
     def __init__(self, obs_dim: int, n_actions: int, hidden: int = 128):
         super().__init__()
@@ -46,30 +26,8 @@ class _QNetwork(nn.Module):
         return self.net(x)
 
 
-
-# DQN POLICY
-
 class DQNPolicy(BasePolicy):
-    """
-    Deep Q-Network policy with epsilon-greedy exploration.
-
-    Pure learning component — selects actions based on Q-values with
-    epsilon-greedy exploration.  Phase timing constraints (min/max green)
-    are enforced by the Agent, not here.
-
-    Args:
-        obs_dim:          Size of the observation vector.
-        n_actions:        Number of discrete actions (2 for keep/switch).
-        lr:               Learning rate for Adam optimiser.
-        gamma:            Discount factor.
-        epsilon_start:    Initial exploration rate (1.0 = fully random).
-        epsilon_end:      Minimum exploration rate.
-        epsilon_decay:    Multiplicative decay applied each update step.
-        target_update:    Number of update steps between target network syncs.
-        batch_size:       Transitions sampled per update.
-        hidden:           Hidden layer size.
-        device:           'cuda', 'cpu', or 'auto' (picks cuda if available).
-    """
+    """Vanilla DQN. Phase timing is handled by the Agent, not here."""
 
     def __init__(
         self,
@@ -109,15 +67,8 @@ class DQNPolicy(BasePolicy):
         self._optimiser = optim.Adam(self._online.parameters(), lr=lr)
         self._loss_fn   = nn.MSELoss()
 
-    # ABSTRACT METHOD IMPLEMENTATIONS
-
     def select_action(self, obs: np.ndarray, tls_id: str = "default") -> int:
-        """
-        Epsilon-greedy action selection from Q-values.
-
-        Returns:
-            0 = keep current phase, 1 = switch to next phase
-        """
+        """Epsilon-greedy: random with prob epsilon, else greedy from Q-values."""
         if not self._eval_mode and np.random.random() < self._epsilon:
             return np.random.randint(self._n_actions)
 
@@ -128,11 +79,7 @@ class DQNPolicy(BasePolicy):
             return int(q_values.argmax().item())
 
     def update(self, replay_buffer: BaseReplayBuffer) -> float | None:
-        """
-        One DQN update step using a batch from the replay buffer.
-
-        Returns loss value or None if buffer not ready.
-        """
+        """Sample a batch, compute Bellman loss, backprop, sync target periodically."""
         if not replay_buffer.is_ready(self._batch_size):
             return None
 
@@ -145,30 +92,27 @@ class DQNPolicy(BasePolicy):
         next_states = torch.tensor(next_states, device=self._device)
         dones       = torch.tensor(dones,       device=self._device)
 
-        # Current Q values
         q_current = self._online(states).gather(
             1, actions.unsqueeze(1)
         ).squeeze(1)
 
-        # Bellman target
         with torch.no_grad():
-            q_next  = self._target(next_states).max(1).values
+            q_next   = self._target(next_states).max(1).values
             q_target = rewards + self._gamma * (1 - dones) * q_next
 
         loss = self._loss_fn(q_current, q_target)
 
         self._optimiser.zero_grad()
         loss.backward()
+        nn.utils.clip_grad_norm_(self._online.parameters(), max_norm=10.0)
         self._optimiser.step()
 
-        # Decay epsilon
         if not self._eval_mode:
             self._epsilon = max(
                 self._epsilon_end,
                 self._epsilon * self._epsilon_decay,
             )
 
-        # Sync target network
         self._update_count += 1
         if self._update_count % self._target_update == 0:
             self._target.load_state_dict(self._online.state_dict())
@@ -176,7 +120,7 @@ class DQNPolicy(BasePolicy):
         return float(loss.item())
 
     def save(self, path: str) -> None:
-        """Save online network weights and training state."""
+        """Persist both networks, optimiser state, epsilon, and update count."""
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         torch.save({
             "online":        self._online.state_dict(),
@@ -189,7 +133,7 @@ class DQNPolicy(BasePolicy):
         }, path)
 
     def load(self, path: str) -> None:
-        """Load weights and training state from disk."""
+        """Restore from a checkpoint .pt file."""
         ck = torch.load(path, map_location=self._device)
         self._online.load_state_dict(ck["online"])
         self._target.load_state_dict(ck["target"])
@@ -198,17 +142,14 @@ class DQNPolicy(BasePolicy):
         self._update_count = ck.get("update_count", 0)
 
     def set_eval_mode(self) -> None:
-        """Disable exploration for evaluation runs."""
         self._eval_mode = True
         self._online.eval()
 
     def set_train_mode(self) -> None:
-        """Re-enable exploration for training runs."""
         self._eval_mode = False
         self._online.train()
 
     def reset_phase_tracking(self) -> None:
-        """No-op — phase timing is managed by the Agent."""
         pass
 
     @property

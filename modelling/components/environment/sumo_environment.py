@@ -1,17 +1,6 @@
-"""
-modeling/components/environment/sumo_environment.py
------------------------------------------------------
-SUMO/TraCI implementation of BaseEnvironment.
-
-Manages the full lifecycle of a SUMO simulation episode:
-start → step → done → close.
-
-Reads intersection and network config from split.json so it stays
-consistent with what BuildRoute and BuildNetwork produced.
-"""
+"""SUMO/TraCI environment wrapper. Manages start -> step -> done -> close."""
 
 import os
-import subprocess
 import sys
 from typing import Any
 
@@ -19,17 +8,7 @@ from .base import BaseEnvironment
 
 
 class SumoEnvironment(BaseEnvironment):
-    """
-    Wraps a SUMO simulation via TraCI.
-
-    Args:
-        net_file:        Path to the .net.xml network file.
-        step_length:     Simulation step size in seconds (default 1).
-        decision_gap:    How many simulation steps between agent decisions.
-        gui:             If True, launches sumo-gui instead of sumo.
-        sumo_home:       Path to SUMO installation. If None, uses SUMO_HOME
-                         environment variable.
-    """
+    """Wraps a SUMO simulation via TraCI."""
 
     def __init__(
         self,
@@ -53,13 +32,10 @@ class SumoEnvironment(BaseEnvironment):
         self._running      = False
 
         self._validate_sumo_home()
-        self._import_traci()  # import eagerly so TraCI is always available
-
-
-    # ABSTRACT METHOD IMPLEMENTATIONS
+        self._import_traci()
 
     def start(self, route_file: str) -> None:
-        """Start SUMO for a new episode using the given route file."""
+        """Launch SUMO for one episode using the given route file."""
         if self._running:
             self.close()
 
@@ -83,7 +59,6 @@ class SumoEnvironment(BaseEnvironment):
         self._running = True
 
     def step(self, n_steps: int = 1) -> None:
-        """Advance the simulation by n_steps × step_length seconds."""
         for _ in range(n_steps):
             if not self.is_done():
                 self._traci_module.simulationStep()
@@ -94,7 +69,6 @@ class SumoEnvironment(BaseEnvironment):
         return self._traci_module.simulation.getTime() >= self._end
 
     def close(self) -> None:
-        """Shut down TraCI and SUMO."""
         if self._running and self._traci_module:
             try:
                 self._traci_module.close()
@@ -103,32 +77,20 @@ class SumoEnvironment(BaseEnvironment):
         self._running = False
 
     def get_tls_ids(self) -> list[str]:
-        """Return all traffic light IDs in the loaded network."""
         return list(self._traci_module.trafficlight.getIDList())
 
     def get_sim_time(self) -> float:
-        """Return current simulation time in seconds."""
         return self._traci_module.simulation.getTime()
 
     @property
     def traci(self) -> Any:
-        """Raw TraCI module for observation builders and reward functions."""
         return self._traci_module
 
-
-    # DECISION GAP
-
     def step_decision(self) -> None:
-        """
-        Advance by one full decision interval (decision_gap steps).
-        Called by the Agent between each action.
-        """
+        """Advance by one full decision interval (legacy, used before adaptive timing)."""
         self.step(self._decision_gap)
 
-    # PRIVATE HELPERS
-
     def _import_traci(self) -> None:
-        """Import TraCI — deferred so the module loads without SUMO installed."""
         if self._traci_module is not None:
             return
         tools = os.path.join(self._sumo_home, "tools")

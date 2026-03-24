@@ -1,23 +1,4 @@
-"""
-modeling/components/policy/double_dqn.py
-------------------------------------------
-Double DQN policy implementation.
-
-Fixes vanilla DQN's overestimation bias by decoupling action selection
-from action evaluation in the Bellman target:
-
-    Vanilla DQN:   r + gamma * max_a' Q_target(s', a')
-    Double  DQN:   r + gamma * Q_target(s', argmax_a' Q_online(s', a'))
-
-The online network picks the best next action, but the target network
-evaluates it.  Everything else (architecture, epsilon-greedy, replay,
-target sync) is identical to DQN.
-
-Architecture:
-    Linear(obs_dim -> hidden) -> ReLU
-    Linear(hidden  -> hidden) -> ReLU
-    Linear(hidden  -> n_actions)
-"""
+"""Double DQN — online network selects the best next action, target network evaluates it."""
 
 import os
 
@@ -30,10 +11,8 @@ from .base import BasePolicy
 from ..replay_buffer.base import BaseReplayBuffer
 
 
-# NEURAL NETWORK
-
 class _QNetwork(nn.Module):
-    """Simple 2-hidden-layer Q-network."""
+    """Two hidden-layer feedforward Q-network."""
 
     def __init__(self, obs_dim: int, n_actions: int, hidden: int = 128):
         super().__init__()
@@ -47,33 +26,8 @@ class _QNetwork(nn.Module):
         return self.net(x)
 
 
-
-# DOUBLE DQN POLICY
-
 class DoubleDQNPolicy(BasePolicy):
-    """
-    Double DQN policy with epsilon-greedy exploration.
-
-    Pure learning component — selects actions based on Q-values with
-    epsilon-greedy exploration.  Phase timing constraints (min/max green)
-    are enforced by the Agent, not here.
-
-    The only difference from vanilla DQN is the Bellman target computation
-    in update().
-
-    Args:
-        obs_dim:          Size of the observation vector.
-        n_actions:        Number of discrete actions (2 for keep/switch).
-        lr:               Learning rate for Adam optimiser.
-        gamma:            Discount factor.
-        epsilon_start:    Initial exploration rate (1.0 = fully random).
-        epsilon_end:      Minimum exploration rate.
-        epsilon_decay:    Multiplicative decay applied each update step.
-        target_update:    Number of update steps between target network syncs.
-        batch_size:       Transitions sampled per update.
-        hidden:           Hidden layer size.
-        device:           'cuda', 'cpu', or 'auto' (picks cuda if available).
-    """
+    """Double DQN. Reduces overestimation bias vs vanilla DQN."""
 
     def __init__(
         self,
@@ -113,15 +67,8 @@ class DoubleDQNPolicy(BasePolicy):
         self._optimiser = optim.Adam(self._online.parameters(), lr=lr)
         self._loss_fn   = nn.MSELoss()
 
-    # ABSTRACT METHOD IMPLEMENTATIONS
-
     def select_action(self, obs: np.ndarray, tls_id: str = "default") -> int:
-        """
-        Epsilon-greedy action selection from Q-values.
-
-        Returns:
-            0 = keep current phase, 1 = switch to next phase
-        """
+        """Epsilon-greedy: random with prob epsilon, else greedy from Q-values."""
         if not self._eval_mode and np.random.random() < self._epsilon:
             return np.random.randint(self._n_actions)
 
@@ -132,15 +79,7 @@ class DoubleDQNPolicy(BasePolicy):
             return int(q_values.argmax().item())
 
     def update(self, replay_buffer: BaseReplayBuffer) -> float | None:
-        """
-        Double DQN update step.
-
-        Key difference from vanilla DQN: the online network selects
-        the best next action, but the target network evaluates its value.
-        This reduces the overestimation bias inherent in standard DQN.
-
-        Returns loss value or None if buffer not ready.
-        """
+        """Double DQN update — online picks best action, target evaluates it."""
         if not replay_buffer.is_ready(self._batch_size):
             return None
 
@@ -158,9 +97,7 @@ class DoubleDQNPolicy(BasePolicy):
         ).squeeze(1)
 
         with torch.no_grad():
-            # Online network picks the best next action
             best_next_actions = self._online(next_states).argmax(1)
-            # Target network evaluates that action's value
             q_next = self._target(next_states).gather(
                 1, best_next_actions.unsqueeze(1)
             ).squeeze(1)
@@ -170,6 +107,7 @@ class DoubleDQNPolicy(BasePolicy):
 
         self._optimiser.zero_grad()
         loss.backward()
+        nn.utils.clip_grad_norm_(self._online.parameters(), max_norm=10.0)
         self._optimiser.step()
 
         if not self._eval_mode:
@@ -185,7 +123,7 @@ class DoubleDQNPolicy(BasePolicy):
         return float(loss.item())
 
     def save(self, path: str) -> None:
-        """Save online network weights and training state."""
+        """Persist both networks, optimiser state, epsilon, and update count."""
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         torch.save({
             "online":        self._online.state_dict(),
@@ -198,7 +136,7 @@ class DoubleDQNPolicy(BasePolicy):
         }, path)
 
     def load(self, path: str) -> None:
-        """Load weights and training state from disk."""
+        """Restore from a checkpoint .pt file."""
         ck = torch.load(path, map_location=self._device)
         self._online.load_state_dict(ck["online"])
         self._target.load_state_dict(ck["target"])
@@ -207,17 +145,14 @@ class DoubleDQNPolicy(BasePolicy):
         self._update_count = ck.get("update_count", 0)
 
     def set_eval_mode(self) -> None:
-        """Disable exploration for evaluation runs."""
         self._eval_mode = True
         self._online.eval()
 
     def set_train_mode(self) -> None:
-        """Re-enable exploration for training runs."""
         self._eval_mode = False
         self._online.train()
 
     def reset_phase_tracking(self) -> None:
-        """No-op — phase timing is managed by the Agent."""
         pass
 
     @property

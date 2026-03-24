@@ -1,19 +1,7 @@
 """
-main.py
---------
-Single entry point for the full RL traffic signal optimisation pipeline.
-
-All configuration lives at the top of this file. Edit the variables in the
-CONFIGURATION section to control file paths, data splits, component choices,
-hyperparameters, and output locations — then run:
-
-    python main.py
-    python main.py --gui
+main.py — single entry point for the full RL traffic signal optimisation pipeline.
+All configuration lives at the top. Edit then run: python main.py [--gui]
 """
-
-# ---------------------------------------------------------------------------
-# IMPORTS
-# ---------------------------------------------------------------------------
 
 import argparse
 import importlib.util
@@ -32,13 +20,15 @@ from modelling.components.policy.dqn                    import DQNPolicy
 from modelling.components.replay_buffer.uniform         import UniformReplayBuffer
 from modelling.agent   import Agent
 from modelling.trainer import Trainer
+from modelling.components.reward.delta_wait_time import DeltaWaitTimeReward
+from modelling.components.reward.composite_reward import CompositeReward
 
 
+# ==========================================================================
+#  CONFIGURATION
+# ==========================================================================
 
-#  CONFIGURATIONS - these variables control the entire pipeline
-
-
-#  File Paths ------------------------------------------------------------
+# File Paths
 CSV_PATH          = "src/data/synthetic_toronto_data.csv"
 INTERSECTION_PATH = "src/intersection.json"
 COLUMNS_PATH      = "src/columns.json"
@@ -46,42 +36,39 @@ SUMO_HOME         = os.environ.get(
     "SUMO_HOME", r"C:\Program Files (x86)\Eclipse\Sumo"
 )
 
-# Data Split & Training -------------------------------------------------
-TRAIN_SIZE = 5          # number of days of data used for training
-TEST_SIZE  = 5          # number of days held out for testing
-EPOCHS     = 60        # full passes through the training days
+# Data Split & Training
+TRAIN_SIZE = 5
+TEST_SIZE  = 5
+EPOCHS     = 60
 
-# --- Component Selection ---------------------------------------------------
-#   Swap any of these to use a different implementation.
+# Component Selection — swap any of these to use a different implementation
 EnvironmentClass  = SumoEnvironment
 ObservationClass  = QueueObservation
-RewardClass       = WaitTimeReward
+RewardClass       = CompositeReward
 PolicyClass       = DQNPolicy
 ReplayBufferClass = UniformReplayBuffer
 
-# --- Simulation ------------------------------------------------------------
-STEP_LENGTH  = 10.0       # SUMO simulation step (seconds)
-SIM_BEGIN    = 28800      # sim start time (seconds)
-SIM_END      = 50400      # sim end time
+# Simulation
+STEP_LENGTH  = 10.0      # seconds per SUMO step
+SIM_BEGIN    = 28800      # 08:00
+SIM_END      = 50400      # 14:00
 
-# --- Phase Timing ----------------------------------------------------------
-#   min/max green are in SECONDS. The Agent converts to sim steps internally.
-#   Between min and max, the agent decides every simulation step whether to
-#   switch or hold. Below min it fast-forwards; at max it forces a switch.
-MIN_GREEN_S  = 15        # minimum seconds a phase stays green
-MAX_GREEN_S  = 90        # maximum seconds before forced switch
+# Phase Timing (seconds — Agent converts to sim steps internally)
+MIN_GREEN_S  = 15
+MAX_GREEN_S  = 90
 
-# --- Observation -----------------------------------------------------------
+# Observation
 MAX_LANES      = 16
 MAX_PHASE      = 3
 MAX_PHASE_TIME = 120.0
 MAX_VEHICLES   = 20
 
-# --- Reward ----------------------------------------------------------------
+# Reward
 REWARD_NORMALISE = True
 REWARD_SCALE     = 1.0
+REWARD_ALPHA     = 0.65    # blend: 0.65 delta + 0.35 pressure
 
-# --- Policy (DQN) ---------------------------------------------------------
+# Policy (DQN)
 LEARNING_RATE  = 0.001
 GAMMA          = 0.99
 EPSILON_START  = 1.0
@@ -90,24 +77,24 @@ EPSILON_DECAY  = 0.99998415
 TARGET_UPDATE  = 50
 BATCH_SIZE     = 128
 HIDDEN_SIZE    = 128
-N_ACTIONS      = 2       # 0 = keep phase, 1 = advance phase
+N_ACTIONS      = 2        # 0 = keep, 1 = switch
 
-# --- Replay Buffer ---------------------------------------------------------
+# Replay Buffer
 BUFFER_CAPACITY = 100_000
 
-# --- Misc ------------------------------------------------------------------
+# Misc
 SEED       = 42
-SAVE_EVERY = 20          # save checkpoint every N episodes
-LOG_EVERY  = 1           # print metrics every N episodes
+SAVE_EVERY = 20
+LOG_EVERY  = 1
 
-# --- Output ----------------------------------------------------------------
+# Output
 OUT_DIR    = "src/data"
 MODELS_DIR = "src/data/models"
 
 
-# ===========================================================================
+# ==========================================================================
 #  HELPERS
-# ===========================================================================
+# ==========================================================================
 
 def _load_module(name: str, filepath: str):
     spec   = importlib.util.spec_from_file_location(name, filepath)
@@ -132,11 +119,12 @@ def _banner(text: str):
     print(f"{'='*60}")
 
 
-# ===========================================================================
-#  STEP 1 — VALIDATE INPUTS
-# ===========================================================================
+# ==========================================================================
+#  PIPELINE STEPS
+# ==========================================================================
 
 def validate_inputs(sumo_home: str):
+    """Make sure all required files and SUMO are present."""
     _check_file(CSV_PATH,          "CSV data file")
     _check_file(INTERSECTION_PATH, "intersection.json")
     _check_file(COLUMNS_PATH,      "columns.json")
@@ -158,11 +146,8 @@ def validate_inputs(sumo_home: str):
     print("All input files validated.")
 
 
-# ===========================================================================
-#  STEP 2 — BUILD ROUTES
-# ===========================================================================
-
 def run_build_route() -> dict:
+    """Load CSV, trim to TRAIN_SIZE+TEST_SIZE days, generate flow files and split.json."""
     _banner("Step 1/3 — Building routes and day CSVs")
 
     br = _load_module(
@@ -198,7 +183,6 @@ def run_build_route() -> dict:
     days_dir      = os.path.join(processed_dir, "days")
     flows_dir     = os.path.join(OUT_DIR, "sumo", "flows")
 
-    # Only keep the days we need
     used_days = list(range(needed))
     df_used   = df[df["sim_day"].isin(used_days)].copy()
 
@@ -231,11 +215,8 @@ def run_build_route() -> dict:
     return split
 
 
-# ===========================================================================
-#  STEP 3 — BUILD NETWORK
-# ===========================================================================
-
 def run_build_network(sumo_home: str) -> str:
+    """Generate SUMO .net.xml from intersection.json via netconvert."""
     _banner("Step 2/3 — Building SUMO network")
 
     bn = _load_module(
@@ -271,11 +252,8 @@ def run_build_network(sumo_home: str) -> str:
     return net_file
 
 
-# ===========================================================================
-#  STEP 4 — CONSTRUCT COMPONENTS, AGENT, TRAINER
-# ===========================================================================
-
 def build_pipeline(net_file: str, use_gui: bool) -> Trainer:
+    """Construct all RL components, wire them into Agent and Trainer."""
     _banner("Step 3/3 — Constructing RL components")
 
     with open(INTERSECTION_PATH) as f:
@@ -300,6 +278,7 @@ def build_pipeline(net_file: str, use_gui: bool) -> Trainer:
     reward = RewardClass(
         normalise = REWARD_NORMALISE,
         scale     = REWARD_SCALE,
+        alpha     = REWARD_ALPHA,
     )
 
     policy = PolicyClass(
@@ -355,18 +334,13 @@ def build_pipeline(net_file: str, use_gui: bool) -> Trainer:
     return trainer
 
 
-# ===========================================================================
+# ==========================================================================
 #  MAIN
-# ===========================================================================
+# ==========================================================================
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="RL Traffic Signal Optimiser — full pipeline"
-    )
-    parser.add_argument(
-        "--gui", action="store_true",
-        help="Launch sumo-gui instead of headless sumo",
-    )
+    parser = argparse.ArgumentParser(description="RL Traffic Signal Optimiser")
+    parser.add_argument("--gui", action="store_true", help="Launch sumo-gui")
     args = parser.parse_args()
     use_gui = args.gui
 
