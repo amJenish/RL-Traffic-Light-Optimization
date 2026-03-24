@@ -1,43 +1,43 @@
 [
   {
-    "total_reward": -58.0625,
+    "total_reward": -91.4375,
     "steps": 252,
-    "mean_loss": 0.012070111061875072,
+    "mean_loss": 0.03468906417459486,
     "epsilon": 0.5503935109097102,
     "day_id": 1
   },
   {
-    "total_reward": -61.6875,
+    "total_reward": -94.75,
     "steps": 252,
-    "mean_loss": 0.011634844730401205,
+    "mean_loss": 0.03407715708165178,
     "epsilon": 0.5503935109097102,
     "day_id": 7
   },
   {
-    "total_reward": -61.25,
+    "total_reward": -95.875,
     "steps": 252,
-    "mean_loss": 0.011611326592087391,
+    "mean_loss": 0.03544901000217549,
     "epsilon": 0.5503935109097102,
     "day_id": 15
   },
   {
-    "total_reward": -59.125,
+    "total_reward": -92.4375,
     "steps": 252,
-    "mean_loss": 0.011185816154696994,
+    "mean_loss": 0.0328601895875874,
     "epsilon": 0.5503935109097102,
     "day_id": 17
   },
   {
-    "total_reward": -46.5,
+    "total_reward": -73.25,
     "steps": 252,
-    "mean_loss": 0.012636931250906654,
+    "mean_loss": 0.03300817931691805,
     "epsilon": 0.5503935109097102,
     "day_id": 40
   },
   {
-    "total_reward": -46.4375,
+    "total_reward": -73.375,
     "steps": 252,
-    "mean_loss": 0.011306232369933573,
+    "mean_loss": 0.03315852837459672,
     "epsilon": 0.5503935109097102,
     "day_id": 47
   }

@@ -6,10 +6,12 @@ Two standalone scripts from the `SUMO-Demand-Generation-Pipeline` repo were
 removed from `preprocessing/` because their functionality was fully absorbed
 into `BuildRoute.py` and `BuildNetwork.py`:
 
-| Removed file | Why removed |
-|---|---|
-| `data_to_rou.py` | Its core logic (column normalisation, multi-date handling, `.xls` loading, SUMO config writing, XML route output) was ported into `BuildRoute.py`. It was never called in the pipeline — `BuildRoute.py` handles all route generation. |
-| `generate_edge_mapping.py` | Its `write_edge_mapping()` function was ported into `BuildNetwork.py` and now runs automatically every time the network is built. The standalone script was never called in the pipeline. |
+
+| Removed file               | Why removed                                                                                                                                                                                                                            |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data_to_rou.py`           | Its core logic (column normalisation, multi-date handling, `.xls` loading, SUMO config writing, XML route output) was ported into `BuildRoute.py`. It was never called in the pipeline — `BuildRoute.py` handles all route generation. |
+| `generate_edge_mapping.py` | Its `write_edge_mapping()` function was ported into `BuildNetwork.py` and now runs automatically every time the network is built. The standalone script was never called in the pipeline.                                              |
+
 
 ---
 
@@ -39,17 +41,17 @@ Takes the traffic count CSV, `intersection.json`, and `columns.json`, and
 produces all inputs the RL trainer needs:
 
 1. **Loads the CSV** — handles `.csv`, `.xls`, and `.xlsx`; normalises column
-   name casing and spacing so mismatched headers never cause failures
+  name casing and spacing so mismatched headers never cause failures
    (`normalize_col()`, ported from `data_to_rou.py`)
 2. **Assigns day indices** — supports `--date-mode concat/offset/error` for
-   multi-date input (ported from `data_to_rou.py`)
+  multi-date input (ported from `data_to_rou.py`)
 3. **Writes per-day CSVs** → `processed/days/day_NN.csv`
 4. **Writes SUMO flow files** → `sumo/flows/flows_day_NN.rou.xml`, one per day,
-   using `vehsPerHour` for continuous vehicle injection
+  using `vehsPerHour` for continuous vehicle injection
 5. **Writes `split.json`** — randomised train/test day split consumed by the
-   `Trainer`
+  `Trainer`
 6. **Optionally writes `simulation.sumocfg`** — lets you open any day in
-   `sumo-gui` for visual inspection (`--write-sumocfg` flag, ported from
+  `sumo-gui` for visual inspection (`--write-sumocfg` flag, ported from
    `data_to_rou.py`)
 
 ---
@@ -87,3 +89,4 @@ python main.py \
     --columns       src/columns.json \
     --sumo-home     "C:\Program Files (x86)\Eclipse\Sumo"
 ```
+

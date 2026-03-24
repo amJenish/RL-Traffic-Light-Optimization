@@ -49,6 +49,19 @@ import pandas as pd
 OVERNIGHT_VPH = 12
 SIM_DURATION  = 86400
 
+# Exit approach for each (from_approach, movement) pair.
+# Convention: right/left are from the driver's perspective.
+#   N approach → traveling South:  right=W, left=E
+#   S approach → traveling North:  right=E, left=W
+#   E approach → traveling West:   right=N, left=S
+#   W approach → traveling East:   right=S, left=N
+TURN_TARGETS = {
+    "N": {"through": "S", "right": "W", "left": "E"},
+    "S": {"through": "N", "right": "E", "left": "W"},
+    "E": {"through": "W", "right": "N", "left": "S"},
+    "W": {"through": "E", "right": "S", "left": "N"},
+}
+
 
 # ---------------------------------------------------------------------------
 # COLUMN NORMALISATION  (from data_to_rou.py)
@@ -124,7 +137,7 @@ def load_csv(csv_path, col_map, active_approaches):
         raise ValueError(
             f"start_time column '{start_col}' not found.\n"
             f"Available columns: {df.columns.tolist()}\n"
-            f"Fix: column_map.json → time → start_time"
+            f"Fix: column_map.json -> time -> start_time"
         )
 
     rename = {start_col: "start_time"}
@@ -245,7 +258,7 @@ def write_day_csvs(df, active, out_dir):
     for day_id in range(n_days):
         day_df = df[df["sim_day"] == day_id][keep].reset_index(drop=True)
         day_df.to_csv(os.path.join(out_dir, f"day_{day_id:02d}.csv"), index=False)
-    print(f"  Written {n_days} day CSV files → {out_dir}")
+    print(f"  Written {n_days} day CSV files -> {out_dir}")
     return n_days
 
 
@@ -277,13 +290,13 @@ def write_sumo_flows(df, active, slot_minutes, out_dir):
 
         fid = [0]
 
-        def add_flow(begin, end, approach, vph):
+        def add_flow(begin, end, from_approach, to_approach, vph):
             if vph < 0.5: return
             f = ET.SubElement(root, "flow")
             f.set("id",          f"f{fid[0]}")
             f.set("type",        "passenger")
-            f.set("from",        edge_in_id(approach))
-            f.set("to",          edge_out_id(OPPOSITE[approach]))
+            f.set("from",        edge_in_id(from_approach))
+            f.set("to",          edge_out_id(to_approach))
             f.set("begin",       str(int(begin)))
             f.set("end",         str(int(end)))
             f.set("vehsPerHour", f"{vph:.1f}")
@@ -291,16 +304,21 @@ def write_sumo_flows(df, active, slot_minutes, out_dir):
             f.set("departSpeed", "max")
             fid[0] += 1
 
+        # Overnight baseline — distribute evenly across all three movements
         if data_start > 0:
             for d in active:
-                add_flow(0, data_start, d, OVERNIGHT_VPH)
+                for movement, target in TURN_TARGETS[d].items():
+                    add_flow(0, data_start, d, target, OVERNIGHT_VPH / 3)
 
+        # Main data slots — one flow per approach per movement
         for _, row in day_df.iterrows():
             begin = time_to_seconds(row["start_time"])
             end   = begin + slot_minutes * 60
             for d in active:
-                add_flow(begin, end, d, row[f"{d}_total"] * vph_factor)
+                for movement, target in TURN_TARGETS[d].items():
+                    add_flow(begin, end, d, target, row[f"{d}_{movement}"] * vph_factor)
 
+        # Taper to overnight — preserve movement proportions from last data slot
         remaining = SIM_DURATION - data_end
         if remaining > 0:
             last_row = day_df.iloc[-1]
@@ -310,8 +328,10 @@ def write_sumo_flows(df, active, slot_minutes, out_dir):
                 begin  = data_end + i * slot_minutes * 60
                 end    = min(begin + slot_minutes * 60, SIM_DURATION)
                 for d in active:
-                    last_vph = last_row[f"{d}_total"] * vph_factor
-                    add_flow(begin, end, d, last_vph*(1-t_frac) + OVERNIGHT_VPH*t_frac)
+                    for movement, target in TURN_TARGETS[d].items():
+                        last_vph = last_row[f"{d}_{movement}"] * vph_factor
+                        add_flow(begin, end, d, target,
+                                 last_vph * (1 - t_frac) + (OVERNIGHT_VPH / 3) * t_frac)
 
         raw   = ET.tostring(root, encoding="unicode")
         lines = minidom.parseString(raw).toprettyxml(indent="  ").split("\n")
@@ -321,7 +341,7 @@ def write_sumo_flows(df, active, slot_minutes, out_dir):
             fh.write('<?xml version="1.0" encoding="UTF-8"?>\n')
             fh.write("\n".join(lines))
 
-    print(f"  Written {n_days} SUMO flow files → {out_dir}")
+    print(f"  Written {n_days} SUMO flow files -> {out_dir}")
 
 
 def write_sumocfg(net_file: str, flows_dir: str, out_path: str,
@@ -351,7 +371,7 @@ def write_sumocfg(net_file: str, flows_dir: str, out_path: str,
         f.write('  </time>\n')
         f.write('</configuration>\n')
 
-    print(f"  sumocfg written → {out_path}")
+    print(f"  sumocfg written -> {out_path}")
     print(f"  Run: sumo-gui -c {out_path}")
 
 
@@ -466,10 +486,10 @@ def main():
         json.dump(split, fh, indent=2)
 
     print(f"  Train: {len(split['train'])} days  |  Test: {len(split['test'])} days")
-    print(f"  Saved → {split_path}")
+    print(f"  Saved -> {split_path}")
     print(f"\nEdge IDs written to flow files:")
     for d in active:
-        print(f"  {d}: {edge_in_id(d)} → {edge_out_id(OPPOSITE[d])}")
+        print(f"  {d}: {edge_in_id(d)} -> {edge_out_id(OPPOSITE[d])}")
 
     if args.write_sumocfg:
         net_dir  = os.path.join(args.out_dir, "sumo", "network")

@@ -172,7 +172,7 @@ def run_build_network(args, cfg: dict) -> str:
         )
 
     _check_file(net_file, f"{name}.net.xml (BuildNetwork output)")
-    print(f"Network built → {net_file}")
+    print(f"Network built -> {net_file}")
     return net_file
 
 

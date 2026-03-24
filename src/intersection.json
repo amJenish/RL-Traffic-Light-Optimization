@@ -7,7 +7,7 @@
     "E": {"lanes": {"through": 2, "right": 1, "left": 1}, "speed_kmh": 50},
     "W": {"lanes": {"through": 2, "right": 1, "left": 1}, "speed_kmh": 50}
   },
-  "phases":       "2",
+  "phases":       "4",
   "min_green_s":  15,
   "max_green_s":  90,
   "amber_s":      3,

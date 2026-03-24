@@ -61,12 +61,16 @@ DIRECTION_VECTORS = {
 # Opposite approach for each direction (where vehicles exit)
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
 
-# Turn targets: from approach X, right/through/left go to which exits?
+# Turn targets: from approach X, right/left are from the driver's perspective.
+#   N approach → traveling South:  right=W, left=E
+#   S approach → traveling North:  right=E, left=W
+#   E approach → traveling West:   right=N, left=S
+#   W approach → traveling East:   right=S, left=N
 TURN_TARGETS = {
-    "N": {"right": "E", "through": "S", "left": "W"},
-    "S": {"right": "W", "through": "N", "left": "E"},
-    "E": {"right": "S", "through": "W", "left": "N"},
-    "W": {"right": "N", "through": "E", "left": "S"},
+    "N": {"right": "W", "through": "S", "left": "E"},
+    "S": {"right": "E", "through": "N", "left": "W"},
+    "E": {"right": "N", "through": "W", "left": "S"},
+    "W": {"right": "S", "through": "E", "left": "N"},
 }
 
 
@@ -376,7 +380,7 @@ def write_edge_mapping(cfg: dict, out_dir: str) -> str:
         writer.writeheader()
         writer.writerows(rows)
 
-    print(f"  Edge mapping written → {path}")
+    print(f"  Edge mapping written -> {path}")
     print(f"  Use with: python preprocessing/data_to_rou.py <csv> "
           f"--net {out_dir}/{name}.net.xml --edge-mapping {path}")
     return path
@@ -425,7 +429,7 @@ def run_netconvert(cfg: dict, out_dir: str,
     # Step 3 — generate edge_mapping.csv for use with data_to_rou.py
     write_edge_mapping(cfg, out_dir)
 
-    print(f"  Network written → {out_net}")
+    print(f"  Network written -> {out_net}")
     return out_net
 
 
@@ -477,7 +481,7 @@ def _write_xml(root: ET.Element, path: str):
     with open(path, "w") as fh:
         fh.write('<?xml version="1.0" encoding="UTF-8"?>\n')
         fh.write("\n".join(lines))
-    print(f"  Written → {path}")
+    print(f"  Written -> {path}")
 
 
 # MAIN

@@ -105,7 +105,7 @@ class Trainer:
                         self.output_dir, f"checkpoint_ep{episode:04d}.pt"
                     )
                     self.agent.save(path)
-                    print(f"  Checkpoint saved → {path}")
+                    print(f"  Checkpoint saved -> {path}")
 
         # Final evaluation on held-out test days
         print(f"\n--- Evaluating on {len(self._test_days)} test days ---")
@@ -119,7 +119,7 @@ class Trainer:
         # Save final model
         final_path = os.path.join(self.output_dir, "final_model.pt")
         self.agent.save(final_path)
-        print(f"\nFinal model saved → {final_path}")
+        print(f"\nFinal model saved -> {final_path}")
 
         # Save logs
         self._save_logs()
@@ -193,8 +193,8 @@ class Trainer:
             json.dump(self._train_log, f, indent=2)
         with open(test_path, "w") as f:
             json.dump(self._test_log, f, indent=2)
-        print(f"Logs saved → {train_path}")
-        print(f"           → {test_path}")
+        print(f"Logs saved -> {train_path}")
+        print(f"           -> {test_path}")
 
     def _print_summary(self) -> None:
         """Print mean metrics for train and test."""

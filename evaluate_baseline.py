@@ -235,21 +235,26 @@ def main():
     except ImportError as e:
         _abort(f"Baseline import failed: {e}")
 
-    # Parameter values derived from config.json + intersection.json
-    min_green = int_cfg.get("min_green_s", 15)
-    max_green = int_cfg.get("max_green_s", 90)
-    max_lanes = cfg["observation"]["max_lanes"]
+    # Convert intersection timing (seconds) to decision steps.
+    # One decision step = decision_gap × step_length seconds.
+    # e.g. 30 ticks × 5 s/tick = 150 s per decision step.
+    decision_step_s = (
+        cfg["simulation"]["decision_gap"] * cfg["simulation"]["step_length"]
+    )
+    min_green_steps = max(1, round(int_cfg.get("min_green_s", 15) / decision_step_s))
+    max_green_steps = max(1, round(int_cfg.get("max_green_s", 90) / decision_step_s))
+    max_lanes       = cfg["observation"]["max_lanes"]
 
     fixed_policy = FixedTimePolicy(
-        fixed_green_steps = 30,      # one switch every 30 × 150 s = 75 min
-        min_green_steps = min_green,
-        max_green_steps = max_green,
+        fixed_green_steps = 1,               # switch every decision step (~2.5 min/phase)
+        min_green_steps   = min_green_steps,
+        max_green_steps   = max_green_steps,
     )
     actuated_policy = ActuatedPolicy(
-        max_lanes = max_lanes,
-        min_green_steps = min_green,
-        max_green_steps = max_green,
-        queue_threshold = 0.1,       # ~2 vehicles per lane (max_vehicles=20)
+        max_lanes       = max_lanes,
+        min_green_steps = min_green_steps,
+        max_green_steps = max_green_steps,
+        queue_threshold = 0.1,               # ~2 vehicles per lane (max_vehicles=20)
     )
 
     _banner("Baseline Evaluation")
