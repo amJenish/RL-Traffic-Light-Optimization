@@ -1,3 +1,6 @@
+# SUMO binaries (sets SUMO_HOME when package is installed; optional if SUMO is on PATH / env)
+eclipse-sumo>=1.26.0
+
 # Core RL pipeline
 torch>=2.0.0
 numpy>=1.24.0

@@ -15,12 +15,10 @@ if ROOT not in sys.path:
 
 from modelling.components.environment.sumo_environment import SumoEnvironment
 from modelling.components.observation.queue_observation import QueueObservation
-from modelling.components.reward.wait_time              import WaitTimeReward
 from modelling.components.policy.dqn                    import DQNPolicy
 from modelling.components.replay_buffer.uniform         import UniformReplayBuffer
 from modelling.agent   import Agent
 from modelling.trainer import Trainer
-from modelling.components.reward.delta_wait_time import DeltaWaitTimeReward
 from modelling.components.reward.composite_reward import CompositeReward
 
 
@@ -32,9 +30,17 @@ from modelling.components.reward.composite_reward import CompositeReward
 CSV_PATH          = "src/data/synthetic_toronto_data.csv"
 INTERSECTION_PATH = "src/intersection.json"
 COLUMNS_PATH      = "src/columns.json"
-SUMO_HOME         = os.environ.get(
-    "SUMO_HOME", r"C:\Program Files (x86)\Eclipse\Sumo"
-)
+_SUMO_HOME_FALLBACK_WIN = r"C:\Program Files (x86)\Eclipse\Sumo"
+SUMO_HOME = os.environ.get("SUMO_HOME")
+if SUMO_HOME and not os.path.isdir(SUMO_HOME):
+    SUMO_HOME = ""
+if not SUMO_HOME:
+    try:
+        import sumo  # optional: pip package eclipse-sumo
+
+        SUMO_HOME = sumo.SUMO_HOME
+    except ImportError:
+        SUMO_HOME = _SUMO_HOME_FALLBACK_WIN
 
 # Data Split & Training
 TRAIN_SIZE = 5
@@ -343,6 +349,11 @@ def main():
     parser.add_argument("--gui", action="store_true", help="Launch sumo-gui")
     args = parser.parse_args()
     use_gui = args.gui
+
+    _sumo_bin = os.path.join(SUMO_HOME, "bin")
+    if os.path.isdir(_sumo_bin):
+        os.environ["PATH"] = _sumo_bin + os.pathsep + os.environ.get("PATH", "")
+    os.environ["SUMO_HOME"] = SUMO_HOME
 
     _banner("RL Traffic Signal Optimiser")
     print(f"  CSV           : {CSV_PATH}")
