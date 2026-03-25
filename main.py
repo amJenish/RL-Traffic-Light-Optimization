@@ -26,6 +26,8 @@ from modelling.agent   import Agent
 from modelling.trainer import Trainer
 from modelling.components.reward.delta_wait_time import DeltaWaitTimeReward
 from modelling.components.reward.composite_reward import CompositeReward
+# Optional (throughput experiments; pair with throughput reward + agent step hooks from jen history):
+# from modelling.components.reward.throughput import ThroughputReward
 
 
 # ==========================================================================
@@ -46,6 +48,7 @@ TEST_SIZE  = 5
 EPOCHS     = 60
 
 # Component Selection — swap any of these to use a different implementation
+# CompositeReward: stable default for this project. ThroughputReward is available for experiments.
 EnvironmentClass  = SumoEnvironment
 ObservationClass  = QueueObservation
 RewardClass       = CompositeReward
