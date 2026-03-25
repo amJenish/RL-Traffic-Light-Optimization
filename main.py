@@ -15,6 +15,41 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+
+def _default_sumo_home() -> str:
+    """Fallback when SUMO_HOME is not set in the environment.
+
+    Windows: same default as historical ``main.py`` — prefer a real install under
+    ``Program Files (x86)`` or ``Program Files`` if ``bin`` exists, else the classic x86 path.
+    macOS: ``pip install eclipse-sumo`` (``import sumo``), then common Homebrew layouts.
+    """
+    if sys.platform == "win32":
+        _win_candidates = (
+            r"C:\Program Files (x86)\Eclipse\Sumo",
+            r"C:\Program Files\Eclipse\Sumo",
+        )
+        for candidate in _win_candidates:
+            if os.path.isdir(os.path.join(candidate, "bin")):
+                return candidate
+        return _win_candidates[0]
+    if sys.platform == "darwin":
+        try:
+            import sumo  # noqa: PLC0415
+
+            return sumo.SUMO_HOME
+        except Exception:
+            pass
+        for candidate in ("/opt/homebrew/opt/sumo", "/usr/local/opt/sumo"):
+            if os.path.isdir(os.path.join(candidate, "bin")):
+                return candidate
+    try:
+        import sumo  # noqa: PLC0415
+
+        return sumo.SUMO_HOME
+    except Exception:
+        return r"C:\Program Files (x86)\Eclipse\Sumo"
+
+
 from modelling.components.environment.sumo_environment import SumoEnvironment
 from modelling.components.observation.queue_observation import QueueObservation
 from modelling.components.reward.wait_time              import WaitTimeReward
@@ -38,9 +73,8 @@ from modelling.components.reward.composite_reward import CompositeReward
 CSV_PATH          = "src/data/synthetic_toronto_data.csv"
 INTERSECTION_PATH = "src/intersection.json"
 COLUMNS_PATH      = "src/columns.json"
-SUMO_HOME         = os.environ.get(
-    "SUMO_HOME", r"C:\Program Files (x86)\Eclipse\Sumo"
-)
+# Override with env var SUMO_HOME everywhere (recommended). If unset, see _default_sumo_home().
+SUMO_HOME         = os.environ.get("SUMO_HOME") or _default_sumo_home()
 
 # Data Split & Training
 TRAIN_SIZE = 5
