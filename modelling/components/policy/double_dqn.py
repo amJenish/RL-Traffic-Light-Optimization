@@ -86,11 +86,11 @@ class DoubleDQNPolicy(BasePolicy):
         states, actions, rewards, next_states, dones = \
             replay_buffer.sample(self._batch_size)
 
-        states      = torch.tensor(states,      device=self._device)
-        actions     = torch.tensor(actions,     device=self._device)
-        rewards     = torch.tensor(rewards,     device=self._device)
-        next_states = torch.tensor(next_states, device=self._device)
-        dones       = torch.tensor(dones,       device=self._device)
+        states      = torch.tensor(states,      dtype=torch.float32, device=self._device)
+        actions     = torch.tensor(actions,     dtype=torch.long,    device=self._device)
+        rewards     = torch.tensor(rewards,     dtype=torch.float32, device=self._device)
+        next_states = torch.tensor(next_states, dtype=torch.float32, device=self._device)
+        dones       = torch.tensor(dones,       dtype=torch.float32, device=self._device)
 
         q_current = self._online(states).gather(
             1, actions.unsqueeze(1)

@@ -1,39 +1,46 @@
 """Agent — composes all RL components with adaptive decision timing.
-Fast-forwards through min_green lockout, decides every step after, forces switch at max_green."""
+Fast-forwards through min_green lockout, decides every step after,
+soft-penalizes holding past max_green instead of forcing a switch."""
 
 import math
+import os
 import numpy as np
 from typing import Any
 
-from modelling.components.environment.base  import BaseEnvironment
-from modelling.components.observation.base  import BaseObservation
-from modelling.components.reward.base       import BaseReward
-from modelling.components.policy.base       import BasePolicy
+from modelling.components.environment.base   import BaseEnvironment
+from modelling.components.observation.base   import BaseObservation
+from modelling.components.reward.base        import BaseReward
+from modelling.components.policy.base        import BasePolicy
 from modelling.components.replay_buffer.base import BaseReplayBuffer
+from modelling.components.scheduler.base     import BaseScheduler
 
 
 class Agent:
 
     def __init__(
         self,
-        environment:   BaseEnvironment,
-        observation:   BaseObservation,
-        reward:        BaseReward,
-        policy:        BasePolicy,
-        replay_buffer: BaseReplayBuffer,
-        step_length:   float = 5.0,
-        min_green_s:   float = 15.0,
-        max_green_s:   float = 90.0,
+        environment:     BaseEnvironment,
+        observation:     BaseObservation,
+        reward:          BaseReward,
+        policy:          BasePolicy,
+        replay_buffer:   BaseReplayBuffer,
+        scheduler:       BaseScheduler | None = None,
+        step_length:     float = 5.0,
+        min_green_s:     float = 15.0,
+        max_green_s:     float = 90.0,
+        overshoot_coeff: float = 4.0,
     ):
         self.environment   = environment
         self.observation   = observation
         self.reward        = reward
         self.policy        = policy
         self.replay_buffer = replay_buffer
+        self.scheduler     = scheduler
 
         self._step_length       = step_length
         self._min_green_steps   = max(1, math.ceil(min_green_s / step_length))
         self._max_green_steps   = max(1, math.ceil(max_green_s / step_length))
+        self._overshoot_coeff   = overshoot_coeff
 
         self._steps_in_phase: dict[str, int] = {}
         self._episode_reward: float = 0.0
@@ -66,6 +73,16 @@ class Agent:
 
         return self._get_observations()
 
+    def _overshoot_scale(self, tls_id: str) -> float:
+        """Reward multiplier that decays exponentially past max_green.
+        At or under max_green: 1.0. Past it: exp(-coeff * (overshoot/max)^2)."""
+        steps = self._steps_in_phase.get(tls_id, 0)
+        overshoot = max(0, steps - self._max_green_steps)
+        if overshoot == 0:
+            return 1.0
+        ratio = overshoot / self._max_green_steps
+        return math.exp(-self._overshoot_coeff * ratio * ratio)
+
     def step(self, obs: dict[str, np.ndarray]) -> tuple[
         dict[str, np.ndarray], dict[str, float], bool, float | None,
     ]:
@@ -89,10 +106,7 @@ class Agent:
 
         actions = {}
         for tid in tls_ids:
-            if self._steps_in_phase.get(tid, 0) >= self._max_green_steps:
-                actions[tid] = 1
-            else:
-                actions[tid] = self.policy.select_action(obs[tid], tid)
+            actions[tid] = self.policy.select_action(obs[tid], tid)
 
         self._apply_actions(actions)
         self.environment.step(1)
@@ -107,6 +121,9 @@ class Agent:
         next_obs = self._get_observations()
         rewards  = {tid: self.reward.compute(self.environment.traci, tid) for tid in tls_ids}
 
+        for tid in tls_ids:
+            rewards[tid] *= self._overshoot_scale(tid)
+
         total_reward = sum(rewards.values())
         self._episode_reward += total_reward
         self._episode_steps  += 1
@@ -120,6 +137,8 @@ class Agent:
         loss = self.policy.update(self.replay_buffer)
         if loss is not None:
             self._episode_losses.append(loss)
+            if self.scheduler is not None:
+                self.scheduler.step()
 
         return next_obs, rewards, done, loss
 
@@ -127,11 +146,13 @@ class Agent:
         """Close SUMO and return episode metrics."""
         self.environment.close()
         mean_loss = float(np.mean(self._episode_losses)) if self._episode_losses else None
+        lr = self.scheduler.get_lr() if self.scheduler else None
         return {
             "total_reward": self._episode_reward,
             "steps":        self._episode_steps,
             "mean_loss":    mean_loss,
             "epsilon":      getattr(self.policy, "epsilon", None),
+            "learning_rate": lr,
         }
 
     def set_eval_mode(self) -> None:
@@ -141,10 +162,22 @@ class Agent:
         self.policy.set_train_mode()
 
     def save(self, path: str) -> None:
+        """Save policy weights + scheduler state together."""
         self.policy.save(path)
+        if self.scheduler is not None:
+            sched_path = path.replace(".pt", "_scheduler.pt")
+            import torch
+            torch.save(self.scheduler.state_dict(), sched_path)
 
     def load(self, path: str) -> None:
+        """Load policy weights + scheduler state if available."""
         self.policy.load(path)
+        if self.scheduler is not None:
+            sched_path = path.replace(".pt", "_scheduler.pt")
+            if os.path.exists(sched_path):
+                import torch
+                state = torch.load(sched_path, map_location="cpu")
+                self.scheduler.load_state_dict(state)
 
     def _get_observations(self) -> dict[str, np.ndarray]:
         traci = self.environment.traci

@@ -34,3 +34,8 @@ class BasePolicy(ABC):
     def set_train_mode(self) -> None:
         """Re-enable exploration."""
         pass
+
+    @property
+    def optimizer(self) -> Any:
+        """Expose the optimizer so a scheduler can attach to it."""
+        return getattr(self, "_optimiser", None)

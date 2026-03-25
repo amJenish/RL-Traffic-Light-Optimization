@@ -26,6 +26,8 @@ class Trainer:
         self.log_every  = log_every
 
         os.makedirs(output_dir, exist_ok=True)
+        self._checkpoint_dir = os.path.join(output_dir, "checkpoints")
+        os.makedirs(self._checkpoint_dir, exist_ok=True)
 
         with open(split_path) as f:
             self._split = json.load(f)
@@ -60,7 +62,7 @@ class Trainer:
 
                 if episode % self.save_every == 0:
                     path = os.path.join(
-                        self.output_dir, f"checkpoint_ep{episode:04d}.pt"
+                        self._checkpoint_dir, f"checkpoint_ep{episode:04d}.pt"
                     )
                     self.agent.save(path)
                     print(f"  Checkpoint saved -> {path}")
@@ -110,11 +112,13 @@ class Trainer:
         eps_str = f"  ε={eps:.3f}" if eps is not None else ""
         loss = metrics.get("mean_loss")
         loss_str = f"  loss={loss:.4f}" if loss is not None else ""
+        lr = metrics.get("learning_rate")
+        lr_str = f"  lr={lr:.6f}" if lr is not None else ""
         print(
             f"  {prefix} ep={index:4d}"
             f"  reward={metrics['total_reward']:8.1f}"
             f"  steps={metrics['steps']:5d}"
-            f"{loss_str}{eps_str}"
+            f"{loss_str}{eps_str}{lr_str}"
         )
 
     def _save_logs(self) -> None:

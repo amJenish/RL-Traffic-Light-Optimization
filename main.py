@@ -6,8 +6,10 @@ All configuration lives at the top. Edit then run: python main.py [--gui]
 import argparse
 import importlib.util
 import json
+import math
 import os
 import sys
+from datetime import datetime
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 if ROOT not in sys.path:
@@ -17,7 +19,9 @@ from modelling.components.environment.sumo_environment import SumoEnvironment
 from modelling.components.observation.queue_observation import QueueObservation
 from modelling.components.reward.wait_time              import WaitTimeReward
 from modelling.components.policy.dqn                    import DQNPolicy
+from modelling.components.policy.double_dqn             import DoubleDQNPolicy
 from modelling.components.replay_buffer.uniform         import UniformReplayBuffer
+from modelling.components.scheduler.cosine              import CosineScheduler
 from modelling.agent   import Agent
 from modelling.trainer import Trainer
 from modelling.components.reward.delta_wait_time import DeltaWaitTimeReward
@@ -45,8 +49,9 @@ EPOCHS     = 60
 EnvironmentClass  = SumoEnvironment
 ObservationClass  = QueueObservation
 RewardClass       = CompositeReward
-PolicyClass       = DQNPolicy
+PolicyClass       = DoubleDQNPolicy
 ReplayBufferClass = UniformReplayBuffer
+SchedulerClass    = CosineScheduler      # set to None to disable LR scheduling
 
 # Simulation
 STEP_LENGTH  = 10.0      # seconds per SUMO step
@@ -54,8 +59,9 @@ SIM_BEGIN    = 28800      # 08:00
 SIM_END      = 50400      # 14:00
 
 # Phase Timing (seconds — Agent converts to sim steps internally)
-MIN_GREEN_S  = 15
-MAX_GREEN_S  = 90
+MIN_GREEN_S      = 15
+MAX_GREEN_S      = 90
+OVERSHOOT_COEFF  = 4.0     # how harshly to penalize exceeding max_green (higher = harsher)
 
 # Observation
 MAX_LANES      = 16
@@ -69,18 +75,19 @@ REWARD_SCALE     = 1.0
 REWARD_ALPHA     = 0.65    # blend: 0.65 delta + 0.35 pressure
 
 # Policy (DQN)
-LEARNING_RATE  = 0.001
+LEARNING_RATE  = 0.1     # starting LR (scheduler decays from here)
+LR_MIN         = 0.00001   # floor LR the scheduler decays towards
 GAMMA          = 0.99
 EPSILON_START  = 1.0
 EPSILON_END    = 0.05
 EPSILON_DECAY  = 0.99998415
 TARGET_UPDATE  = 50
-BATCH_SIZE     = 128
-HIDDEN_SIZE    = 128
+BATCH_SIZE     = 256
+HIDDEN_SIZE    = 256
 N_ACTIONS      = 2        # 0 = keep, 1 = switch
 
 # Replay Buffer
-BUFFER_CAPACITY = 100_000
+BUFFER_CAPACITY = 4096
 
 # Misc
 SEED       = 42
@@ -88,8 +95,15 @@ SAVE_EVERY = 20
 LOG_EVERY  = 1
 
 # Output
-OUT_DIR    = "src/data"
-MODELS_DIR = "src/data/models"
+OUT_DIR  = "src/data"
+LOGS_DIR = "logs"
+
+# Estimated total update steps (for the LR scheduler horizon)
+_sim_seconds     = SIM_END - SIM_BEGIN
+_steps_per_ep    = _sim_seconds / STEP_LENGTH
+_min_green_steps = max(1, math.ceil(MIN_GREEN_S / STEP_LENGTH))
+_decisions_per_ep = _steps_per_ep / (_min_green_steps + 1)
+TOTAL_UPDATES    = int(EPOCHS * TRAIN_SIZE * _decisions_per_ep)
 
 
 # ==========================================================================
@@ -117,6 +131,75 @@ def _banner(text: str):
     print(f"\n{'='*60}")
     print(f"  {text}")
     print(f"{'='*60}")
+
+
+def _create_run_dir() -> str:
+    """Create a timestamped run folder inside LOGS_DIR and return its path."""
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_name = f"{timestamp}_{PolicyClass.__name__}_{RewardClass.__name__}"
+    run_dir = os.path.join(LOGS_DIR, run_name)
+    os.makedirs(os.path.join(run_dir, "checkpoints"), exist_ok=True)
+    return run_dir
+
+
+def _write_config_summary(run_dir: str, use_gui: bool) -> None:
+    """Write a human-readable config.txt for this run."""
+    sched_name = SchedulerClass.__name__ if SchedulerClass else "None (constant LR)"
+    lines = [
+        f"Run started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "",
+        "--- Components ---",
+        f"Policy:        {PolicyClass.__name__}",
+        f"Reward:        {RewardClass.__name__}",
+        f"Observation:   {ObservationClass.__name__}",
+        f"Environment:   {EnvironmentClass.__name__}",
+        f"Replay Buffer: {ReplayBufferClass.__name__}",
+        f"Scheduler:     {sched_name}",
+        "",
+        "--- Data ---",
+        f"CSV:           {CSV_PATH}",
+        f"Train days:    {TRAIN_SIZE}",
+        f"Test days:     {TEST_SIZE}",
+        f"Epochs:        {EPOCHS}",
+        f"Seed:          {SEED}",
+        "",
+        "--- Simulation ---",
+        f"Step length:   {STEP_LENGTH}s",
+        f"Sim window:    {SIM_BEGIN}s - {SIM_END}s",
+        f"Min green:     {MIN_GREEN_S}s",
+        f"Max green:     {MAX_GREEN_S}s (soft — overshoot_coeff={OVERSHOOT_COEFF})",
+        f"GUI:           {use_gui}",
+        "",
+        "--- Observation ---",
+        f"Max lanes:     {MAX_LANES}",
+        f"Max phase:     {MAX_PHASE}",
+        f"Max phase time:{MAX_PHASE_TIME}",
+        f"Max vehicles:  {MAX_VEHICLES}",
+        "",
+        "--- Reward ---",
+        f"Normalise:     {REWARD_NORMALISE}",
+        f"Scale:         {REWARD_SCALE}",
+        f"Alpha:         {REWARD_ALPHA}",
+        "",
+        "--- Policy ---",
+        f"Learning rate: {LEARNING_RATE} -> {LR_MIN} ({sched_name})",
+        f"Total updates: ~{TOTAL_UPDATES:,} (estimated)",
+        f"Gamma:         {GAMMA}",
+        f"Epsilon:       {EPSILON_START} -> {EPSILON_END} (decay {EPSILON_DECAY})",
+        f"Target update: {TARGET_UPDATE}",
+        f"Batch size:    {BATCH_SIZE}",
+        f"Hidden size:   {HIDDEN_SIZE}",
+        f"N actions:     {N_ACTIONS}",
+        "",
+        "--- Replay Buffer ---",
+        f"Capacity:      {BUFFER_CAPACITY}",
+        "",
+        "--- Output ---",
+        f"Save every:    {SAVE_EVERY} episodes",
+        f"Log every:     {LOG_EVERY} episodes",
+    ]
+    with open(os.path.join(run_dir, "config.txt"), "w") as f:
+        f.write("\n".join(lines) + "\n")
 
 
 # ==========================================================================
@@ -252,7 +335,7 @@ def run_build_network(sumo_home: str) -> str:
     return net_file
 
 
-def build_pipeline(net_file: str, use_gui: bool) -> Trainer:
+def build_pipeline(net_file: str, use_gui: bool, run_dir: str) -> Trainer:
     """Construct all RL components, wire them into Agent and Trainer."""
     _banner("Step 3/3 — Constructing RL components")
 
@@ -294,28 +377,41 @@ def build_pipeline(net_file: str, use_gui: bool) -> Trainer:
         hidden          = HIDDEN_SIZE,
     )
 
+    scheduler = None
+    if SchedulerClass is not None:
+        scheduler = SchedulerClass(
+            optimizer    = policy.optimizer,
+            total_steps  = TOTAL_UPDATES,
+            lr_min       = LR_MIN,
+        )
+
     replay_buffer = ReplayBufferClass(
         capacity = BUFFER_CAPACITY,
         seed     = SEED,
     )
 
+    sched_name = SchedulerClass.__name__ if SchedulerClass else "None"
     print(f"  Environment   : {EnvironmentClass.__name__} (gui={use_gui})")
     print(f"  Observation   : {ObservationClass.__name__} (size={obs_builder.size()})")
     print(f"  Reward        : {RewardClass.__name__}")
     print(f"  Policy        : {PolicyClass.__name__} (device={policy.device})")
+    print(f"  Scheduler     : {sched_name} (LR {LEARNING_RATE} -> {LR_MIN} over ~{TOTAL_UPDATES:,} steps)")
     print(f"  Replay buffer : {ReplayBufferClass.__name__} (capacity={BUFFER_CAPACITY:,})")
     print(f"  Phase timing  : min={MIN_GREEN_S}s  max={MAX_GREEN_S}s  "
           f"(decide every {STEP_LENGTH}s after min)")
+    print(f"  Run folder    : {run_dir}")
 
     agent = Agent(
-        environment   = environment,
-        observation   = obs_builder,
-        reward        = reward,
-        policy        = policy,
-        replay_buffer = replay_buffer,
-        step_length   = STEP_LENGTH,
-        min_green_s   = MIN_GREEN_S,
-        max_green_s   = MAX_GREEN_S,
+        environment     = environment,
+        observation     = obs_builder,
+        reward          = reward,
+        policy          = policy,
+        replay_buffer   = replay_buffer,
+        scheduler       = scheduler,
+        step_length     = STEP_LENGTH,
+        min_green_s     = MIN_GREEN_S,
+        max_green_s     = MAX_GREEN_S,
+        overshoot_coeff = OVERSHOOT_COEFF,
     )
 
     split_path = os.path.join(OUT_DIR, "processed", "split.json")
@@ -325,7 +421,7 @@ def build_pipeline(net_file: str, use_gui: bool) -> Trainer:
         agent      = agent,
         split_path = split_path,
         flows_dir  = flows_dir,
-        output_dir = MODELS_DIR,
+        output_dir = run_dir,
         n_epochs   = EPOCHS,
         save_every = SAVE_EVERY,
         log_every  = LOG_EVERY,
@@ -357,7 +453,11 @@ def main():
 
     split    = run_build_route()
     net_file = run_build_network(SUMO_HOME)
-    trainer  = build_pipeline(net_file, use_gui)
+
+    run_dir = _create_run_dir()
+    _write_config_summary(run_dir, use_gui)
+
+    trainer = build_pipeline(net_file, use_gui, run_dir)
 
     _banner("Training")
     results = trainer.run()
@@ -371,7 +471,7 @@ def main():
             / len(results["test_log"])
         )
         print(f"  Mean test reward : {mean_test:.2f}")
-    print(f"\nModels and logs saved to: {MODELS_DIR}")
+    print(f"\nAll results saved to: {run_dir}")
 
 
 if __name__ == "__main__":
