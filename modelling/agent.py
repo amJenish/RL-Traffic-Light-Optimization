@@ -58,7 +58,9 @@ class Agent:
         self._episode_steps  = 0
         self._episode_losses = []
 
-        self.environment.step(5)
+        for _ in range(5):
+            self.environment.step(1)
+            self._notify_simulation_step(accumulate_reward=False)
 
         tls_ids = self.environment.get_tls_ids()
         if not tls_ids:
@@ -95,7 +97,9 @@ class Agent:
         )
 
         if max_remaining > 0:
-            self.environment.step(max_remaining)
+            for _ in range(max_remaining):
+                self.environment.step(1)
+                self._notify_simulation_step(accumulate_reward=True)
             for tid in tls_ids:
                 self._steps_in_phase[tid] = (
                     self._steps_in_phase.get(tid, self._min_green_steps) + max_remaining
@@ -110,6 +114,7 @@ class Agent:
 
         self._apply_actions(actions)
         self.environment.step(1)
+        self._notify_simulation_step(accumulate_reward=True)
 
         for tid in tls_ids:
             if actions[tid] == 1:
@@ -178,6 +183,15 @@ class Agent:
                 import torch
                 state = torch.load(sched_path, map_location="cpu")
                 self.scheduler.load_state_dict(state)
+
+    def _notify_simulation_step(self, accumulate_reward: bool = True) -> None:
+        """Let rewards that need per-SUMO-step accounting (e.g. throughput) update state."""
+        hook = getattr(self.reward, "on_simulation_step", None)
+        if hook is None:
+            return
+        traci = self.environment.traci
+        for tls_id in self.environment.get_tls_ids():
+            hook(traci, tls_id, accumulate=accumulate_reward)
 
     def _get_observations(self) -> dict[str, np.ndarray]:
         traci = self.environment.traci

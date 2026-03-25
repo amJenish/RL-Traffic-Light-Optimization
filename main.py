@@ -19,6 +19,7 @@ from modelling.components.environment.sumo_environment import SumoEnvironment
 from modelling.components.observation.queue_observation import QueueObservation
 from modelling.components.reward.wait_time              import WaitTimeReward
 from modelling.components.policy.dqn                    import DQNPolicy
+from modelling.components.reward.throughput             import ThroughputReward
 from modelling.components.policy.double_dqn             import DoubleDQNPolicy
 from modelling.components.replay_buffer.uniform         import UniformReplayBuffer
 from modelling.components.scheduler.cosine              import CosineScheduler
@@ -49,7 +50,7 @@ EPOCHS     = 60
 # Component Selection — swap any of these to use a different implementation
 EnvironmentClass  = SumoEnvironment
 ObservationClass  = QueueObservation
-RewardClass       = CompositeReward
+RewardClass       = ThroughputReward
 PolicyClass       = DoubleDQNPolicy
 ReplayBufferClass = UniformReplayBuffer
 SchedulerClass    = CosineScheduler      # set to None to disable LR scheduling

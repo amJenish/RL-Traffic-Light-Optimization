@@ -1,16 +1,17 @@
-"""Throughput reward: vehicles that entered a departure lane from the junction this step."""
+"""Throughput reward: vehicles that entered a departure lane from the junction."""
 
 from typing import Any
 
 from .base import BaseReward
 
 
-def _departure_lanes(traci: Any, tls_id: str) -> list[str]:
-    """Lanes on edges that leave the junction (same id as tlLogic, e.g. J_centre)."""
+def _departure_lanes_from_edges(traci: Any, tls_id: str) -> list[str]:
+    """Lanes on edges whose start node is the TLS junction (e.g. J_centre)."""
+    tls = str(tls_id)
     lanes: list[str] = []
     for eid in traci.edge.getIDList():
         try:
-            if traci.edge.getFromID(eid) != tls_id:
+            if str(traci.edge.getFromID(eid)) != tls:
                 continue
         except (traci.exceptions.TraCIException, AttributeError):
             continue
@@ -23,13 +24,35 @@ def _departure_lanes(traci: Any, tls_id: str) -> list[str]:
     return lanes
 
 
-class ThroughputReward(BaseReward):
-    """Reward proportional to vehicles that crossed onto outbound lanes this simulation step.
+def _departure_lanes_from_links(traci: Any, tls_id: str) -> list[str]:
+    """Fallback: outgoing road lanes from tl controlled links (skip internal ':' lanes)."""
+    lanes: list[str] = []
+    try:
+        groups = traci.trafficlight.getControlledLinks(tls_id)
+    except traci.exceptions.TraCIException:
+        return lanes
+    for group in groups:
+        for tup in group:
+            if len(tup) >= 2:
+                lane = tup[1]
+                if lane and not str(lane).startswith(":"):
+                    lanes.append(str(lane))
+    return list(dict.fromkeys(lanes))
 
-    Counts vehicles whose id was not present on any departure lane after the previous
-    reward call but is present now — i.e. they entered a post-intersection lane during
-    the last TraCI step. This matches “passed the intersection” rather than trip end
-    (``simulation.getArrivedNumber``).
+
+def _departure_lanes(traci: Any, tls_id: str) -> list[str]:
+    primary = _departure_lanes_from_edges(traci, tls_id)
+    if primary:
+        return primary
+    return _departure_lanes_from_links(traci, tls_id)
+
+
+class ThroughputReward(BaseReward):
+    """Vehicles that enter post-intersection lanes (per TraCI step), summed per RL decision.
+
+    The agent may advance several simulation steps before one RL transition; this class
+    must receive :meth:`on_simulation_step` after **each** ``simulationStep`` so vehicles
+    that cross and leave outbound edges within a long step are still counted.
     """
 
     def __init__(
@@ -41,9 +64,13 @@ class ThroughputReward(BaseReward):
         self._normalise = normalise
         self._scale = scale
         self._prev_on_departure: dict[str, frozenset[str]] = {}
+        self._accumulated: dict[str, int] = {}
         self._lanes_cache: dict[str, list[str]] = {}
 
-    def compute(self, traci: Any, tls_id: str) -> float:
+    def on_simulation_step(
+        self, traci: Any, tls_id: str, *, accumulate: bool = True
+    ) -> None:
+        """Update crossing counts after one SUMO step. Use accumulate=False during warmup."""
         if tls_id not in self._lanes_cache:
             self._lanes_cache[tls_id] = _departure_lanes(traci, tls_id)
 
@@ -58,16 +85,23 @@ class ThroughputReward(BaseReward):
         current_f = frozenset(current)
         if tls_id not in self._prev_on_departure:
             self._prev_on_departure[tls_id] = current_f
-            return 0.0
+            return
 
-        passed = len(current - set(self._prev_on_departure[tls_id]))
+        prev = self._prev_on_departure[tls_id]
+        passed = len(current - set(prev))
         self._prev_on_departure[tls_id] = current_f
 
-        if self._normalise and dep_lanes:
-            passed /= len(dep_lanes)
+        if accumulate:
+            self._accumulated[tls_id] = self._accumulated.get(tls_id, 0) + passed
 
-        return passed * self._scale
+    def compute(self, traci: Any, tls_id: str) -> float:
+        total = float(self._accumulated.pop(tls_id, 0))
+        dep_lanes = self._lanes_cache.get(tls_id, [])
+        if self._normalise and dep_lanes:
+            total /= len(dep_lanes)
+        return total * self._scale
 
     def reset(self) -> None:
         self._prev_on_departure.clear()
+        self._accumulated.clear()
         self._lanes_cache.clear()
