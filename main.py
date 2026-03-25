@@ -75,19 +75,18 @@ REWARD_SCALE     = 1.0
 REWARD_ALPHA     = 0.65    # blend: 0.65 delta + 0.35 pressure
 
 # Policy (DQN)
-LEARNING_RATE  = 0.1     # starting LR (scheduler decays from here)
-LR_MIN         = 0.00001   # floor LR the scheduler decays towards
+LEARNING_RATE  = 0.001     # starting LR (scheduler decays from here)
+LR_MIN         = 0.0001    # floor LR the scheduler decays towards
 GAMMA          = 0.99
 EPSILON_START  = 1.0
 EPSILON_END    = 0.05
-EPSILON_DECAY  = 0.99998415
-TARGET_UPDATE  = 50
-BATCH_SIZE     = 256
-HIDDEN_SIZE    = 256
+TARGET_UPDATE  = 200
+BATCH_SIZE     = 128
+HIDDEN_SIZE    = 128
 N_ACTIONS      = 2        # 0 = keep, 1 = switch
 
 # Replay Buffer
-BUFFER_CAPACITY = 4096
+BUFFER_CAPACITY = 50_000
 
 # Misc
 SEED       = 42
@@ -98,12 +97,15 @@ LOG_EVERY  = 1
 OUT_DIR  = "src/data"
 LOGS_DIR = "logs"
 
-# Estimated total update steps (for the LR scheduler horizon)
+# Estimated total update steps (for the LR scheduler and epsilon decay)
 _sim_seconds     = SIM_END - SIM_BEGIN
 _steps_per_ep    = _sim_seconds / STEP_LENGTH
 _min_green_steps = max(1, math.ceil(MIN_GREEN_S / STEP_LENGTH))
 _decisions_per_ep = _steps_per_ep / (_min_green_steps + 1)
 TOTAL_UPDATES    = int(EPOCHS * TRAIN_SIZE * _decisions_per_ep)
+
+# Dynamic epsilon decay — reaches EPSILON_END at ~85% of training
+EPSILON_DECAY = (EPSILON_END / EPSILON_START) ** (1.0 / (0.85 * TOTAL_UPDATES))
 
 
 # ==========================================================================
