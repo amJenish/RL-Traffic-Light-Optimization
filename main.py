@@ -59,6 +59,7 @@ SchedulerClass    = CosineScheduler      # set to None to disable LR scheduling
 # Simulation
 STEP_LENGTH  = 10.0      # seconds per SUMO step
 SIM_BEGIN    = 28800      # 08:00
+# Sim window matches c881448; affects TOTAL_UPDATES / epsilon schedule
 SIM_END      = 50400      # 14:00
 
 # Phase Timing (seconds — Agent converts to sim steps internally)
