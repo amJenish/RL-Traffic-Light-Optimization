@@ -75,18 +75,18 @@ REWARD_SCALE     = 1.0
 REWARD_ALPHA     = 0.65    # blend: 0.65 delta + 0.35 pressure
 
 # Policy (DQN)
-LEARNING_RATE  = 0.001
+LEARNING_RATE  = 0.01  #0.01
 GAMMA          = 0.99
 EPSILON_START  = 1.0
 EPSILON_END    = 0.05
 EPSILON_DECAY  = 0.99998415
 TARGET_UPDATE  = 50
-BATCH_SIZE     = 128
-HIDDEN_SIZE    = 128
+BATCH_SIZE     = 256 
+HIDDEN_SIZE    = 256 
 N_ACTIONS      = 2        # 0 = keep, 1 = switch
 
 # Replay Buffer
-BUFFER_CAPACITY = 100_000
+BUFFER_CAPACITY = 100_000 # 4096
 
 # Misc
 SEED       = 42

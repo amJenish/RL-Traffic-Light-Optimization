@@ -12,11 +12,14 @@ Usage:
     python evaluate_baseline.py \\
         --config        config.json \\
         --intersection  src/intersection.json \\
-        --sumo-home     "C:\\Program Files (x86)\\Eclipse\\Sumo"
+        --sumo-home     <SUMO_HOME>
+
+    Baseline min/max green steps match Agent: ceil(seconds / step_length) per sim step.
 """
 
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -90,12 +93,19 @@ def _build_agent(cfg: dict, int_cfg: dict, policy, sumo_home: str, gui: bool):
         seed = cfg["training"]["seed"],
     )
 
+    min_green_s = float(int_cfg.get("min_green_s", 15))
+    max_green_s = float(int_cfg.get("max_green_s", 90))
+    step_length = float(scfg["step_length"])
+
     return Agent(
         environment = environment,
         observation = obs_builder,
         reward = reward,
         policy = policy,
         replay_buffer = replay_buffer,
+        step_length = step_length,
+        min_green_s = min_green_s,
+        max_green_s = max_green_s,
     )
 
 
@@ -235,18 +245,23 @@ def main():
     except ImportError as e:
         _abort(f"Baseline import failed: {e}")
 
-    # Convert intersection timing (seconds) to decision steps.
-    # One decision step = decision_gap × step_length seconds.
-    # e.g. 30 ticks × 5 s/tick = 150 s per decision step.
-    decision_step_s = (
-        cfg["simulation"]["decision_gap"] * cfg["simulation"]["step_length"]
+    # Same units as Agent: one policy "step" = one SUMO step after min lockout.
+    # min/max green in sim steps = ceil(seconds / step_length) — NOT decision_gap×step_length.
+    scfg = cfg["simulation"]
+    step_length = float(scfg["step_length"])
+    min_green_s = float(int_cfg.get("min_green_s", 15))
+    max_green_s = float(int_cfg.get("max_green_s", 90))
+    min_green_steps = max(1, math.ceil(min_green_s / step_length))
+    max_green_steps = max(min_green_steps, max(1, math.ceil(max_green_s / step_length)))
+    # Hold green until timer fires; pick mid-span so fixed-time is not "switch every step".
+    fixed_green_steps = min(
+        max_green_steps,
+        max(min_green_steps, (min_green_steps + max_green_steps) // 2),
     )
-    min_green_steps = max(1, round(int_cfg.get("min_green_s", 15) / decision_step_s))
-    max_green_steps = max(1, round(int_cfg.get("max_green_s", 90) / decision_step_s))
-    max_lanes       = cfg["observation"]["max_lanes"]
+    max_lanes = cfg["observation"]["max_lanes"]
 
     fixed_policy = FixedTimePolicy(
-        fixed_green_steps = 1,               # switch every decision step (~2.5 min/phase)
+        fixed_green_steps = fixed_green_steps,
         min_green_steps   = min_green_steps,
         max_green_steps   = max_green_steps,
     )
@@ -261,6 +276,10 @@ def main():
     print(f"  Config        : {args.config}")
     print(f"  Intersection  : {args.intersection}")
     print(f"  SUMO home     : {args.sumo_home}")
+    print(
+        f"  Phase steps   : min={min_green_steps}  max={max_green_steps}  "
+        f"fixed={fixed_green_steps}  (step_length={step_length}s, same as Agent)"
+    )
 
     # Run evaluations
     fixed_log = _run_baseline("Fixed-Time", fixed_policy,    cfg, int_cfg, args.sumo_home, args.gui)
