@@ -26,6 +26,7 @@ from modelling.agent   import Agent
 from modelling.trainer import Trainer
 from modelling.components.reward.delta_wait_time import DeltaWaitTimeReward
 from modelling.components.reward.composite_reward import CompositeReward
+from modelling.components.reward.throughput import ThroughputReward
 
 
 # ==========================================================================
@@ -56,7 +57,7 @@ SchedulerClass    = CosineScheduler      # set to None to disable LR scheduling
 # Simulation
 STEP_LENGTH  = 10.0      # seconds per SUMO step
 SIM_BEGIN    = 28800      # 08:00
-SIM_END      = 50400      # 14:00
+SIM_END      = 64800      # 18:00
 
 # Phase Timing (seconds — Agent converts to sim steps internally)
 MIN_GREEN_S      = 15
