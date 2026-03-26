@@ -46,6 +46,7 @@ class Agent:
         self._episode_reward: float = 0.0
         self._episode_steps:  int   = 0
         self._episode_losses: list[float] = []
+        self._train_mode: bool = True
 
     def start_episode(self, route_file: str) -> dict[str, np.ndarray]:
         """Reset everything and launch SUMO for one episode. Returns initial observations."""
@@ -128,17 +129,19 @@ class Agent:
         self._episode_reward += total_reward
         self._episode_steps  += 1
 
-        for tid in tls_ids:
-            self.replay_buffer.push(
-                state=obs[tid], action=actions[tid], reward=total_reward,
-                next_state=next_obs[tid], done=float(done),
-            )
+        loss = None
+        if self._train_mode:
+            for tid in tls_ids:
+                self.replay_buffer.push(
+                    state=obs[tid], action=actions[tid], reward=total_reward,
+                    next_state=next_obs[tid], done=float(done),
+                )
 
-        loss = self.policy.update(self.replay_buffer)
-        if loss is not None:
-            self._episode_losses.append(loss)
-            if self.scheduler is not None:
-                self.scheduler.step()
+            loss = self.policy.update(self.replay_buffer)
+            if loss is not None:
+                self._episode_losses.append(loss)
+                if self.scheduler is not None:
+                    self.scheduler.step()
 
         return next_obs, rewards, done, loss
 
@@ -156,9 +159,11 @@ class Agent:
         }
 
     def set_eval_mode(self) -> None:
+        self._train_mode = False
         self.policy.set_eval_mode()
 
     def set_train_mode(self) -> None:
+        self._train_mode = True
         self.policy.set_train_mode()
 
     def save(self, path: str) -> None:

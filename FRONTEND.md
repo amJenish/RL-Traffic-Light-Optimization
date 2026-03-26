@@ -8,6 +8,12 @@ From the project root (with your virtualenv activated):
 
 ```bash
 pip install streamlit   # or: pip install -r requirements.txt
+python run_frontend.py
+```
+
+Equivalent direct command:
+
+```bash
 streamlit run streamlit_app.py
 ```
 
@@ -15,13 +21,12 @@ The browser opens automatically. Set **`SUMO_HOME`** in the sidebar (or install 
 
 ## What it does
 
-1. **Upload** a traffic CSV (same idea as `src/data/synthetic_toronto_data.csv`).
-2. Edit **`columns.json`** then **`intersection.json`** (defaults load from `src/`). Order matters so the suggestion helper can read your column map.
-3. **Suggest intersection from CSV** (expander) — detects active approaches from `columns.json` or from `n_approaching_*` column names; you set **lane counts**, **speed**, and optional **timing**; applies defaults from [`streamlit_intersection_helpers.py`](streamlit_intersection_helpers.py). **Apply auto columns.json** guesses a column map from Toronto-style headers. You can still edit every JSON field by hand.
-4. Open **Advanced** to change epochs, train/test days, simulation window, etc. (these map to `main.py` constants).  
+1. **Upload** a traffic CSV each session (format similar to `src/data/synthetic_toronto_data.csv`; that file is not auto-loaded).
+2. **Generate from CSV** fills the column map and intersection in memory; refine with the **field editors** (sections 2–3) or under **Raw JSON** (paste / copy). See [STREAMLIT_ARCHITECTURE.md](STREAMLIT_ARCHITECTURE.md) for the full data flow.
+3. Open **Advanced** to change epochs, train/test days, simulation window, etc. (these map to `main.py` constants).  
    **Default EPOCHS in the UI** is **`STREAMLIT_DEFAULT_EPOCHS`** in [`streamlit_app.py`](streamlit_app.py) (set to **10** for quick tests). Change that constant to `60` to match `main.py`, or type any value in Advanced.
-5. **Run training pipeline** — calls `validate_inputs` → `run_build_route` → `run_build_network` → `build_pipeline` → `trainer.run()` from [`main.py`](main.py). Outputs land under `logs/<timestamp>_.../` like the CLI.
-6. **Evaluate baselines** — runs [`evaluate_baseline.py`](evaluate_baseline.py) in a subprocess. If you trained in the same session, DQN results are picked up from the last run folder for the comparison table in the script output.
+4. **Run training pipeline** — calls `validate_inputs` → `run_build_route` → `run_build_network` → `build_pipeline` → `trainer.run()` from [`main.py`](main.py). Outputs land under `logs/<timestamp>_.../` like the CLI.
+5. **Evaluate baselines** — runs [`evaluate_baseline.py`](evaluate_baseline.py) in a subprocess. If you trained in the same session, DQN results are picked up from the last run folder for the comparison table in the script output.
 
 Local scratch files are stored under **`streamlit_runs/`** (gitignored).
 

@@ -21,14 +21,12 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from streamlit_config_forms import invalidate_config_widget_sync, render_column_and_intersection_forms
 from streamlit_intersection_helpers import (
-    DEFAULT_TIMING,
     build_intersection_dict,
-    detect_approaches_from_column_map,
     detect_approaches_from_headers,
     suggest_columns_json_from_dataframe,
     suggest_intersection_name,
-    validate_csv_minimum,
 )
 
 # Project root = directory containing this file
@@ -39,8 +37,46 @@ if str(ROOT) not in sys.path:
 RUNS = ROOT / "streamlit_runs"
 RUNS.mkdir(parents=True, exist_ok=True)
 
+# Scratch CSV for the UI only (never `src/data/...`). Removed at the start of each new browser session.
+_STREAMLIT_TRAFFIC_CSV = RUNS / "traffic.csv"
+
+
+def _discard_previous_session_traffic_csv() -> None:
+    """First run of a Streamlit session: delete stale `traffic.csv` so nothing loads until user uploads."""
+    if "_streamlit_traffic_session_started" in st.session_state:
+        return
+    st.session_state._streamlit_traffic_session_started = True
+    try:
+        _STREAMLIT_TRAFFIC_CSV.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 # UI default for EPOCHS (quick local tests). Change to 60 to match main.py, or set in Advanced.
 STREAMLIT_DEFAULT_EPOCHS = 10
+
+def _apply_generated_config_from_dataframe(df: pd.DataFrame) -> None:
+    """Fill columns_text + intersection_text from CSV headers and defaults (2/1/1 lanes, 50 km/h)."""
+    if df is None or df.empty:
+        return
+
+    active = detect_approaches_from_headers(df)
+    st.session_state.pop("_show_nswe_warning_once", None)
+    if not active:
+        active = ["N", "S", "E", "W"]
+        st.session_state["_show_nswe_warning_once"] = True
+
+    col_obj = suggest_columns_json_from_dataframe(df, active)
+    int_obj = build_intersection_dict(
+        suggest_intersection_name(df),
+        active,
+        lanes_through=2,
+        lanes_right=1,
+        lanes_left=1,
+        speed_kmh=50.0,
+    )
+    st.session_state.columns_text = json.dumps(col_obj, indent=2)
+    st.session_state.intersection_text = json.dumps(int_obj, indent=2)
 
 
 def _recompute_derived(m) -> None:
@@ -141,16 +177,18 @@ def main() -> None:
     )
     st.title("RL Traffic Signal Optimizer")
     st.caption(
-        "Upload traffic data, edit intersection / column maps, tune training, "
-        "then run the pipeline (same code paths as `main.py`)."
+        "Upload a traffic CSV each visit (nothing is loaded from `src/data/`). Then **Generate from CSV**, "
+        "adjust the column and intersection fields below, and run training (same code paths as `main.py`)."
     )
 
     import main as m  # noqa: PLC0415 — after sys.path
 
-    default_intersection = (ROOT / "src" / "intersection.json").read_text(encoding="utf-8")
-    default_columns = (ROOT / "src" / "columns.json").read_text(encoding="utf-8")
-    st.session_state.setdefault("intersection_text", default_intersection)
-    st.session_state.setdefault("columns_text", default_columns)
+    _discard_previous_session_traffic_csv()
+
+    # Empty until **Generate from CSV** (or paste). Streamlit keeps this across reruns in the same tab.
+    st.session_state.setdefault("intersection_text", "")
+    st.session_state.setdefault("columns_text", "")
+    st.session_state.setdefault("_had_config_once", False)
 
     # --- Sidebar: SUMO ---
     st.sidebar.header("Environment")
@@ -168,144 +206,95 @@ def main() -> None:
     # --- Main: uploads & JSON ---
     st.subheader("1. Traffic CSV")
     csv_file = st.file_uploader(
-        "Upload counts CSV (same shape as `src/data/synthetic_toronto_data.csv`)", type=["csv"]
+        "Upload counts CSV (required — example format: `src/data/synthetic_toronto_data.csv` in the repo)",
+        type=["csv"],
     )
-    csv_path = RUNS / "traffic.csv"
+    csv_path = _STREAMLIT_TRAFFIC_CSV
     df_preview: pd.DataFrame | None = None
     if csv_file is not None:
         csv_path.write_bytes(csv_file.getvalue())
         df_preview = pd.read_csv(csv_file)
         st.dataframe(df_preview.head(8), use_container_width=True)
     elif csv_path.exists():
+        # Same session only: file appears after user uploads; we never load a leftover from a past visit.
         df_preview = pd.read_csv(csv_path)
 
-    st.subheader("2. Column map (`columns.json`)")
-    st.caption("Define the column map first (or paste defaults). The suggestion helper uses this.")
-    columns_text = st.text_area(
-        "JSON",
-        height=240,
-        key="columns_text",
-        help="Paste or edit columns.json. Use 'Apply auto columns.json' in the expander below if "
-        "headers match n_approaching_t style.",
-    )
-
-    st.subheader("3. Intersection (`intersection.json`)")
-    intersection_text = st.text_area(
-        "JSON",
-        height=220,
-        key="intersection_text",
-        help="Paste or edit intersection.json. Use the expander below to generate a draft.",
-    )
-
-    with st.expander("Suggest intersection from CSV (lanes + defaults)", expanded=False):
-        st.markdown(
-            "Detects **active approaches** from your `columns.json` (or from `n_approaching_*` "
-            "style headers). You set **lane counts** and **speed**; timing uses standard defaults "
-            "(editable below). **Counts alone cannot infer geometry** — adjust as needed."
+    g1, g2, g3 = st.columns([1, 2, 1])
+    with g1:
+        gen_from_csv = st.button(
+            "Generate from CSV",
+            type="primary",
+            disabled=df_preview is None,
+            help="Overwrite column map + intersection JSON from the loaded CSV (2/1/1 lanes, 50 km/h). "
+            "Does not run until you click this.",
+            key="btn_generate_from_csv",
         )
+    with g2:
+        st.caption(
+            "Builds **columns.json** and **intersection.json** from the table above. "
+            "Re-click after changing the CSV or to reset from headers."
+        )
+    with g3:
+        if st.button("Clear JSON", help="Empty stored column map + intersection JSON (e.g. stale session data)."):
+            st.session_state.columns_text = ""
+            st.session_state.intersection_text = ""
+            st.session_state["_had_config_once"] = False
+            invalidate_config_widget_sync()
+            st.rerun()
+
+    if gen_from_csv:
         if df_preview is None:
-            st.info("Upload a CSV above to enable suggestions.")
+            st.error("Load a CSV first (upload required each new browser session).")
         else:
-            col_parse_err: str | None = None
-            col_map_try: dict | None = None
-            try:
-                col_map_try = json.loads(st.session_state.columns_text)
-            except json.JSONDecodeError as e:
-                col_parse_err = str(e)
+            _apply_generated_config_from_dataframe(df_preview)
+            st.session_state["_had_config_once"] = True
+            st.success("Updated **columns.json** and **intersection.json** from the CSV.")
 
-            if col_parse_err:
-                st.warning(f"Fix `columns.json` above to valid JSON for map-based detection: {col_parse_err}")
-                detected = detect_approaches_from_headers(df_preview)
-                st.caption("Using header heuristics only (n_approaching_* column names).")
-            else:
-                from_map, map_warn = detect_approaches_from_column_map(df_preview, col_map_try)
-                detected = from_map if from_map else detect_approaches_from_headers(df_preview)
-                for w in map_warn:
-                    st.warning(w)
+    if st.session_state.pop("_show_nswe_warning_once", False):
+        st.warning(
+            "No **n_approaching_***-style column names were found — generated configs use **N, S, E, W**. "
+            "Adjust the **column map** fields below if your CSV uses different names."
+        )
 
-            if not detected:
-                st.error(
-                    "Could not detect approaches. Add a valid columns.json or rename columns "
-                    "to e.g. n_approaching_t, s_approaching_t, …"
-                )
-            else:
-                errs, warns = validate_csv_minimum(df_preview, col_map_try)
-                for e in errs:
-                    st.error(e)
-                for w in warns:
-                    st.warning(w)
+    render_column_and_intersection_forms()
 
-                name_in = st.text_input(
-                    "Intersection name (used in SUMO file names)",
-                    value=suggest_intersection_name(df_preview),
-                    key="gen_int_name",
-                )
-                active_sel = st.multiselect(
-                    "Active approaches",
-                    options=["N", "S", "E", "W"],
-                    default=detected,
-                )
-                c1, c2, c3, c4 = st.columns(4)
-                with c1:
-                    lt = st.number_input("Through lanes", 1, 8, 2, key="gen_lt")
-                with c2:
-                    lr = st.number_input("Right lanes", 0, 8, 1, key="gen_lr")
-                with c3:
-                    ll = st.number_input("Left lanes", 0, 8, 1, key="gen_ll")
-                with c4:
-                    sp = st.number_input("Speed (km/h)", 20, 130, 50, key="gen_sp")
+    with st.expander("Raw JSON (import / backup)", expanded=False):
+        st.caption(
+            "The forms above are the main editor. Paste complete JSON here and click **Apply** to load from a file, "
+            "or copy the preview to save your config."
+        )
+        pc1, pc2 = st.columns(2)
+        with pc1:
+            st.markdown("**columns.json**")
+            st.code(st.session_state.get("columns_text") or "{}", language="json")
+            pasted_c = st.text_area("Paste columns.json", height=200, key="paste_columns_buffer", label_visibility="visible")
+            if st.button("Apply pasted columns JSON", key="btn_apply_paste_columns"):
+                try:
+                    json.loads(pasted_c)
+                    st.session_state.columns_text = pasted_c
+                    st.session_state["_had_config_once"] = True
+                    invalidate_config_widget_sync()
+                    st.success("Applied column map.")
+                    st.rerun()
+                except json.JSONDecodeError as e:
+                    st.error(f"Invalid JSON: {e}")
+        with pc2:
+            st.markdown("**intersection.json**")
+            st.code(st.session_state.get("intersection_text") or "{}", language="json")
+            pasted_i = st.text_area("Paste intersection.json", height=200, key="paste_intersection_buffer")
+            if st.button("Apply pasted intersection JSON", key="btn_apply_paste_intersection"):
+                try:
+                    json.loads(pasted_i)
+                    st.session_state.intersection_text = pasted_i
+                    st.session_state["_had_config_once"] = True
+                    invalidate_config_widget_sync()
+                    st.success("Applied intersection config.")
+                    st.rerun()
+                except json.JSONDecodeError as e:
+                    st.error(f"Invalid JSON: {e}")
 
-                with st.expander("Timing defaults (usually standard)"):
-                    t1, t2, t3 = st.columns(3)
-                    with t1:
-                        ph = st.text_input("phases", value=str(DEFAULT_TIMING["phases"]), key="gen_ph")
-                        mr = st.number_input("min_red_s", 1, 120, int(DEFAULT_TIMING["min_red_s"]), key="gen_mr")
-                    with t2:
-                        mg = st.number_input("min_green_s", 1, 300, int(DEFAULT_TIMING["min_green_s"]), key="gen_mg")
-                        mx = st.number_input("max_green_s", 1, 600, int(DEFAULT_TIMING["max_green_s"]), key="gen_mx")
-                    with t3:
-                        am = st.number_input("amber_s", 1, 30, int(DEFAULT_TIMING["amber_s"]), key="gen_am")
-                        cy = st.number_input("cycle_s", 30, 300, int(DEFAULT_TIMING["cycle_s"]), key="gen_cy")
-                        el = st.number_input(
-                            "edge_length_m", 10, 500, int(DEFAULT_TIMING["edge_length_m"]), key="gen_el"
-                        )
-
-                b1, b2 = st.columns(2)
-                with b1:
-                    if st.button("Apply generated intersection to editor", key="btn_apply_int"):
-                        if not active_sel:
-                            st.error("Select at least one active approach.")
-                        else:
-                            timing = {
-                                "phases": str(ph),
-                                "min_red_s": int(mr),
-                                "min_green_s": int(mg),
-                                "max_green_s": int(mx),
-                                "amber_s": int(am),
-                                "cycle_s": int(cy),
-                                "edge_length_m": int(el),
-                            }
-                            obj = build_intersection_dict(
-                                name_in,
-                                active_sel,
-                                int(lt),
-                                int(lr),
-                                int(ll),
-                                float(sp),
-                                timing=timing,
-                            )
-                            st.session_state.intersection_text = json.dumps(obj, indent=2)
-                            st.success("Intersection JSON updated — review section 3.")
-                            st.rerun()
-                with b2:
-                    if st.button("Apply auto columns.json from CSV headers", key="btn_apply_col"):
-                        if not active_sel:
-                            st.error("Select at least one active approach.")
-                        else:
-                            sug = suggest_columns_json_from_dataframe(df_preview, active_sel)
-                            st.session_state.columns_text = json.dumps(sug, indent=2)
-                            st.success("Column map updated — review section 2.")
-                            st.rerun()
+    columns_text = st.session_state.get("columns_text", "")
+    intersection_text = st.session_state.get("intersection_text", "")
 
     with st.expander("Advanced — training & simulation (matches `main.py` constants)"):
         c1, c2, c3 = st.columns(3)
@@ -347,13 +336,25 @@ def main() -> None:
 
     if run_train or run_baseline:
         if csv_file is None and not csv_path.exists():
-            st.error("Upload a CSV first (or place `streamlit_runs/traffic.csv`).")
+            st.error("Upload a CSV first (required each new browser session).")
+            return
+        if not str(columns_text).strip() or not str(intersection_text).strip():
+            st.error(
+                "Column map or intersection config is empty. Click **Generate from CSV** (after loading a CSV), "
+                "or paste JSON under **Raw JSON** and click **Apply**."
+            )
             return
         try:
             intersection_obj = json.loads(intersection_text)
             col_map_obj = json.loads(columns_text)
         except json.JSONDecodeError as e:
             st.error(f"Invalid JSON: {e}")
+            return
+        if not intersection_obj.get("active_approaches"):
+            st.error("Intersection JSON has no **active_approaches**. Use **Generate from CSV** or fix the JSON.")
+            return
+        if not (col_map_obj.get("approaches") or {}):
+            st.error("Column map has no **approaches**. Use **Generate from CSV** or fix the JSON.")
             return
         int_path.write_text(intersection_text, encoding="utf-8")
         col_path.write_text(columns_text, encoding="utf-8")
@@ -470,9 +471,12 @@ def main() -> None:
         st.subheader("Results")
 
         train_df = pd.DataFrame(results["train_log"])
+        pretest_df = pd.DataFrame(results.get("pretest_log") or [])
         test_df = pd.DataFrame(results["test_log"])
         st.write("**Train log (per episode)**")
         st.dataframe(train_df, use_container_width=True)
+        st.write("**Pre-train test log (held-out days, before learning)**")
+        st.dataframe(pretest_df, use_container_width=True)
         st.write("**Test log (per day)**")
         st.dataframe(test_df, use_container_width=True)
 
@@ -484,6 +488,13 @@ def main() -> None:
             if results["test_log"]
             else None
         )
+        mean_pretest = (
+            sum(x["total_reward"] for x in results.get("pretest_log") or []) / len(results.get("pretest_log") or [])
+            if results.get("pretest_log")
+            else None
+        )
+        if mean_pretest is not None:
+            st.metric("Mean pre-train test reward", f"{mean_pretest:.2f}")
         if mean_test is not None:
             st.metric("Mean test reward", f"{mean_test:.2f}")
         st.info(f"Artifacts: `{run_dir}`")

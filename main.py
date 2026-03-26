@@ -113,18 +113,18 @@ REWARD_SCALE     = 1.0
 REWARD_ALPHA     = 0.65    # blend: 0.65 delta + 0.35 pressure
 
 # Policy (DQN)
-LEARNING_RATE  = 0.001     # starting LR (scheduler decays from here)
+LEARNING_RATE  = 0.01     # starting LR (scheduler decays from here)
 LR_MIN         = 0.0001    # floor LR the scheduler decays towards
 GAMMA          = 0.99
 EPSILON_START  = 1.0
 EPSILON_END    = 0.05
 TARGET_UPDATE  = 200
-BATCH_SIZE     = 128
-HIDDEN_SIZE    = 128
+BATCH_SIZE     = 256
+HIDDEN_SIZE    = 256
 N_ACTIONS      = 2        # 0 = keep, 1 = switch
 
 # Replay Buffer
-BUFFER_CAPACITY = 50_000
+BUFFER_CAPACITY = 100_000
 
 # Misc
 SEED       = 42
