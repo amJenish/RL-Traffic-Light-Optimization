@@ -1,0 +1,57 @@
+[
+  {
+    "total_reward": -405.8838443510373,
+    "steps": 813,
+    "mean_loss": 0.020053546511434102,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "crossings_total": 6083.0,
+    "crossings_rate": 0.28162037037037035,
+    "day_id": 0,
+    "episode": 1
+  },
+  {
+    "total_reward": -445.53125,
+    "steps": 741,
+    "mean_loss": 0.02050716708465787,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "crossings_total": 5903.0,
+    "crossings_rate": 0.27328703703703705,
+    "day_id": 1,
+    "episode": 2
+  },
+  {
+    "total_reward": -404.125,
+    "steps": 815,
+    "mean_loss": 0.02221552136874089,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "crossings_total": 6422.0,
+    "crossings_rate": 0.2973148148148148,
+    "day_id": 4,
+    "episode": 3
+  },
+  {
+    "total_reward": -297.34375,
+    "steps": 826,
+    "mean_loss": 0.021547956776649627,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "crossings_total": 3837.0,
+    "crossings_rate": 0.1776388888888889,
+    "day_id": 6,
+    "episode": 4
+  },
+  {
+    "total_reward": -355.47845738737476,
+    "steps": 858,
+    "mean_loss": 0.02484185700489334,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "crossings_total": 6045.0,
+    "crossings_rate": 0.2798611111111111,
+    "day_id": 9,
+    "episode": 5
+  }
+]

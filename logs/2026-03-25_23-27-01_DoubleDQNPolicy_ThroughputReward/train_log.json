@@ -1,0 +1,3002 @@
+[
+  {
+    "total_reward": 5839.475762732904,
+    "steps": 1049,
+    "mean_loss": 1.4860407341487463,
+    "epsilon": 0.9871281600339906,
+    "learning_rate": null,
+    "episode": 1,
+    "epoch": 1,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5789.855450353269,
+    "steps": 1081,
+    "mean_loss": 1.6150265603458076,
+    "epsilon": 0.9698695790672568,
+    "learning_rate": null,
+    "episode": 2,
+    "epoch": 1,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4237.377421944957,
+    "steps": 1077,
+    "mean_loss": 1.8208397505121754,
+    "epsilon": 0.9529749360073739,
+    "learning_rate": null,
+    "episode": 3,
+    "epoch": 1,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6029.807267137692,
+    "steps": 1058,
+    "mean_loss": 1.8585877255140495,
+    "epsilon": 0.9366649251632476,
+    "learning_rate": null,
+    "episode": 4,
+    "epoch": 1,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6177.2348360176165,
+    "steps": 1079,
+    "mean_loss": 1.8994516645790362,
+    "epsilon": 0.9203186570914671,
+    "learning_rate": null,
+    "episode": 5,
+    "epoch": 1,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5854.85545035327,
+    "steps": 1052,
+    "mean_loss": 1.8869481951338256,
+    "epsilon": 0.9046561144131727,
+    "learning_rate": null,
+    "episode": 6,
+    "epoch": 2,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5812.821753130201,
+    "steps": 1058,
+    "mean_loss": 1.864693970107852,
+    "epsilon": 0.8891730723322315,
+    "learning_rate": null,
+    "episode": 7,
+    "epoch": 2,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4221.710900706538,
+    "steps": 1095,
+    "mean_loss": 1.8323364454861646,
+    "epsilon": 0.8734275593785114,
+    "learning_rate": null,
+    "episode": 8,
+    "epoch": 2,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6063.834253116308,
+    "steps": 1068,
+    "mean_loss": 1.8818906188457647,
+    "epsilon": 0.8583389255649915,
+    "learning_rate": null,
+    "episode": 9,
+    "epoch": 2,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6145.85545035327,
+    "steps": 1064,
+    "mean_loss": 1.9238638950693876,
+    "epsilon": 0.8435660056871315,
+    "learning_rate": null,
+    "episode": 10,
+    "epoch": 2,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5823.903633568846,
+    "steps": 1077,
+    "mean_loss": 1.7954995645454004,
+    "epsilon": 0.8288715077142784,
+    "learning_rate": null,
+    "episode": 11,
+    "epoch": 3,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5776.436616633753,
+    "steps": 1091,
+    "mean_loss": 1.7607679848382498,
+    "epsilon": 0.8142469586346307,
+    "learning_rate": null,
+    "episode": 12,
+    "epoch": 3,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4205.662717490961,
+    "steps": 1126,
+    "mean_loss": 1.7940599575347629,
+    "epsilon": 0.7994237772411639,
+    "learning_rate": null,
+    "episode": 13,
+    "epoch": 3,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5994.0,
+    "steps": 1085,
+    "mean_loss": 1.7868352361538442,
+    "epsilon": 0.7853956880692661,
+    "learning_rate": null,
+    "episode": 14,
+    "epoch": 3,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6137.773580552026,
+    "steps": 1114,
+    "mean_loss": 1.8032531982264357,
+    "epsilon": 0.7712487328489763,
+    "learning_rate": null,
+    "episode": 15,
+    "epoch": 3,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5828.51816784423,
+    "steps": 1103,
+    "mean_loss": 1.6750272919347042,
+    "epsilon": 0.7574925446727843,
+    "learning_rate": null,
+    "episode": 16,
+    "epoch": 4,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5853.759121831666,
+    "steps": 1111,
+    "mean_loss": 1.6266013381719375,
+    "epsilon": 0.7438846075360868,
+    "learning_rate": null,
+    "episode": 17,
+    "epoch": 4,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4232.765585221698,
+    "steps": 1161,
+    "mean_loss": 1.6797172721863614,
+    "epsilon": 0.7299253906023575,
+    "learning_rate": null,
+    "episode": 18,
+    "epoch": 4,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5997.62802194599,
+    "steps": 1104,
+    "mean_loss": 1.7127997199262397,
+    "epsilon": 0.7168945586533613,
+    "learning_rate": null,
+    "episode": 19,
+    "epoch": 4,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6210.718308316877,
+    "steps": 1103,
+    "mean_loss": 1.7438147406305708,
+    "epsilon": 0.7041078453256204,
+    "learning_rate": null,
+    "episode": 20,
+    "epoch": 4,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5892.250632925448,
+    "steps": 1146,
+    "mean_loss": 1.8469901116106522,
+    "epsilon": 0.6910641680425307,
+    "learning_rate": null,
+    "episode": 21,
+    "epoch": 5,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5863.897553508577,
+    "steps": 1141,
+    "mean_loss": 1.8310672780278479,
+    "epsilon": 0.6783174633525816,
+    "learning_rate": null,
+    "episode": 22,
+    "epoch": 5,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4233.250692907745,
+    "steps": 1168,
+    "mean_loss": 1.7195099801947809,
+    "epsilon": 0.665512616693215,
+    "learning_rate": null,
+    "episode": 23,
+    "epoch": 5,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6011.490890547,
+    "steps": 1105,
+    "mean_loss": 1.6445360563998848,
+    "epsilon": 0.6536210345991731,
+    "learning_rate": null,
+    "episode": 24,
+    "epoch": 5,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6115.669175326349,
+    "steps": 1109,
+    "mean_loss": 1.6609858541578941,
+    "epsilon": 0.6419000389801454,
+    "learning_rate": null,
+    "episode": 25,
+    "epoch": 5,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5769.51816784423,
+    "steps": 1148,
+    "mean_loss": 1.69429462525072,
+    "epsilon": 0.6299882094311999,
+    "learning_rate": null,
+    "episode": 26,
+    "epoch": 6,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5835.368126096964,
+    "steps": 1149,
+    "mean_loss": 1.698740545047481,
+    "epsilon": 0.6182873409383609,
+    "learning_rate": null,
+    "episode": 27,
+    "epoch": 6,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4284.141356146019,
+    "steps": 1169,
+    "mean_loss": 1.680867075002326,
+    "epsilon": 0.6066058069989544,
+    "learning_rate": null,
+    "episode": 28,
+    "epoch": 6,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5966.154266494295,
+    "steps": 1131,
+    "mean_loss": 1.5872574838571691,
+    "epsilon": 0.5955140998427265,
+    "learning_rate": null,
+    "episode": 29,
+    "epoch": 6,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6195.441396416099,
+    "steps": 1103,
+    "mean_loss": 1.561245999764229,
+    "epsilon": 0.5848923591900693,
+    "learning_rate": null,
+    "episode": 30,
+    "epoch": 6,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5832.530258240632,
+    "steps": 1111,
+    "mean_loss": 1.5454226665192097,
+    "epsilon": 0.5743850894993412,
+    "learning_rate": null,
+    "episode": 31,
+    "epoch": 7,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5785.411580174185,
+    "steps": 1106,
+    "mean_loss": 1.586602794919264,
+    "epsilon": 0.5641125973223827,
+    "learning_rate": null,
+    "episode": 32,
+    "epoch": 7,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4251.628361811559,
+    "steps": 1147,
+    "mean_loss": 1.5785650102179676,
+    "epsilon": 0.5536533139780269,
+    "learning_rate": null,
+    "episode": 33,
+    "epoch": 7,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5969.93657079686,
+    "steps": 1175,
+    "mean_loss": 1.7414465363482212,
+    "epsilon": 0.5431397590315453,
+    "learning_rate": null,
+    "episode": 34,
+    "epoch": 7,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6153.031928268709,
+    "steps": 1177,
+    "mean_loss": 1.7085528442590239,
+    "epsilon": 0.5328084628336321,
+    "learning_rate": null,
+    "episode": 35,
+    "epoch": 7,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5844.614534275384,
+    "steps": 1141,
+    "mean_loss": 1.6284415670699137,
+    "epsilon": 0.5229807906056196,
+    "learning_rate": null,
+    "episode": 36,
+    "epoch": 8,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5802.332842592261,
+    "steps": 1183,
+    "mean_loss": 1.6632291724494424,
+    "epsilon": 0.5129827235249302,
+    "learning_rate": null,
+    "episode": 37,
+    "epoch": 8,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4249.614534275384,
+    "steps": 1168,
+    "mean_loss": 1.4737325426548311,
+    "epsilon": 0.5032989611739296,
+    "learning_rate": null,
+    "episode": 38,
+    "epoch": 8,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5939.643980589107,
+    "steps": 1149,
+    "mean_loss": 1.5646769276798238,
+    "epsilon": 0.4939511116917998,
+    "learning_rate": null,
+    "episode": 39,
+    "epoch": 8,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6183.436929227174,
+    "steps": 1169,
+    "mean_loss": 1.6595550678141409,
+    "epsilon": 0.4846187086267809,
+    "learning_rate": null,
+    "episode": 40,
+    "epoch": 8,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5805.929637112957,
+    "steps": 1169,
+    "mean_loss": 1.6665941608370218,
+    "epsilon": 0.47546262614269846,
+    "learning_rate": null,
+    "episode": 41,
+    "epoch": 9,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5830.097704618626,
+    "steps": 1177,
+    "mean_loss": 1.6883382618984328,
+    "epsilon": 0.466418645951531,
+    "learning_rate": null,
+    "episode": 42,
+    "epoch": 9,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4221.927824383576,
+    "steps": 1197,
+    "mean_loss": 1.5849039757759649,
+    "epsilon": 0.45739740722497,
+    "learning_rate": null,
+    "episode": 43,
+    "epoch": 9,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5977.326913454036,
+    "steps": 1155,
+    "mean_loss": 1.4987270881087233,
+    "epsilon": 0.4488581491562099,
+    "learning_rate": null,
+    "episode": 44,
+    "epoch": 9,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6188.236006712204,
+    "steps": 1199,
+    "mean_loss": 1.5652966632059557,
+    "epsilon": 0.4401621927151264,
+    "learning_rate": null,
+    "episode": 45,
+    "epoch": 9,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5795.476130264292,
+    "steps": 1147,
+    "mean_loss": 1.5446246643116293,
+    "epsilon": 0.43200108957200917,
+    "learning_rate": null,
+    "episode": 46,
+    "epoch": 10,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5798.3500861401535,
+    "steps": 1131,
+    "mean_loss": 1.5450023505984947,
+    "epsilon": 0.42410200663970105,
+    "learning_rate": null,
+    "episode": 47,
+    "epoch": 10,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4263.64472540432,
+    "steps": 1183,
+    "mean_loss": 1.5390772148399965,
+    "epsilon": 0.4159942512735245,
+    "learning_rate": null,
+    "episode": 48,
+    "epoch": 10,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5986.912050138489,
+    "steps": 1181,
+    "mean_loss": 1.5830216349735793,
+    "epsilon": 0.40805481157572665,
+    "learning_rate": null,
+    "episode": 49,
+    "epoch": 10,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6199.981430591029,
+    "steps": 1207,
+    "mean_loss": 1.5855867312086844,
+    "epsilon": 0.40009712958997684,
+    "learning_rate": null,
+    "episode": 50,
+    "epoch": 10,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5809.6489657738875,
+    "steps": 1188,
+    "mean_loss": 1.5438731886722423,
+    "epsilon": 0.3924162707753517,
+    "learning_rate": null,
+    "episode": 51,
+    "epoch": 11,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5809.873124861354,
+    "steps": 1141,
+    "mean_loss": 1.4847567342646177,
+    "epsilon": 0.38517813783427707,
+    "learning_rate": null,
+    "episode": 52,
+    "epoch": 11,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4193.780507460584,
+    "steps": 1205,
+    "mean_loss": 1.4871693472149956,
+    "epsilon": 0.3776789100508001,
+    "learning_rate": null,
+    "episode": 53,
+    "epoch": 11,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5942.044562424304,
+    "steps": 1167,
+    "mean_loss": 1.51286022680482,
+    "epsilon": 0.3705553733996199,
+    "learning_rate": null,
+    "episode": 54,
+    "epoch": 11,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6133.299920679078,
+    "steps": 1197,
+    "mean_loss": 1.6127296925188606,
+    "epsilon": 0.36338827467004886,
+    "learning_rate": null,
+    "episode": 55,
+    "epoch": 11,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5753.884405703541,
+    "steps": 1123,
+    "mean_loss": 1.6015706945505932,
+    "epsilon": 0.3567903378791401,
+    "learning_rate": null,
+    "episode": 56,
+    "epoch": 12,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5769.536679558882,
+    "steps": 1191,
+    "mean_loss": 1.568135380294521,
+    "epsilon": 0.3499237314255601,
+    "learning_rate": null,
+    "episode": 57,
+    "epoch": 12,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4198.841914233332,
+    "steps": 1257,
+    "mean_loss": 1.49370482627987,
+    "epsilon": 0.3428198955579529,
+    "learning_rate": null,
+    "episode": 58,
+    "epoch": 12,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5960.8015269429925,
+    "steps": 1175,
+    "mean_loss": 1.5050651879006243,
+    "epsilon": 0.3363099448041145,
+    "learning_rate": null,
+    "episode": 59,
+    "epoch": 12,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6156.464618596878,
+    "steps": 1171,
+    "mean_loss": 1.4296155033408833,
+    "epsilon": 0.32994514789673035,
+    "learning_rate": null,
+    "episode": 60,
+    "epoch": 12,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5850.762652255941,
+    "steps": 1184,
+    "mean_loss": 1.4164248189410649,
+    "epsilon": 0.32363215237638454,
+    "learning_rate": null,
+    "episode": 61,
+    "epoch": 13,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5846.780998799768,
+    "steps": 1191,
+    "mean_loss": 1.4348685048289103,
+    "epsilon": 0.3174036915965795,
+    "learning_rate": null,
+    "episode": 62,
+    "epoch": 13,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4186.183349141329,
+    "steps": 1243,
+    "mean_loss": 1.4116785556485552,
+    "epsilon": 0.3110310898064758,
+    "learning_rate": null,
+    "episode": 63,
+    "epoch": 13,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5972.612423085072,
+    "steps": 1167,
+    "mean_loss": 1.4519787679498994,
+    "epsilon": 0.30516462146807827,
+    "learning_rate": null,
+    "episode": 64,
+    "epoch": 13,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6181.556834629542,
+    "steps": 1149,
+    "mean_loss": 1.4862432995498231,
+    "epsilon": 0.29949675173494666,
+    "learning_rate": null,
+    "episode": 65,
+    "epoch": 13,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5801.263393062773,
+    "steps": 1137,
+    "mean_loss": 1.464765148668197,
+    "epsilon": 0.2939917100166456,
+    "learning_rate": null,
+    "episode": 66,
+    "epoch": 14,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5834.114245526301,
+    "steps": 1089,
+    "mean_loss": 1.4476262400520297,
+    "epsilon": 0.2888139662807392,
+    "learning_rate": null,
+    "episode": 67,
+    "epoch": 14,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4214.780574618447,
+    "steps": 1187,
+    "mean_loss": 1.4976028956680008,
+    "epsilon": 0.28327408641121027,
+    "learning_rate": null,
+    "episode": 68,
+    "epoch": 14,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6049.101262368955,
+    "steps": 1101,
+    "mean_loss": 1.5469043587252402,
+    "epsilon": 0.27823061731938153,
+    "learning_rate": null,
+    "episode": 69,
+    "epoch": 14,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6181.0,
+    "steps": 1146,
+    "mean_loss": 1.5329825212402077,
+    "epsilon": 0.2730763637392206,
+    "learning_rate": null,
+    "episode": 70,
+    "epoch": 14,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5835.654452513555,
+    "steps": 1193,
+    "mean_loss": 1.5218373509084888,
+    "epsilon": 0.267812134384366,
+    "learning_rate": null,
+    "episode": 71,
+    "epoch": 15,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5883.6319997179935,
+    "steps": 1153,
+    "mean_loss": 1.4349438669055001,
+    "epsilon": 0.2628208642161698,
+    "learning_rate": null,
+    "episode": 72,
+    "epoch": 15,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4174.689412547691,
+    "steps": 1197,
+    "mean_loss": 1.4188658713597304,
+    "epsilon": 0.2577375130701657,
+    "learning_rate": null,
+    "episode": 73,
+    "epoch": 15,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6023.377378480763,
+    "steps": 1171,
+    "mean_loss": 1.415951210805028,
+    "epsilon": 0.2528597300861937,
+    "learning_rate": null,
+    "episode": 74,
+    "epoch": 15,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6149.167095708567,
+    "steps": 1131,
+    "mean_loss": 1.5536539321658256,
+    "epsilon": 0.24823622327936914,
+    "learning_rate": null,
+    "episode": 75,
+    "epoch": 15,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5832.166170151949,
+    "steps": 1118,
+    "mean_loss": 1.6563903949021868,
+    "epsilon": 0.24374895428375978,
+    "learning_rate": null,
+    "episode": 76,
+    "epoch": 16,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5819.126345042231,
+    "steps": 1175,
+    "mean_loss": 1.5309336071318769,
+    "epsilon": 0.23912030317789496,
+    "learning_rate": null,
+    "episode": 77,
+    "epoch": 16,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4170.312167608393,
+    "steps": 1192,
+    "mean_loss": 1.4789273846869502,
+    "epsilon": 0.2345144882034285,
+    "learning_rate": null,
+    "episode": 78,
+    "epoch": 16,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5986.180885335193,
+    "steps": 1094,
+    "mean_loss": 1.5092852322667347,
+    "epsilon": 0.23036545485768836,
+    "learning_rate": null,
+    "episode": 79,
+    "epoch": 16,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6248.325434981923,
+    "steps": 1092,
+    "mean_loss": 1.4972129449957894,
+    "epsilon": 0.22629721095611632,
+    "learning_rate": null,
+    "episode": 80,
+    "epoch": 16,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5849.601403105093,
+    "steps": 1098,
+    "mean_loss": 1.5207242746387892,
+    "epsilon": 0.222279049936595,
+    "learning_rate": null,
+    "episode": 81,
+    "epoch": 17,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5764.421801413077,
+    "steps": 1125,
+    "mean_loss": 1.4821581857469346,
+    "epsilon": 0.2182360710424952,
+    "learning_rate": null,
+    "episode": 82,
+    "epoch": 17,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4268.859894904569,
+    "steps": 1127,
+    "mean_loss": 1.454082393075051,
+    "epsilon": 0.21425963679355206,
+    "learning_rate": null,
+    "episode": 83,
+    "epoch": 17,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5961.209198688039,
+    "steps": 1143,
+    "mean_loss": 1.5557039305502558,
+    "epsilon": 0.21030074678889646,
+    "learning_rate": null,
+    "episode": 84,
+    "epoch": 17,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6189.267055087089,
+    "steps": 1159,
+    "mean_loss": 1.5310265817860265,
+    "epsilon": 0.20636112456148928,
+    "learning_rate": null,
+    "episode": 85,
+    "epoch": 17,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5845.0755194784215,
+    "steps": 1195,
+    "mean_loss": 1.5668475982035552,
+    "epsilon": 0.20237639386246167,
+    "learning_rate": null,
+    "episode": 86,
+    "epoch": 18,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5750.358209118241,
+    "steps": 1212,
+    "mean_loss": 1.5509387143079203,
+    "epsilon": 0.19841356222465645,
+    "learning_rate": null,
+    "episode": 87,
+    "epoch": 18,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4140.301762753312,
+    "steps": 1250,
+    "mean_loss": 1.42997012591362,
+    "epsilon": 0.1944077523883431,
+    "learning_rate": null,
+    "episode": 88,
+    "epoch": 18,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5981.723937263147,
+    "steps": 1171,
+    "mean_loss": 1.4256487420030783,
+    "epsilon": 0.19072850983161835,
+    "learning_rate": null,
+    "episode": 89,
+    "epoch": 18,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6251.062145196041,
+    "steps": 1117,
+    "mean_loss": 1.4230707536452352,
+    "epsilon": 0.18728384106641208,
+    "learning_rate": null,
+    "episode": 90,
+    "epoch": 18,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5852.773909780193,
+    "steps": 1170,
+    "mean_loss": 1.3820780851392664,
+    "epsilon": 0.1837424193422683,
+    "learning_rate": null,
+    "episode": 91,
+    "epoch": 19,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5831.937369702477,
+    "steps": 1163,
+    "mean_loss": 1.3792605876205097,
+    "epsilon": 0.1802885544436111,
+    "learning_rate": null,
+    "episode": 92,
+    "epoch": 19,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4213.038909039122,
+    "steps": 1227,
+    "mean_loss": 1.3832293511311406,
+    "epsilon": 0.17671497947289208,
+    "learning_rate": null,
+    "episode": 93,
+    "epoch": 19,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5980.316592827011,
+    "steps": 1140,
+    "mean_loss": 1.3870572616133774,
+    "epsilon": 0.17345829523050477,
+    "learning_rate": null,
+    "episode": 94,
+    "epoch": 19,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6200.860284467649,
+    "steps": 1145,
+    "mean_loss": 1.4537681931491502,
+    "epsilon": 0.1702477385848632,
+    "learning_rate": null,
+    "episode": 95,
+    "epoch": 19,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5876.799316448472,
+    "steps": 1164,
+    "mean_loss": 1.493699292188248,
+    "epsilon": 0.16704481187757506,
+    "learning_rate": null,
+    "episode": 96,
+    "epoch": 20,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5826.459513240117,
+    "steps": 1191,
+    "mean_loss": 1.4175217169658363,
+    "epsilon": 0.16382995188418553,
+    "learning_rate": null,
+    "episode": 97,
+    "epoch": 20,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4214.321490980825,
+    "steps": 1233,
+    "mean_loss": 1.4395420401925878,
+    "epsilon": 0.16056688954280382,
+    "learning_rate": null,
+    "episode": 98,
+    "epoch": 20,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6033.656637430692,
+    "steps": 1191,
+    "mean_loss": 1.4685906919484175,
+    "epsilon": 0.15747670036750416,
+    "learning_rate": null,
+    "episode": 99,
+    "epoch": 20,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6149.746259013688,
+    "steps": 1143,
+    "mean_loss": 1.4749117819030142,
+    "epsilon": 0.1545669925738154,
+    "learning_rate": null,
+    "episode": 100,
+    "epoch": 20,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5789.86590512497,
+    "steps": 1179,
+    "mean_loss": 1.4836859741485957,
+    "epsilon": 0.15162195897888883,
+    "learning_rate": null,
+    "episode": 101,
+    "epoch": 21,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5781.34222722865,
+    "steps": 1239,
+    "mean_loss": 1.5266666319025823,
+    "epsilon": 0.14858750040097668,
+    "learning_rate": null,
+    "episode": 102,
+    "epoch": 21,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4116.572220053698,
+    "steps": 1251,
+    "mean_loss": 1.5062254071712113,
+    "epsilon": 0.1455852630976252,
+    "learning_rate": null,
+    "episode": 103,
+    "epoch": 21,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6042.743806577792,
+    "steps": 1195,
+    "mean_loss": 1.4627435953547265,
+    "epsilon": 0.14277408406172998,
+    "learning_rate": null,
+    "episode": 104,
+    "epoch": 21,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6192.2675473482595,
+    "steps": 1172,
+    "mean_loss": 1.5215244147252711,
+    "epsilon": 0.1400697433374625,
+    "learning_rate": null,
+    "episode": 105,
+    "epoch": 21,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5852.806413512655,
+    "steps": 1183,
+    "mean_loss": 1.5004917452724325,
+    "epsilon": 0.13739196488934524,
+    "learning_rate": null,
+    "episode": 106,
+    "epoch": 22,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5791.1750485838475,
+    "steps": 1163,
+    "mean_loss": 1.4122039135016968,
+    "epsilon": 0.13480936427601103,
+    "learning_rate": null,
+    "episode": 107,
+    "epoch": 22,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4252.47739223899,
+    "steps": 1163,
+    "mean_loss": 1.3843315351347625,
+    "epsilon": 0.13227530963065506,
+    "learning_rate": null,
+    "episode": 108,
+    "epoch": 22,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5966.665177234148,
+    "steps": 1139,
+    "mean_loss": 1.406304899174671,
+    "epsilon": 0.12983972356969004,
+    "learning_rate": null,
+    "episode": 109,
+    "epoch": 22,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6201.627073183247,
+    "steps": 1145,
+    "mean_loss": 1.4287611222163037,
+    "epsilon": 0.12743650735670317,
+    "learning_rate": null,
+    "episode": 110,
+    "epoch": 22,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5833.7392248726255,
+    "steps": 1133,
+    "mean_loss": 1.4151560100221254,
+    "epsilon": 0.12510226507138442,
+    "learning_rate": null,
+    "episode": 111,
+    "epoch": 23,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5847.146217062369,
+    "steps": 1139,
+    "mean_loss": 1.3677495858248543,
+    "epsilon": 0.12279875632244391,
+    "learning_rate": null,
+    "episode": 112,
+    "epoch": 23,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4239.483099749828,
+    "steps": 1173,
+    "mean_loss": 1.3705126557305443,
+    "epsilon": 0.12047081053439893,
+    "learning_rate": null,
+    "episode": 113,
+    "epoch": 23,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5955.5281191894965,
+    "steps": 1220,
+    "mean_loss": 1.3660438608927805,
+    "epsilon": 0.1180963958983665,
+    "learning_rate": null,
+    "episode": 114,
+    "epoch": 23,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6184.439626409397,
+    "steps": 1157,
+    "mean_loss": 1.4277393058032544,
+    "epsilon": 0.11588784508906509,
+    "learning_rate": null,
+    "episode": 115,
+    "epoch": 23,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5884.913722536203,
+    "steps": 1121,
+    "mean_loss": 1.4941706661131635,
+    "epsilon": 0.11378741588064774,
+    "learning_rate": null,
+    "episode": 116,
+    "epoch": 24,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5799.991794090479,
+    "steps": 1170,
+    "mean_loss": 1.4556514587157812,
+    "epsilon": 0.11163576614813821,
+    "learning_rate": null,
+    "episode": 117,
+    "epoch": 24,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4198.587089006608,
+    "steps": 1216,
+    "mean_loss": 1.436257527896056,
+    "epsilon": 0.10944262817112498,
+    "learning_rate": null,
+    "episode": 118,
+    "epoch": 24,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5993.514572262144,
+    "steps": 1225,
+    "mean_loss": 1.3889765727276704,
+    "epsilon": 0.1072768207205263,
+    "learning_rate": null,
+    "episode": 119,
+    "epoch": 24,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6196.291365916219,
+    "steps": 1203,
+    "mean_loss": 1.4068477220666082,
+    "epsilon": 0.10519162678298802,
+    "learning_rate": null,
+    "episode": 120,
+    "epoch": 24,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5790.738564015507,
+    "steps": 1167,
+    "mean_loss": 1.39569232631363,
+    "epsilon": 0.10320756998541582,
+    "learning_rate": null,
+    "episode": 121,
+    "epoch": 25,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5810.432705214241,
+    "steps": 1181,
+    "mean_loss": 1.3610446517190926,
+    "epsilon": 0.10123780651934206,
+    "learning_rate": null,
+    "episode": 122,
+    "epoch": 25,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4182.572129164057,
+    "steps": 1163,
+    "mean_loss": 1.3029114381567939,
+    "epsilon": 0.09933480715966295,
+    "learning_rate": null,
+    "episode": 123,
+    "epoch": 25,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5947.048813908538,
+    "steps": 1258,
+    "mean_loss": 1.3675696505366903,
+    "epsilon": 0.09731661364051791,
+    "learning_rate": null,
+    "episode": 124,
+    "epoch": 25,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6132.6351745773045,
+    "steps": 1245,
+    "mean_loss": 1.31731799261637,
+    "epsilon": 0.09535964910017031,
+    "learning_rate": null,
+    "episode": 125,
+    "epoch": 25,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5831.616263811437,
+    "steps": 1263,
+    "mean_loss": 1.295651252601983,
+    "epsilon": 0.09341459783164949,
+    "learning_rate": null,
+    "episode": 126,
+    "epoch": 26,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5715.446395443446,
+    "steps": 1169,
+    "mean_loss": 1.257953989699521,
+    "epsilon": 0.09164968090265273,
+    "learning_rate": null,
+    "episode": 127,
+    "epoch": 26,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4140.49453232944,
+    "steps": 1269,
+    "mean_loss": 1.283645129044099,
+    "epsilon": 0.08977151283648084,
+    "learning_rate": null,
+    "episode": 128,
+    "epoch": 26,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6001.053439459194,
+    "steps": 1236,
+    "mean_loss": 1.3436486714287483,
+    "epsilon": 0.08797919341027086,
+    "learning_rate": null,
+    "episode": 129,
+    "epoch": 26,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6150.369422635175,
+    "steps": 1267,
+    "mean_loss": 1.380854208683911,
+    "epsilon": 0.08617905654680197,
+    "learning_rate": null,
+    "episode": 130,
+    "epoch": 26,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5852.142694333491,
+    "steps": 1232,
+    "mean_loss": 1.3053047097251786,
+    "epsilon": 0.08446397424580887,
+    "learning_rate": null,
+    "episode": 131,
+    "epoch": 27,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5844.394267667152,
+    "steps": 1161,
+    "mean_loss": 1.2849125773305015,
+    "epsilon": 0.08287898253118302,
+    "learning_rate": null,
+    "episode": 132,
+    "epoch": 27,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4175.930981534138,
+    "steps": 1273,
+    "mean_loss": 1.2379782216715607,
+    "epsilon": 0.0811752533428969,
+    "learning_rate": null,
+    "episode": 133,
+    "epoch": 27,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5892.687801726471,
+    "steps": 1331,
+    "mean_loss": 1.2640620743664113,
+    "epsilon": 0.07943134086640219,
+    "learning_rate": null,
+    "episode": 134,
+    "epoch": 27,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6131.934489552774,
+    "steps": 1206,
+    "mean_loss": 1.3268454364480862,
+    "epsilon": 0.07788358114947928,
+    "learning_rate": null,
+    "episode": 135,
+    "epoch": 27,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5788.755502444996,
+    "steps": 1257,
+    "mean_loss": 1.3633275353064496,
+    "epsilon": 0.07630245895747119,
+    "learning_rate": null,
+    "episode": 136,
+    "epoch": 28,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5729.098120826352,
+    "steps": 1263,
+    "mean_loss": 1.343181392925652,
+    "epsilon": 0.0747461172973776,
+    "learning_rate": null,
+    "episode": 137,
+    "epoch": 28,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4147.832866932294,
+    "steps": 1327,
+    "mean_loss": 1.354038592559912,
+    "epsilon": 0.07314509766028258,
+    "learning_rate": null,
+    "episode": 138,
+    "epoch": 28,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5973.646599841424,
+    "steps": 1229,
+    "mean_loss": 1.3647279466818367,
+    "epsilon": 0.0716929184238869,
+    "learning_rate": null,
+    "episode": 139,
+    "epoch": 28,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6130.305078074755,
+    "steps": 1245,
+    "mean_loss": 1.3927864685594795,
+    "epsilon": 0.07025122728913527,
+    "learning_rate": null,
+    "episode": 140,
+    "epoch": 28,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5896.563758846685,
+    "steps": 1171,
+    "mean_loss": 1.4473727406547376,
+    "epsilon": 0.06892169540612672,
+    "learning_rate": null,
+    "episode": 141,
+    "epoch": 29,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5778.888316424068,
+    "steps": 1105,
+    "mean_loss": 1.4261087103666763,
+    "epsilon": 0.06769018156487923,
+    "learning_rate": null,
+    "episode": 142,
+    "epoch": 29,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4208.765620174872,
+    "steps": 1239,
+    "mean_loss": 1.411015260642916,
+    "epsilon": 0.06633547639240099,
+    "learning_rate": null,
+    "episode": 143,
+    "epoch": 29,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5958.1775621309325,
+    "steps": 1333,
+    "mean_loss": 1.3650097090412778,
+    "epsilon": 0.0649082531228914,
+    "learning_rate": null,
+    "episode": 144,
+    "epoch": 29,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6182.675995216697,
+    "steps": 1227,
+    "mean_loss": 1.3359638654612485,
+    "epsilon": 0.06362167944399713,
+    "learning_rate": null,
+    "episode": 145,
+    "epoch": 29,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5738.181814709687,
+    "steps": 1227,
+    "mean_loss": 1.311736941920516,
+    "epsilon": 0.06236060748101084,
+    "learning_rate": null,
+    "episode": 146,
+    "epoch": 30,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5772.8500018427685,
+    "steps": 1189,
+    "mean_loss": 1.3610250681663782,
+    "epsilon": 0.061162442654927984,
+    "learning_rate": null,
+    "episode": 147,
+    "epoch": 30,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4199.07102851503,
+    "steps": 1226,
+    "mean_loss": 1.4046749005407144,
+    "epsilon": 0.0599510944461726,
+    "learning_rate": null,
+    "episode": 148,
+    "epoch": 30,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6010.909873346388,
+    "steps": 1213,
+    "mean_loss": 1.409139025633923,
+    "epsilon": 0.058776203562316956,
+    "learning_rate": null,
+    "episode": 149,
+    "epoch": 30,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6226.937776622874,
+    "steps": 1203,
+    "mean_loss": 1.3896963737552006,
+    "epsilon": 0.05763374070299199,
+    "learning_rate": null,
+    "episode": 150,
+    "epoch": 30,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5860.652104845751,
+    "steps": 1120,
+    "mean_loss": 1.4209325735590288,
+    "epsilon": 0.056590071394411974,
+    "learning_rate": null,
+    "episode": 151,
+    "epoch": 31,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5832.648400551098,
+    "steps": 1222,
+    "mean_loss": 1.396910665858592,
+    "epsilon": 0.055472901348441586,
+    "learning_rate": null,
+    "episode": 152,
+    "epoch": 31,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4162.29397514712,
+    "steps": 1255,
+    "mean_loss": 1.416278015854824,
+    "epsilon": 0.05434851409679881,
+    "learning_rate": null,
+    "episode": 153,
+    "epoch": 31,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6001.883068625901,
+    "steps": 1249,
+    "mean_loss": 1.40090568854009,
+    "epsilon": 0.053252130307457096,
+    "learning_rate": null,
+    "episode": 154,
+    "epoch": 31,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6187.561032959511,
+    "steps": 1249,
+    "mean_loss": 1.342668104019043,
+    "epsilon": 0.052177864094529555,
+    "learning_rate": null,
+    "episode": 155,
+    "epoch": 31,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5792.7766446777605,
+    "steps": 1257,
+    "mean_loss": 1.3618555242520243,
+    "epsilon": 0.05111859617651856,
+    "learning_rate": null,
+    "episode": 156,
+    "epoch": 32,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5789.388444056274,
+    "steps": 1171,
+    "mean_loss": 1.3353939114932216,
+    "epsilon": 0.05015115680138003,
+    "learning_rate": null,
+    "episode": 157,
+    "epoch": 32,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4113.135731290906,
+    "steps": 1267,
+    "mean_loss": 1.280315883534107,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 158,
+    "epoch": 32,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6067.561609187011,
+    "steps": 1177,
+    "mean_loss": 1.3474873755579797,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 159,
+    "epoch": 32,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6169.098006574644,
+    "steps": 1149,
+    "mean_loss": 1.3966170627205552,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 160,
+    "epoch": 32,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5837.85587097711,
+    "steps": 1225,
+    "mean_loss": 1.3805085992326542,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 161,
+    "epoch": 33,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5688.0609456674965,
+    "steps": 1236,
+    "mean_loss": 1.316500306804589,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 162,
+    "epoch": 33,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4180.832008635629,
+    "steps": 1236,
+    "mean_loss": 1.2838530448358807,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 163,
+    "epoch": 33,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5983.483709810738,
+    "steps": 1191,
+    "mean_loss": 1.3249153071446742,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 164,
+    "epoch": 33,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6181.349764308448,
+    "steps": 1155,
+    "mean_loss": 1.4777863617067213,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 165,
+    "epoch": 33,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5846.376158888606,
+    "steps": 1186,
+    "mean_loss": 1.4499179575636254,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 166,
+    "epoch": 34,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5812.426931749119,
+    "steps": 1159,
+    "mean_loss": 1.3229078073970606,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 167,
+    "epoch": 34,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4214.56684876805,
+    "steps": 1151,
+    "mean_loss": 1.2769807840201464,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 168,
+    "epoch": 34,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5994.119262995962,
+    "steps": 1158,
+    "mean_loss": 1.3282669745578668,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 169,
+    "epoch": 34,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6170.814542213509,
+    "steps": 1163,
+    "mean_loss": 1.3112169440614696,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 170,
+    "epoch": 34,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5800.995285212597,
+    "steps": 1159,
+    "mean_loss": 1.3477863517169606,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 171,
+    "epoch": 35,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5812.767335844781,
+    "steps": 1135,
+    "mean_loss": 1.3566005410076762,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 172,
+    "epoch": 35,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4223.027508703373,
+    "steps": 1219,
+    "mean_loss": 1.359160172196076,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 173,
+    "epoch": 35,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5921.3278370840835,
+    "steps": 1106,
+    "mean_loss": 1.370725405474899,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 174,
+    "epoch": 35,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6152.733436130974,
+    "steps": 1205,
+    "mean_loss": 1.3355154768065298,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 175,
+    "epoch": 35,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5660.422751874905,
+    "steps": 1130,
+    "mean_loss": 1.4572498753007534,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 176,
+    "epoch": 36,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5781.900404272856,
+    "steps": 1147,
+    "mean_loss": 1.4698248047254974,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 177,
+    "epoch": 36,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4136.914260427194,
+    "steps": 1219,
+    "mean_loss": 1.4804076042891134,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 178,
+    "epoch": 36,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5896.533321347212,
+    "steps": 1145,
+    "mean_loss": 1.4811626701375804,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 179,
+    "epoch": 36,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6165.816929980375,
+    "steps": 1257,
+    "mean_loss": 1.4660529336857246,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 180,
+    "epoch": 36,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5812.757845759488,
+    "steps": 1115,
+    "mean_loss": 1.4839889140407065,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 181,
+    "epoch": 37,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5776.259853063015,
+    "steps": 1146,
+    "mean_loss": 1.3765722106472569,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 182,
+    "epoch": 37,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4091.120165630658,
+    "steps": 1217,
+    "mean_loss": 1.3694720641941738,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 183,
+    "epoch": 37,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5965.297936883675,
+    "steps": 1147,
+    "mean_loss": 1.3846109044894823,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 184,
+    "epoch": 37,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6150.780968170338,
+    "steps": 1146,
+    "mean_loss": 1.4466494885102616,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 185,
+    "epoch": 37,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5778.2323667427045,
+    "steps": 1105,
+    "mean_loss": 1.480600397619187,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 186,
+    "epoch": 38,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5774.368829569194,
+    "steps": 1111,
+    "mean_loss": 1.3982433623606616,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 187,
+    "epoch": 38,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4171.791462656274,
+    "steps": 1209,
+    "mean_loss": 1.3923062384375073,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 188,
+    "epoch": 38,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6007.195042099534,
+    "steps": 1113,
+    "mean_loss": 1.3593869867457642,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 189,
+    "epoch": 38,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6110.0347145173055,
+    "steps": 1155,
+    "mean_loss": 1.3325174052477915,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 190,
+    "epoch": 38,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5874.702139610133,
+    "steps": 1105,
+    "mean_loss": 1.3152675781314729,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 191,
+    "epoch": 39,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5812.040098411586,
+    "steps": 1183,
+    "mean_loss": 1.3702507084038735,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 192,
+    "epoch": 39,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4187.007085945266,
+    "steps": 1268,
+    "mean_loss": 1.400206822749192,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 193,
+    "epoch": 39,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5943.850281153011,
+    "steps": 1203,
+    "mean_loss": 1.3954645539459742,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 194,
+    "epoch": 39,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6162.712889240039,
+    "steps": 1185,
+    "mean_loss": 1.4053792428366745,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 195,
+    "epoch": 39,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5858.626716267355,
+    "steps": 1189,
+    "mean_loss": 1.501121699759898,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 196,
+    "epoch": 40,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5840.932027855801,
+    "steps": 1187,
+    "mean_loss": 1.4948328575770595,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 197,
+    "epoch": 40,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4192.86587177926,
+    "steps": 1255,
+    "mean_loss": 1.5317771214412979,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 198,
+    "epoch": 40,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5900.389303605401,
+    "steps": 1173,
+    "mean_loss": 1.3693941281274762,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 199,
+    "epoch": 40,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6097.329770813672,
+    "steps": 1205,
+    "mean_loss": 1.350632387226548,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 200,
+    "epoch": 40,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5762.593527058059,
+    "steps": 1053,
+    "mean_loss": 1.3852984366367118,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 201,
+    "epoch": 41,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5805.192144595564,
+    "steps": 1181,
+    "mean_loss": 1.3418368757225314,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 202,
+    "epoch": 41,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4056.0589368250053,
+    "steps": 1285,
+    "mean_loss": 1.3937333556000824,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 203,
+    "epoch": 41,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6021.383452653965,
+    "steps": 1229,
+    "mean_loss": 1.360296543048008,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 204,
+    "epoch": 41,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6186.382665951329,
+    "steps": 1155,
+    "mean_loss": 1.3994923326876256,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 205,
+    "epoch": 41,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5819.970082890404,
+    "steps": 1204,
+    "mean_loss": 1.4667948225011858,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 206,
+    "epoch": 42,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5833.754456751497,
+    "steps": 1215,
+    "mean_loss": 1.405141086637238,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 207,
+    "epoch": 42,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4176.765018589607,
+    "steps": 1255,
+    "mean_loss": 1.4481719014179184,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 208,
+    "epoch": 42,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5966.36116416113,
+    "steps": 1249,
+    "mean_loss": 1.341957002520275,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 209,
+    "epoch": 42,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6164.755307762264,
+    "steps": 1288,
+    "mean_loss": 1.314944558539746,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 210,
+    "epoch": 42,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5803.605319979475,
+    "steps": 1290,
+    "mean_loss": 1.3718034029006958,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 211,
+    "epoch": 43,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5782.9599014823,
+    "steps": 1199,
+    "mean_loss": 1.2852942659220565,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 212,
+    "epoch": 43,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4119.137147650468,
+    "steps": 1310,
+    "mean_loss": 1.3803453092811673,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 213,
+    "epoch": 43,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5902.106303162669,
+    "steps": 1375,
+    "mean_loss": 1.5273285192576322,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 214,
+    "epoch": 43,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6184.515164363156,
+    "steps": 1305,
+    "mean_loss": 1.5325101068650169,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 215,
+    "epoch": 43,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5866.143525867733,
+    "steps": 1256,
+    "mean_loss": 1.466461867046584,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 216,
+    "epoch": 44,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5796.464650536139,
+    "steps": 1224,
+    "mean_loss": 1.2825158632366487,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 217,
+    "epoch": 44,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4167.024069775557,
+    "steps": 1291,
+    "mean_loss": 1.2615847897843553,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 218,
+    "epoch": 44,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5900.544187279046,
+    "steps": 1215,
+    "mean_loss": 1.335749856925305,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 219,
+    "epoch": 44,
+    "day_id": 7
+  },
+  {
+    "total_reward": 5953.179115275915,
+    "steps": 1235,
+    "mean_loss": 1.4983584507274241,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 220,
+    "epoch": 44,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5703.321911552351,
+    "steps": 1198,
+    "mean_loss": 1.5248463167272546,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 221,
+    "epoch": 45,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5758.362400315325,
+    "steps": 1153,
+    "mean_loss": 1.467900638878087,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 222,
+    "epoch": 45,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4138.630230397839,
+    "steps": 1245,
+    "mean_loss": 1.4028127799072418,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 223,
+    "epoch": 45,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5969.935153890403,
+    "steps": 1265,
+    "mean_loss": 1.4645569500244653,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 224,
+    "epoch": 45,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6084.022579185609,
+    "steps": 1207,
+    "mean_loss": 1.6215390120050388,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 225,
+    "epoch": 45,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5740.471853959287,
+    "steps": 1211,
+    "mean_loss": 1.5821856159399994,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 226,
+    "epoch": 46,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5789.31834012692,
+    "steps": 1183,
+    "mean_loss": 1.5213040773483624,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 227,
+    "epoch": 46,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4130.200601175751,
+    "steps": 1267,
+    "mean_loss": 1.4640617697560703,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 228,
+    "epoch": 46,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5954.885736880009,
+    "steps": 1319,
+    "mean_loss": 1.568501657703955,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 229,
+    "epoch": 46,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6103.39870083855,
+    "steps": 1243,
+    "mean_loss": 1.6537185257131404,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 230,
+    "epoch": 46,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5826.957935048702,
+    "steps": 1193,
+    "mean_loss": 1.4911389242473612,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 231,
+    "epoch": 47,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5795.67336256056,
+    "steps": 1142,
+    "mean_loss": 1.3669136701552964,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 232,
+    "epoch": 47,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4159.743995898503,
+    "steps": 1263,
+    "mean_loss": 1.3535796702616005,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 233,
+    "epoch": 47,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5838.69731277001,
+    "steps": 1209,
+    "mean_loss": 1.3757770686133821,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 234,
+    "epoch": 47,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6014.685254824356,
+    "steps": 1257,
+    "mean_loss": 1.4412842663205039,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 235,
+    "epoch": 47,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5734.17290091034,
+    "steps": 1312,
+    "mean_loss": 1.4620639682724708,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 236,
+    "epoch": 48,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5885.691672841233,
+    "steps": 1133,
+    "mean_loss": 1.3610645907701693,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 237,
+    "epoch": 48,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4206.871757655209,
+    "steps": 1229,
+    "mean_loss": 1.361884842954873,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 238,
+    "epoch": 48,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5869.87666077429,
+    "steps": 1221,
+    "mean_loss": 1.3609162016446037,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 239,
+    "epoch": 48,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6190.634396064261,
+    "steps": 1203,
+    "mean_loss": 1.432781866611487,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 240,
+    "epoch": 48,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5558.004076665405,
+    "steps": 1263,
+    "mean_loss": 1.5347332684935224,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 241,
+    "epoch": 49,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5708.8100149172,
+    "steps": 1241,
+    "mean_loss": 1.470610574548231,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 242,
+    "epoch": 49,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4072.103817919037,
+    "steps": 1357,
+    "mean_loss": 1.4524779912295724,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 243,
+    "epoch": 49,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5931.762855475313,
+    "steps": 1204,
+    "mean_loss": 1.4843536285664949,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 244,
+    "epoch": 49,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6068.391052304201,
+    "steps": 1170,
+    "mean_loss": 1.5366342501253145,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 245,
+    "epoch": 49,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5717.475344714781,
+    "steps": 1189,
+    "mean_loss": 1.5736699545453636,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 246,
+    "epoch": 50,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5690.502227973553,
+    "steps": 1000,
+    "mean_loss": 1.512398569405079,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 247,
+    "epoch": 50,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4183.473249591316,
+    "steps": 1195,
+    "mean_loss": 1.49667516477936,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 248,
+    "epoch": 50,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5884.934113307944,
+    "steps": 1163,
+    "mean_loss": 1.4927439755749723,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 249,
+    "epoch": 50,
+    "day_id": 7
+  },
+  {
+    "total_reward": 5288.140003071684,
+    "steps": 1331,
+    "mean_loss": 1.5873229125224944,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 250,
+    "epoch": 50,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5795.769258389146,
+    "steps": 1162,
+    "mean_loss": 1.565460587994367,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 251,
+    "epoch": 51,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5696.422394693334,
+    "steps": 1123,
+    "mean_loss": 1.5401870135951021,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 252,
+    "epoch": 51,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4102.57483038661,
+    "steps": 1165,
+    "mean_loss": 1.6181489549481305,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 253,
+    "epoch": 51,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5948.433730710124,
+    "steps": 1226,
+    "mean_loss": 1.6996020927514766,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 254,
+    "epoch": 51,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6152.297407719688,
+    "steps": 1051,
+    "mean_loss": 1.708780735589344,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 255,
+    "epoch": 51,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5790.989301916727,
+    "steps": 1055,
+    "mean_loss": 1.614991750197388,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 256,
+    "epoch": 52,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5735.548282164771,
+    "steps": 1075,
+    "mean_loss": 1.5354749096826066,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 257,
+    "epoch": 52,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4196.066864871442,
+    "steps": 1104,
+    "mean_loss": 1.5485613866560701,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 258,
+    "epoch": 52,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5851.452045185332,
+    "steps": 1123,
+    "mean_loss": 1.5860156939694208,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 259,
+    "epoch": 52,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6138.603730015262,
+    "steps": 1171,
+    "mean_loss": 1.5504152773283773,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 260,
+    "epoch": 52,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5675.424417386685,
+    "steps": 1251,
+    "mean_loss": 1.5465603536076777,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 261,
+    "epoch": 53,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5832.023123384168,
+    "steps": 1100,
+    "mean_loss": 1.4625896592031826,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 262,
+    "epoch": 53,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4104.512610032942,
+    "steps": 1281,
+    "mean_loss": 1.4378472404215692,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 263,
+    "epoch": 53,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5873.693073471354,
+    "steps": 1281,
+    "mean_loss": 1.453148337428594,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 264,
+    "epoch": 53,
+    "day_id": 7
+  },
+  {
+    "total_reward": 5875.369201416666,
+    "steps": 1291,
+    "mean_loss": 1.4571636583249206,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 265,
+    "epoch": 53,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5761.502084347976,
+    "steps": 1302,
+    "mean_loss": 1.466525032772996,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 266,
+    "epoch": 54,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5770.5832649772665,
+    "steps": 1155,
+    "mean_loss": 1.392543261804622,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 267,
+    "epoch": 54,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4043.2095028973035,
+    "steps": 1349,
+    "mean_loss": 1.4197629347741825,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 268,
+    "epoch": 54,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5872.463923985157,
+    "steps": 1179,
+    "mean_loss": 1.4229060499924941,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 269,
+    "epoch": 54,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6153.527498863367,
+    "steps": 1103,
+    "mean_loss": 1.5655621041088674,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 270,
+    "epoch": 54,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5781.784499369897,
+    "steps": 1189,
+    "mean_loss": 1.6431021473806782,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 271,
+    "epoch": 55,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5683.7248598237165,
+    "steps": 1141,
+    "mean_loss": 1.5400036768783716,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 272,
+    "epoch": 55,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4215.494158445534,
+    "steps": 1225,
+    "mean_loss": 1.468051513701069,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 273,
+    "epoch": 55,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5974.079278379084,
+    "steps": 1183,
+    "mean_loss": 1.412428531269854,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 274,
+    "epoch": 55,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6148.299429512288,
+    "steps": 1247,
+    "mean_loss": 1.4471619735265027,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 275,
+    "epoch": 55,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5694.633835871669,
+    "steps": 1225,
+    "mean_loss": 1.4165889020841949,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 276,
+    "epoch": 56,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5736.04551917978,
+    "steps": 1133,
+    "mean_loss": 1.422546847878782,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 277,
+    "epoch": 56,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4162.346729780619,
+    "steps": 1305,
+    "mean_loss": 1.5377076557312888,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 278,
+    "epoch": 56,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5953.191697398153,
+    "steps": 1173,
+    "mean_loss": 1.567848709131649,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 279,
+    "epoch": 56,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6174.215909932493,
+    "steps": 1119,
+    "mean_loss": 1.5338822662883618,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 280,
+    "epoch": 56,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5861.8068317860625,
+    "steps": 1113,
+    "mean_loss": 1.5938164208348764,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 281,
+    "epoch": 57,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5790.451350648994,
+    "steps": 1107,
+    "mean_loss": 1.616263332997988,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 282,
+    "epoch": 57,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4198.7003288293035,
+    "steps": 1163,
+    "mean_loss": 1.5821667722556885,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 283,
+    "epoch": 57,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5940.690572208146,
+    "steps": 1051,
+    "mean_loss": 1.6081131084208031,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 284,
+    "epoch": 57,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6166.852697540875,
+    "steps": 1135,
+    "mean_loss": 1.58327273687077,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 285,
+    "epoch": 57,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5726.6307309981,
+    "steps": 1147,
+    "mean_loss": 1.5988107845382058,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 286,
+    "epoch": 58,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5789.97104829307,
+    "steps": 1230,
+    "mean_loss": 1.4411684839706111,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 287,
+    "epoch": 58,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4075.931336379235,
+    "steps": 1307,
+    "mean_loss": 1.364505983210741,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 288,
+    "epoch": 58,
+    "day_id": 5
+  },
+  {
+    "total_reward": 6000.572470041833,
+    "steps": 1077,
+    "mean_loss": 1.406725004910316,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 289,
+    "epoch": 58,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6160.052104399905,
+    "steps": 1128,
+    "mean_loss": 1.5411936935592205,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 290,
+    "epoch": 58,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5912.358949532268,
+    "steps": 1129,
+    "mean_loss": 1.5756306386923136,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 291,
+    "epoch": 59,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5811.473729289377,
+    "steps": 1099,
+    "mean_loss": 1.5149723070116885,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 292,
+    "epoch": 59,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4159.694147914693,
+    "steps": 1263,
+    "mean_loss": 1.5141889273601208,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 293,
+    "epoch": 59,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5908.204475125125,
+    "steps": 1175,
+    "mean_loss": 1.6118946589814855,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 294,
+    "epoch": 59,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6078.095994594387,
+    "steps": 1191,
+    "mean_loss": 1.631297751497962,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 295,
+    "epoch": 59,
+    "day_id": 8
+  },
+  {
+    "total_reward": 5695.760178166366,
+    "steps": 1281,
+    "mean_loss": 1.628285600188,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 296,
+    "epoch": 60,
+    "day_id": 2
+  },
+  {
+    "total_reward": 5672.99938483624,
+    "steps": 1105,
+    "mean_loss": 1.6064311108438138,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 297,
+    "epoch": 60,
+    "day_id": 3
+  },
+  {
+    "total_reward": 4016.082415430885,
+    "steps": 1331,
+    "mean_loss": 1.5295937297310174,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 298,
+    "epoch": 60,
+    "day_id": 5
+  },
+  {
+    "total_reward": 5844.830415444587,
+    "steps": 1247,
+    "mean_loss": 1.5157322694324167,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 299,
+    "epoch": 60,
+    "day_id": 7
+  },
+  {
+    "total_reward": 6093.526126949974,
+    "steps": 1117,
+    "mean_loss": 1.6545953970459175,
+    "epsilon": 0.05,
+    "learning_rate": null,
+    "episode": 300,
+    "epoch": 60,
+    "day_id": 8
+  }
+]

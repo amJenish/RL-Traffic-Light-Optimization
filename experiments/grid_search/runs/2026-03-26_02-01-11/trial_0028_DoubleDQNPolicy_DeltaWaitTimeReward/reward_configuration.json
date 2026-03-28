@@ -1,0 +1,7 @@
+{
+  "default": {},
+  "DeltaWaitTimeReward": {
+    "normalise": true,
+    "scale": 1.0
+  }
+}

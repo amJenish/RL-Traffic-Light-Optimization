@@ -65,7 +65,7 @@ class DQNPolicy(BasePolicy):
         self._target.eval()
 
         self._optimiser = optim.Adam(self._online.parameters(), lr=lr)
-        self._loss_fn   = nn.MSELoss()
+        self._loss_fn   = nn.SmoothL1Loss()
 
     def select_action(self, obs: np.ndarray, tls_id: str = "default") -> int:
         """Epsilon-greedy: random with prob epsilon, else greedy from Q-values."""
@@ -83,7 +83,7 @@ class DQNPolicy(BasePolicy):
         if not replay_buffer.is_ready(self._batch_size):
             return None
 
-        states, actions, rewards, next_states, dones = \
+        states, actions, rewards, next_states, dones, durations = \
             replay_buffer.sample(self._batch_size)
 
         states      = torch.tensor(states,      dtype=torch.float32, device=self._device)
@@ -91,6 +91,7 @@ class DQNPolicy(BasePolicy):
         rewards     = torch.tensor(rewards,     dtype=torch.float32, device=self._device)
         next_states = torch.tensor(next_states, dtype=torch.float32, device=self._device)
         dones       = torch.tensor(dones,       dtype=torch.float32, device=self._device)
+        durations   = torch.tensor(durations,   dtype=torch.float32, device=self._device)
 
         q_current = self._online(states).gather(
             1, actions.unsqueeze(1)
@@ -98,7 +99,9 @@ class DQNPolicy(BasePolicy):
 
         with torch.no_grad():
             q_next   = self._target(next_states).max(1).values
-            q_target = rewards + self._gamma * (1 - dones) * q_next
+            gamma_t  = torch.tensor(self._gamma, dtype=torch.float32, device=self._device)
+            discount = torch.pow(gamma_t, durations)
+            q_target = rewards + discount * (1 - dones) * q_next
 
         loss = self._loss_fn(q_current, q_target)
 

@@ -1,0 +1,7 @@
+{
+  "default": {},
+  "ThroughputReward": {
+    "normalise": false,
+    "scale": 1.0
+  }
+}

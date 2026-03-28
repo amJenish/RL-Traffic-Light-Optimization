@@ -1,0 +1,52 @@
+Run started: 2026-03-25 22:17:24
+
+--- Components ---
+Policy:        DoubleDQNPolicy
+Reward:        CompositeReward
+Observation:   QueueObservation
+Environment:   SumoEnvironment
+Replay Buffer: UniformReplayBuffer
+Scheduler:     None (constant LR)
+
+--- Data ---
+CSV:           src/data/synthetic_toronto_data.csv
+Train days:    5
+Test days:     5
+Epochs:        60
+Seed:          42
+
+--- Simulation ---
+Step length:   10.0s
+Sim window:    28800s - 50400s
+Min green:     15s
+Max green:     90s (soft — overshoot_coeff=4.0)
+GUI:           False
+
+--- Observation ---
+Max lanes:     16
+Max phase:     7
+Max phase time:120.0
+Max green feat:90s (elapsed/max_green in obs)
+Max vehicles:  20
+
+--- Reward ---
+Normalise:     True
+Scale:         1.0
+Alpha:         0.65
+
+--- Policy ---
+Learning rate: 0.0005 -> 0.0001 (None (constant LR))
+Total updates: ~216,000 (estimated)
+Gamma:         0.97
+Epsilon:       1.0 -> 0.05 (decay 0.9999836835085317)
+Target update: 200
+Batch size:    256
+Hidden size:   256
+N actions:     2
+
+--- Replay Buffer ---
+Capacity:      4096
+
+--- Output ---
+Save every:    20 episodes
+Log every:     1 episodes

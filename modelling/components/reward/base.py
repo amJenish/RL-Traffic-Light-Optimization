@@ -14,3 +14,9 @@ class BaseReward(ABC):
     def reset(self) -> None:
         """Called at the start of each episode. Override if stateful."""
         pass
+
+    def on_simulation_step(
+        self, traci: Any, tls_id: str, *, accumulate: bool = True
+    ) -> None:
+        """Optional hook after each TraCI simulationStep (e.g. throughput). Default: no-op."""
+        pass

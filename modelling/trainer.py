@@ -69,11 +69,11 @@ class Trainer:
 
         print(f"\n--- Evaluating on {len(self._test_days)} test days ---")
         self.agent.set_eval_mode()
-        for day_id in self._test_days:
+        for test_episode, day_id in enumerate(self._test_days, start=1):
             metrics = self._run_episode(day_id, train=False)
             metrics["day_id"] = day_id
             self._test_log.append(metrics)
-            self._log(day_id, metrics, prefix="Test ")
+            self._log(test_episode, metrics, prefix="Test ")
 
         final_path = os.path.join(self.output_dir, "final_model.pt")
         self.agent.save(final_path)

@@ -46,6 +46,12 @@ class Agent:
         self._episode_reward: float = 0.0
         self._episode_steps:  int   = 0
         self._episode_losses: list[float] = []
+        # Pending transition to be finalized at the next decision epoch.
+        # (state, action) are measured at the decision time; reward+next_state are
+        # finalized when min-green lockout ends (or the episode terminates).
+        self._pending_state: dict[str, np.ndarray] | None = None
+        self._pending_action: dict[str, int] | None = None
+        self._pending_duration: int = 0  # primitive simulation steps since pending decision
 
     def start_episode(self, route_file: str) -> dict[str, np.ndarray]:
         """Reset everything and launch SUMO for one episode. Returns initial observations."""
@@ -57,8 +63,13 @@ class Agent:
         self._episode_reward = 0.0
         self._episode_steps  = 0
         self._episode_losses = []
+        self._pending_state   = None
+        self._pending_action  = None
+        self._pending_duration = 0
 
-        self.environment.step(5)
+        for _ in range(5):
+            self.environment.step(1)
+            self._notify_simulation_step(accumulate_reward=False)
 
         tls_ids = self.environment.get_tls_ids()
         if not tls_ids:
@@ -83,64 +94,198 @@ class Agent:
         ratio = overshoot / self._max_green_steps
         return math.exp(-self._overshoot_coeff * ratio * ratio)
 
-    def step(self, obs: dict[str, np.ndarray]) -> tuple[
+    def step(
+        self, obs: dict[str, np.ndarray]
+    ) -> tuple[
         dict[str, np.ndarray], dict[str, float], bool, float | None,
     ]:
-        """One adaptive decision cycle: skip lockout, decide, step, learn."""
+        """Semi-Markov step: finalize previous (variable-duration) transition, then act."""
         tls_ids = self.environment.get_tls_ids()
 
+        # How many primitive steps we must fast-forward until min-green is satisfied
+        # for all TLS. Decision epochs occur when this becomes 0.
         max_remaining = max(
-            max(0, self._min_green_steps - self._steps_in_phase.get(tid, self._min_green_steps))
+            max(
+                0,
+                self._min_green_steps - self._steps_in_phase.get(
+                    tid, self._min_green_steps
+                ),
+            )
             for tid in tls_ids
         )
 
+        # 1) Fast-forward through lockout (variable duration transition accumulation).
         if max_remaining > 0:
-            self.environment.step(max_remaining)
+            stepped = 0
+            for _ in range(max_remaining):
+                if self.environment.is_done():
+                    break
+                self.environment.step(1)
+
+                # Accumulate reward over the entire interval for the pending decision.
+                accumulate = self._pending_state is not None
+                self._notify_simulation_step(accumulate_reward=accumulate)
+                if accumulate:
+                    self._pending_duration += 1
+
+                stepped += 1
+
+            # All phases are held during the lockout; time-in-phase advances for each TLS.
             for tid in tls_ids:
                 self._steps_in_phase[tid] = (
-                    self._steps_in_phase.get(tid, self._min_green_steps) + max_remaining
+                    self._steps_in_phase.get(tid, self._min_green_steps) + stepped
                 )
-            if self.environment.is_done():
-                return self._get_observations(), {}, True, None
-            obs = self._get_observations()
 
-        actions = {}
+            if self.environment.is_done():
+                # Episode terminated before the next decision epoch.
+                if self._pending_state is not None and self._pending_action is not None:
+                    terminal_obs = self._get_observations()
+                    done = True
+                    pending_duration = self._pending_duration
+
+                    rewards = {
+                        tid: self.reward.compute(self.environment.traci, tid)
+                        for tid in tls_ids
+                    }
+                    for tid in tls_ids:
+                        rewards[tid] *= self._overshoot_scale(tid)
+
+                    for tid in tls_ids:
+                        self.replay_buffer.push(
+                            state=self._pending_state[tid],
+                            action=self._pending_action[tid],
+                            reward=rewards[tid],
+                            next_state=terminal_obs[tid],
+                            done=float(done),
+                            duration=pending_duration,
+                        )
+
+                    total_reward = sum(rewards.values())
+                    self._episode_reward += total_reward
+                    self._episode_steps += 1
+
+                    loss = self.policy.update(self.replay_buffer)
+                    if loss is not None:
+                        self._episode_losses.append(loss)
+                        if self.scheduler is not None:
+                            self.scheduler.step()
+
+                    # Clear pending and close.
+                    self._pending_state = None
+                    self._pending_action = None
+                    self._pending_duration = 0
+                    return terminal_obs, rewards, done, loss
+
+                # No pending transition to finalize.
+                return self._get_observations(), {}, True, None
+
+            obs_now = self._get_observations()
+        else:
+            # When we're already at a decision epoch, the passed `obs` is correct.
+            obs_now = obs
+
+        loss: float | None = None
+        rewards: dict[str, float] = {}
+
+        # 2) Finalize the pending transition at this decision epoch boundary.
+        if self._pending_state is not None and self._pending_action is not None:
+            rewards = {
+                tid: self.reward.compute(self.environment.traci, tid) for tid in tls_ids
+            }
+            for tid in tls_ids:
+                rewards[tid] *= self._overshoot_scale(tid)
+
+            done = float(self.environment.is_done())
+            pending_duration = self._pending_duration
+
+            for tid in tls_ids:
+                self.replay_buffer.push(
+                    state=self._pending_state[tid],
+                    action=self._pending_action[tid],
+                    reward=rewards[tid],
+                    next_state=obs_now[tid],
+                    done=done,
+                    duration=pending_duration,
+                )
+
+            total_reward = sum(rewards.values())
+            self._episode_reward += total_reward
+            self._episode_steps += 1
+
+            loss = self.policy.update(self.replay_buffer)
+            if loss is not None:
+                self._episode_losses.append(loss)
+                if self.scheduler is not None:
+                    self.scheduler.step()
+
+            self._pending_state = None
+            self._pending_action = None
+            self._pending_duration = 0
+
+        # 3) Choose actions at this decision epoch and execute one primitive step.
+        actions: dict[str, int] = {}
         for tid in tls_ids:
-            actions[tid] = self.policy.select_action(obs[tid], tid)
+            actions[tid] = self.policy.select_action(obs_now[tid], tid)
 
         self._apply_actions(actions)
-        self.environment.step(1)
 
+        # Start of the next pending interval: the current decision epoch itself.
+        self._pending_state = obs_now
+        self._pending_action = actions
+        self._pending_duration = 0
+
+        self.environment.step(1)
+        self._notify_simulation_step(accumulate_reward=True)
+        self._pending_duration += 1
+
+        # Update time-since-switch counters after this step.
         for tid in tls_ids:
             if actions[tid] == 1:
                 self._steps_in_phase[tid] = 0
             else:
                 self._steps_in_phase[tid] = self._steps_in_phase.get(tid, 0) + 1
 
-        done     = self.environment.is_done()
+        done = self.environment.is_done()
         next_obs = self._get_observations()
-        rewards  = {tid: self.reward.compute(self.environment.traci, tid) for tid in tls_ids}
 
-        for tid in tls_ids:
-            rewards[tid] *= self._overshoot_scale(tid)
+        # 4) If the episode ends right after the chosen action, finalize immediately.
+        if done and self._pending_state is not None and self._pending_action is not None:
+            terminal_rewards = {
+                tid: self.reward.compute(self.environment.traci, tid)
+                for tid in tls_ids
+            }
+            for tid in tls_ids:
+                terminal_rewards[tid] *= self._overshoot_scale(tid)
 
-        total_reward = sum(rewards.values())
-        self._episode_reward += total_reward
-        self._episode_steps  += 1
+            pending_duration = self._pending_duration
+            for tid in tls_ids:
+                self.replay_buffer.push(
+                    state=self._pending_state[tid],
+                    action=self._pending_action[tid],
+                    reward=terminal_rewards[tid],
+                    next_state=next_obs[tid],
+                    done=float(done),
+                    duration=pending_duration,
+                )
 
-        for tid in tls_ids:
-            self.replay_buffer.push(
-                state=obs[tid], action=actions[tid], reward=total_reward,
-                next_state=next_obs[tid], done=float(done),
-            )
+            total_reward = sum(terminal_rewards.values())
+            self._episode_reward += total_reward
+            self._episode_steps += 1
 
-        loss = self.policy.update(self.replay_buffer)
-        if loss is not None:
-            self._episode_losses.append(loss)
-            if self.scheduler is not None:
-                self.scheduler.step()
+            loss2 = self.policy.update(self.replay_buffer)
+            if loss2 is not None:
+                self._episode_losses.append(loss2)
+                if self.scheduler is not None:
+                    self.scheduler.step()
+                loss = loss2
 
-        return next_obs, rewards, done, loss
+            self._pending_state = None
+            self._pending_action = None
+            self._pending_duration = 0
+
+            return next_obs, terminal_rewards, True, loss
+
+        return next_obs, rewards, bool(done), loss
 
     def end_episode(self) -> dict[str, Any]:
         """Close SUMO and return episode metrics."""
@@ -178,6 +323,12 @@ class Agent:
                 import torch
                 state = torch.load(sched_path, map_location="cpu")
                 self.scheduler.load_state_dict(state)
+
+    def _notify_simulation_step(self, accumulate_reward: bool = True) -> None:
+        """Let rewards that need per-SUMO-step accounting (e.g. throughput) update state."""
+        traci = self.environment.traci
+        for tls_id in self.environment.get_tls_ids():
+            self.reward.on_simulation_step(traci, tls_id, accumulate=accumulate_reward)
 
     def _get_observations(self) -> dict[str, np.ndarray]:
         traci = self.environment.traci

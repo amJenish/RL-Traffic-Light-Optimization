@@ -63,11 +63,13 @@ def _build_agent(cfg: dict, int_cfg: dict, policy, sumo_home: str, gui: bool):
     )
     _check_file(net_file, f"SUMO network file")
 
+    mg = ocfg.get("max_green_s", int_cfg.get("max_green_s"))
     obs_builder = QueueObservation(
         max_lanes = ocfg["max_lanes"],
         max_phase = ocfg["max_phase"],
         max_phase_time = ocfg["max_phase_time"],
         max_vehicles = ocfg["max_vehicles"],
+        max_green_s = float(mg) if mg is not None else None,
     )
 
     environment = SumoEnvironment(

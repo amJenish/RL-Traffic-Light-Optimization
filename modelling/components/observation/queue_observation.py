@@ -15,16 +15,26 @@ class QueueObservation(BaseObservation):
         max_phase: int = 3,
         max_phase_time: float = 120.0,
         max_vehicles: int = 20,
+        max_green_s: float | None = None,
     ):
         self._max_lanes = max_lanes
         self._max_phase = max_phase
         self._max_phase_time = max_phase_time
         self._max_vehicles = max_vehicles
+        self._max_green_s = max_green_s
         self._phase_start: dict[str, float] = {}
         self._current_phase: dict[str, int] = {}
 
+    def _time_in_phase_norms(self, time_in_phase: float) -> tuple[float, float | None]:
+        """Generic time cap + optional elapsed / max_green (aligns with Agent overshoot)."""
+        time_norm = min(time_in_phase / self._max_phase_time, 1.0)
+        green_ratio = None
+        if self._max_green_s is not None and self._max_green_s > 0:
+            green_ratio = min(time_in_phase / self._max_green_s, 2.0)
+        return time_norm, green_ratio
+
     def build(self, traci: Any, tls_id: str) -> np.ndarray:
-        """Build [lane_queues | phase | time_in_phase | hour_sin/cos | dow_sin/cos]."""
+        """Build [lane_queues | phase | time_norm | (+ green_elapsed_ratio) | time encodings]."""
         lanes = list(dict.fromkeys(traci.trafficlight.getControlledLanes(tls_id)))
         halting = np.zeros(self._max_lanes, dtype=np.float32)
         for i, lane in enumerate(lanes[: self._max_lanes]):
@@ -40,7 +50,7 @@ class QueueObservation(BaseObservation):
 
         time_in_phase = sim_time - self._phase_start.get(tls_id, sim_time)
         phase_norm = phase / max(self._max_phase, 1)
-        time_norm = min(time_in_phase / self._max_phase_time, 1.0)
+        time_norm, green_ratio = self._time_in_phase_norms(time_in_phase)
 
         hour = (sim_time % 86400) / 3600.0
         hour_sin = math.sin(2 * math.pi * hour / 24)
@@ -50,15 +60,20 @@ class QueueObservation(BaseObservation):
         dow_sin = math.sin(2 * math.pi * dow / 7)
         dow_cos = math.cos(2 * math.pi * dow / 7)
 
+        tail = [phase_norm, time_norm, hour_sin, hour_cos, dow_sin, dow_cos]
+        if green_ratio is not None:
+            tail.append(green_ratio)
         obs = np.concatenate([
             halting,
-            np.array([phase_norm, time_norm, hour_sin, hour_cos, dow_sin, dow_cos],
-                     dtype=np.float32),
+            np.array(tail, dtype=np.float32),
         ])
         return obs.astype(np.float32)
 
     def size(self) -> int:
-        return self._max_lanes + 6
+        n = self._max_lanes + 6
+        if self._max_green_s is not None:
+            n += 1
+        return n
 
     def reset(self) -> None:
         self._phase_start.clear()
@@ -85,7 +100,7 @@ class QueueObservation(BaseObservation):
 
         time_in_phase = sim_time - self._phase_start.get(tls_id, sim_time)
         phase_norm = phase / max(self._max_phase, 1)
-        time_norm = min(time_in_phase / self._max_phase_time, 1.0)
+        time_norm, green_ratio = self._time_in_phase_norms(time_in_phase)
 
         hour = (sim_time % 86400) / 3600.0
         hour_sin = math.sin(2 * math.pi * hour / 24)
@@ -93,9 +108,11 @@ class QueueObservation(BaseObservation):
         dow_sin = math.sin(2 * math.pi * dow / 7)
         dow_cos = math.cos(2 * math.pi * dow / 7)
 
+        tail = [phase_norm, time_norm, hour_sin, hour_cos, dow_sin, dow_cos]
+        if green_ratio is not None:
+            tail.append(green_ratio)
         obs = np.concatenate([
             halting,
-            np.array([phase_norm, time_norm, hour_sin, hour_cos, dow_sin, dow_cos],
-                     dtype=np.float32),
+            np.array(tail, dtype=np.float32),
         ])
         return obs.astype(np.float32)

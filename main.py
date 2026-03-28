@@ -2,12 +2,13 @@
 main.py — single entry point for the full RL traffic signal optimisation pipeline.
 All configuration lives at the top. Edit then run: python main.py [--gui]
 """
-
+from typing import Any
 import argparse
 import importlib.util
 import json
 import math
 import os
+import shutil
 import sys
 from datetime import datetime
 
@@ -26,6 +27,8 @@ from modelling.agent   import Agent
 from modelling.trainer import Trainer
 from modelling.components.reward.delta_wait_time import DeltaWaitTimeReward
 from modelling.components.reward.composite_reward import CompositeReward
+from modelling.components.reward.throughput import ThroughputReward
+from modelling.components.reward.throughput_queue import ThroughputQueueReward
 
 
 # ==========================================================================
@@ -36,6 +39,12 @@ from modelling.components.reward.composite_reward import CompositeReward
 CSV_PATH          = "src/data/synthetic_toronto_data.csv"
 INTERSECTION_PATH = "src/intersection.json"
 COLUMNS_PATH      = "src/columns.json"
+REWARD_CONFIG_PATH = os.path.join(
+    ROOT, "modelling", "components", "reward", "reward_configuration.json"
+)
+POLICY_CONFIG_PATH = os.path.join(
+    ROOT, "modelling", "components", "policy", "policy_configuration.json"
+)
 SUMO_HOME         = os.environ.get(
     "SUMO_HOME", r"C:\Program Files (x86)\Eclipse\Sumo"
 )
@@ -46,12 +55,13 @@ TEST_SIZE  = 5
 EPOCHS     = 60
 
 # Component Selection — swap any of these to use a different implementation
+# Rewards: CompositeReward | ThroughputQueueReward | ThroughputReward | DeltaWaitTimeReward | WaitTimeReward
 EnvironmentClass  = SumoEnvironment
 ObservationClass  = QueueObservation
-RewardClass       = CompositeReward
+RewardClass       = ThroughputReward
 PolicyClass       = DoubleDQNPolicy
 ReplayBufferClass = UniformReplayBuffer
-SchedulerClass    = CosineScheduler      # set to None to disable LR scheduling
+SchedulerClass    = CosineScheduler               # disable LR scheduling for stability
 
 # Simulation
 STEP_LENGTH  = 10.0      # seconds per SUMO step
@@ -65,28 +75,15 @@ OVERSHOOT_COEFF  = 4.0     # how harshly to penalize exceeding max_green (higher
 
 # Observation
 MAX_LANES      = 16
-MAX_PHASE      = 3
+MAX_PHASE      = 7       # max phase index (McCowan_Finch TLS has 8 phases → 0..7)
 MAX_PHASE_TIME = 120.0
 MAX_VEHICLES   = 20
 
-# Reward
-REWARD_NORMALISE = True
-REWARD_SCALE     = 1.0
-REWARD_ALPHA     = 0.65    # blend: 0.65 delta + 0.35 pressure
-
-# Policy (DQN)
-LEARNING_RATE  = 0.001     # starting LR (scheduler decays from here)
-LR_MIN         = 0.0001    # floor LR the scheduler decays towards
-GAMMA          = 0.99
-EPSILON_START  = 1.0
-EPSILON_END    = 0.05
-TARGET_UPDATE  = 200
-BATCH_SIZE     = 128
-HIDDEN_SIZE    = 128
-N_ACTIONS      = 2        # 0 = keep, 1 = switch
+# Policy scheduler floor (policy hyperparameters come from policy_configuration.json)
+LR_MIN = 0.0001
 
 # Replay Buffer
-BUFFER_CAPACITY = 50_000
+BUFFER_CAPACITY = 4096
 
 # Misc
 SEED       = 42
@@ -103,10 +100,6 @@ _steps_per_ep    = _sim_seconds / STEP_LENGTH
 _min_green_steps = max(1, math.ceil(MIN_GREEN_S / STEP_LENGTH))
 _decisions_per_ep = _steps_per_ep / (_min_green_steps + 1)
 TOTAL_UPDATES    = int(EPOCHS * TRAIN_SIZE * _decisions_per_ep)
-
-# Dynamic epsilon decay — reaches EPSILON_END at ~85% of training
-EPSILON_DECAY = (EPSILON_END / EPSILON_START) ** (1.0 / (0.85 * TOTAL_UPDATES))
-
 
 # ==========================================================================
 #  HELPERS
@@ -135,6 +128,41 @@ def _banner(text: str):
     print(f"{'='*60}")
 
 
+def _load_component_config(path: str, class_name: str, label: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Load config JSON and merge default + class-specific blocks."""
+    if not os.path.exists(path):
+        _abort(f"{label} config not found: {path}")
+    with open(path) as f:
+        all_cfg = json.load(f)
+    default_cfg = all_cfg.get("default", {})
+    class_cfg = all_cfg.get(class_name, {})
+    if not isinstance(default_cfg, dict) or not isinstance(class_cfg, dict):
+        _abort(f"{label} config must map keys to objects: {path}")
+    merged = {**default_cfg, **class_cfg}
+    return merged, all_cfg
+
+
+def _resolve_policy_params(policy_kwargs: dict[str, Any]) -> dict[str, Any]:
+    """Validate and finalize policy kwargs (including optional auto epsilon decay)."""
+    resolved = dict(policy_kwargs)
+    required = [
+        "lr", "gamma", "epsilon_start", "epsilon_end",
+        "target_update", "batch_size", "hidden", "n_actions",
+    ]
+    missing = [k for k in required if k not in resolved]
+    if missing:
+        _abort(f"Missing policy params in policy config: {missing}")
+
+    eps_decay = resolved.get("epsilon_decay", "auto")
+    if eps_decay == "auto":
+        eps_start = float(resolved["epsilon_start"])
+        eps_end = float(resolved["epsilon_end"])
+        if eps_start <= 0 or eps_end <= 0:
+            _abort("epsilon_start and epsilon_end must be > 0 for auto epsilon decay.")
+        resolved["epsilon_decay"] = (eps_end / eps_start) ** (1.0 / (0.85 * TOTAL_UPDATES))
+    return resolved
+
+
 def _create_run_dir() -> str:
     """Create a timestamped run folder inside LOGS_DIR and return its path."""
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -144,9 +172,16 @@ def _create_run_dir() -> str:
     return run_dir
 
 
-def _write_config_summary(run_dir: str, use_gui: bool) -> None:
+def _write_config_summary(
+    run_dir: str,
+    use_gui: bool,
+    reward_kwargs: dict[str, Any],
+    policy_kwargs: dict[str, Any],
+) -> None:
     """Write a human-readable config.txt for this run."""
     sched_name = SchedulerClass.__name__ if SchedulerClass else "None (constant LR)"
+    reward_cfg_rel = os.path.relpath(REWARD_CONFIG_PATH, ROOT)
+    policy_cfg_rel = os.path.relpath(POLICY_CONFIG_PATH, ROOT)
     lines = [
         f"Run started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "",
@@ -176,22 +211,24 @@ def _write_config_summary(run_dir: str, use_gui: bool) -> None:
         f"Max lanes:     {MAX_LANES}",
         f"Max phase:     {MAX_PHASE}",
         f"Max phase time:{MAX_PHASE_TIME}",
+        f"Max green feat:{MAX_GREEN_S}s (elapsed/max_green in obs)",
         f"Max vehicles:  {MAX_VEHICLES}",
         "",
         "--- Reward ---",
-        f"Normalise:     {REWARD_NORMALISE}",
-        f"Scale:         {REWARD_SCALE}",
-        f"Alpha:         {REWARD_ALPHA}",
+        f"Config file:   {reward_cfg_rel}",
+        f"Resolved args: {json.dumps(reward_kwargs, sort_keys=True)}",
         "",
         "--- Policy ---",
-        f"Learning rate: {LEARNING_RATE} -> {LR_MIN} ({sched_name})",
+        f"Config file:   {policy_cfg_rel}",
+        f"Learning rate: {policy_kwargs['lr']} -> {LR_MIN} ({sched_name})",
         f"Total updates: ~{TOTAL_UPDATES:,} (estimated)",
-        f"Gamma:         {GAMMA}",
-        f"Epsilon:       {EPSILON_START} -> {EPSILON_END} (decay {EPSILON_DECAY})",
-        f"Target update: {TARGET_UPDATE}",
-        f"Batch size:    {BATCH_SIZE}",
-        f"Hidden size:   {HIDDEN_SIZE}",
-        f"N actions:     {N_ACTIONS}",
+        f"Gamma:         {policy_kwargs['gamma']}",
+        f"Epsilon:       {policy_kwargs['epsilon_start']} -> {policy_kwargs['epsilon_end']} (decay {policy_kwargs['epsilon_decay']})",
+        f"Target update: {policy_kwargs['target_update']}",
+        f"Batch size:    {policy_kwargs['batch_size']}",
+        f"Hidden size:   {policy_kwargs['hidden']}",
+        f"N actions:     {policy_kwargs['n_actions']}",
+        f"Resolved args: {json.dumps(policy_kwargs, sort_keys=True)}",
         "",
         "--- Replay Buffer ---",
         f"Capacity:      {BUFFER_CAPACITY}",
@@ -213,6 +250,8 @@ def validate_inputs(sumo_home: str):
     _check_file(CSV_PATH,          "CSV data file")
     _check_file(INTERSECTION_PATH, "intersection.json")
     _check_file(COLUMNS_PATH,      "columns.json")
+    _check_file(REWARD_CONFIG_PATH, "reward_configuration.json")
+    _check_file(POLICY_CONFIG_PATH, "policy_configuration.json")
     _check_file(
         os.path.join(ROOT, "preprocessing", "BuildRoute.py"),
         "preprocessing/BuildRoute.py",
@@ -337,7 +376,13 @@ def run_build_network(sumo_home: str) -> str:
     return net_file
 
 
-def build_pipeline(net_file: str, use_gui: bool, run_dir: str) -> Trainer:
+def build_pipeline(
+    net_file: str,
+    use_gui: bool,
+    run_dir: str,
+    reward_kwargs: dict[str, Any],
+    policy_kwargs: dict[str, Any],
+) -> Trainer:
     """Construct all RL components, wire them into Agent and Trainer."""
     _banner("Step 3/3 — Constructing RL components")
 
@@ -349,6 +394,7 @@ def build_pipeline(net_file: str, use_gui: bool, run_dir: str) -> Trainer:
         max_phase      = MAX_PHASE,
         max_phase_time = MAX_PHASE_TIME,
         max_vehicles   = MAX_VEHICLES,
+        max_green_s    = MAX_GREEN_S,
     )
 
     environment = EnvironmentClass(
@@ -360,23 +406,19 @@ def build_pipeline(net_file: str, use_gui: bool, run_dir: str) -> Trainer:
         end          = SIM_END,
     )
 
-    reward = RewardClass(
-        normalise = REWARD_NORMALISE,
-        scale     = REWARD_SCALE,
-        alpha     = REWARD_ALPHA,
-    )
+    reward = RewardClass(**reward_kwargs)
 
     policy = PolicyClass(
         obs_dim         = obs_builder.size(),
-        n_actions       = N_ACTIONS,
-        lr              = LEARNING_RATE,
-        gamma           = GAMMA,
-        epsilon_start   = EPSILON_START,
-        epsilon_end     = EPSILON_END,
-        epsilon_decay   = EPSILON_DECAY,
-        target_update   = TARGET_UPDATE,
-        batch_size      = BATCH_SIZE,
-        hidden          = HIDDEN_SIZE,
+        n_actions       = policy_kwargs["n_actions"],
+        lr              = policy_kwargs["lr"],
+        gamma           = policy_kwargs["gamma"],
+        epsilon_start   = policy_kwargs["epsilon_start"],
+        epsilon_end     = policy_kwargs["epsilon_end"],
+        epsilon_decay   = policy_kwargs["epsilon_decay"],
+        target_update   = policy_kwargs["target_update"],
+        batch_size      = policy_kwargs["batch_size"],
+        hidden          = policy_kwargs["hidden"],
     )
 
     scheduler = None
@@ -397,7 +439,7 @@ def build_pipeline(net_file: str, use_gui: bool, run_dir: str) -> Trainer:
     print(f"  Observation   : {ObservationClass.__name__} (size={obs_builder.size()})")
     print(f"  Reward        : {RewardClass.__name__}")
     print(f"  Policy        : {PolicyClass.__name__} (device={policy.device})")
-    print(f"  Scheduler     : {sched_name} (LR {LEARNING_RATE} -> {LR_MIN} over ~{TOTAL_UPDATES:,} steps)")
+    print(f"  Scheduler     : {sched_name} (LR {policy_kwargs['lr']} -> {LR_MIN} over ~{TOTAL_UPDATES:,} steps)")
     print(f"  Replay buffer : {ReplayBufferClass.__name__} (capacity={BUFFER_CAPACITY:,})")
     print(f"  Phase timing  : min={MIN_GREEN_S}s  max={MAX_GREEN_S}s  "
           f"(decide every {STEP_LENGTH}s after min)")
@@ -456,10 +498,20 @@ def main():
     split    = run_build_route()
     net_file = run_build_network(SUMO_HOME)
 
-    run_dir = _create_run_dir()
-    _write_config_summary(run_dir, use_gui)
+    reward_kwargs, _ = _load_component_config(
+        REWARD_CONFIG_PATH, RewardClass.__name__, "Reward"
+    )
+    policy_kwargs_raw, _ = _load_component_config(
+        POLICY_CONFIG_PATH, PolicyClass.__name__, "Policy"
+    )
+    policy_kwargs = _resolve_policy_params(policy_kwargs_raw)
 
-    trainer = build_pipeline(net_file, use_gui, run_dir)
+    run_dir = _create_run_dir()
+    shutil.copy2(REWARD_CONFIG_PATH, os.path.join(run_dir, "reward_configuration.json"))
+    shutil.copy2(POLICY_CONFIG_PATH, os.path.join(run_dir, "policy_configuration.json"))
+    _write_config_summary(run_dir, use_gui, reward_kwargs, policy_kwargs)
+
+    trainer = build_pipeline(net_file, use_gui, run_dir, reward_kwargs, policy_kwargs)
 
     _banner("Training")
     results = trainer.run()

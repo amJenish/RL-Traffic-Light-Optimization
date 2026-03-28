@@ -1,0 +1,20 @@
+Trial id:     trial_0007
+Seed:         42
+
+--- Config snapshots ---
+Reward config: reward_configuration.json
+Policy config: policy_configuration.json
+
+--- Reward ---
+Reward class: ThroughputQueueReward
+Args:         {"normalise": true, "queue_weight": 1.0, "scale": 1.0, "throughput_weight": 0.5}
+
+--- Policy ---
+Policy class: DoubleDQNPolicy
+Args:         {"batch_size": 256, "epsilon_decay": 0.9999836835085317, "epsilon_end": 0.05, "epsilon_start": 1.0, "gamma": 0.97, "hidden": 256, "lr": 0.0005, "n_actions": 2, "target_update": 200}
+
+--- Episode KPI (examples) ---
+Train example crossings_total: 6113.0
+Train example crossings_rate:  0.28300925925925924
+Test example crossings_total:  5947.0
+Test example crossings_rate:   0.27532407407407405

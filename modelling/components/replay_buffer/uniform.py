@@ -17,17 +17,18 @@ class UniformReplayBuffer(BaseReplayBuffer):
         self._rng = random.Random(seed)
 
     def push(self, state: np.ndarray, action: int, reward: float,
-             next_state: np.ndarray, done: bool) -> None:
+             next_state: np.ndarray, done: bool, duration: int) -> None:
         self._buffer.append((
             state.astype(np.float32),
             int(action),
             float(reward),
             next_state.astype(np.float32),
             float(done),
+            int(duration),
         ))
 
     def sample(self, batch_size: int) -> tuple[
-        np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray,
+        np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray,
     ]:
         if not self.is_ready(batch_size):
             raise RuntimeError(
@@ -35,13 +36,14 @@ class UniformReplayBuffer(BaseReplayBuffer):
                 f"need at least {batch_size} to sample."
             )
         batch = self._rng.sample(self._buffer, batch_size)
-        states, actions, rewards, next_states, dones = zip(*batch)
+        states, actions, rewards, next_states, dones, durations = zip(*batch)
         return (
             np.stack(states).astype(np.float32),
             np.array(actions, dtype=np.int64),
             np.array(rewards, dtype=np.float32),
             np.stack(next_states).astype(np.float32),
             np.array(dones, dtype=np.float32),
+            np.array(durations, dtype=np.int64),
         )
 
     def __len__(self) -> int:
