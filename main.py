@@ -77,15 +77,15 @@ COLUMNS_PATH      = "src/columns.json"
 SUMO_HOME         = os.environ.get("SUMO_HOME") or _default_sumo_home()
 
 # Data Split & Training
-TRAIN_SIZE = 5
+TRAIN_SIZE = 25
 TEST_SIZE  = 5
 EPOCHS     = 60
 
 # Component Selection — swap any of these to use a different implementation
-# CompositeReward: stable default for this project. ThroughputReward is available for experiments.
 EnvironmentClass  = SumoEnvironment
 ObservationClass  = QueueObservation
-RewardClass       = CompositeReward
+RewardClass       = WaitTimeReward    # train + eval on same metric as baselines
+EvalRewardClass   = None              # None = use RewardClass for eval too
 PolicyClass       = DoubleDQNPolicy
 ReplayBufferClass = UniformReplayBuffer
 SchedulerClass    = CosineScheduler      # set to None to disable LR scheduling
@@ -99,7 +99,7 @@ SIM_END      = 50400      # 14:00
 # Phase Timing (seconds — Agent converts to sim steps internally)
 MIN_GREEN_S      = 15
 MAX_GREEN_S      = 90
-OVERSHOOT_COEFF  = 4.0     # how harshly to penalize exceeding max_green (higher = harsher)
+OVERSHOOT_COEFF  = 1.0     # how harshly to penalize exceeding max_green (higher = harsher)
 
 # Observation
 MAX_LANES      = 16
@@ -109,22 +109,22 @@ MAX_VEHICLES   = 20
 
 # Reward
 REWARD_NORMALISE = True
-REWARD_SCALE     = 1.0
+REWARD_SCALE     = 1.0    # Huber loss + gradient clip handle stability; no need to shrink signal
 REWARD_ALPHA     = 0.65    # blend: 0.65 delta + 0.35 pressure
 
 # Policy (DQN)
-LEARNING_RATE  = 0.01     # starting LR (scheduler decays from here)
-LR_MIN         = 0.0001    # floor LR the scheduler decays towards
-GAMMA          = 0.99
+LEARNING_RATE  = 0.0005    # starting LR (scheduler decays from here)
+LR_MIN         = 0.00005   # floor LR the scheduler decays towards
+GAMMA          = 0.95
 EPSILON_START  = 1.0
 EPSILON_END    = 0.05
-TARGET_UPDATE  = 200
+TARGET_UPDATE  = 10     # more frequent target sync to reduce Bellman error accumulation
 BATCH_SIZE     = 256
 HIDDEN_SIZE    = 256
 N_ACTIONS      = 2        # 0 = keep, 1 = switch
 
 # Replay Buffer
-BUFFER_CAPACITY = 100_000
+BUFFER_CAPACITY = 20_000
 
 # Misc
 SEED       = 42
@@ -139,7 +139,7 @@ LOGS_DIR = "logs"
 _sim_seconds     = SIM_END - SIM_BEGIN
 _steps_per_ep    = _sim_seconds / STEP_LENGTH
 _min_green_steps = max(1, math.ceil(MIN_GREEN_S / STEP_LENGTH))
-_decisions_per_ep = _steps_per_ep / (_min_green_steps + 1)
+_decisions_per_ep = _steps_per_ep / 2  # empirical: ~1 decision per 2 sim steps on average
 TOTAL_UPDATES    = int(EPOCHS * TRAIN_SIZE * _decisions_per_ep)
 
 # Dynamic epsilon decay — reaches EPSILON_END at ~85% of training
@@ -190,7 +190,7 @@ def _write_config_summary(run_dir: str, use_gui: bool) -> None:
         "",
         "--- Components ---",
         f"Policy:        {PolicyClass.__name__}",
-        f"Reward:        {RewardClass.__name__}",
+        f"Reward:        {RewardClass.__name__} (train) / {EvalRewardClass.__name__ if EvalRewardClass else 'same'} (eval)",
         f"Observation:   {ObservationClass.__name__}",
         f"Environment:   {EnvironmentClass.__name__}",
         f"Replay Buffer: {ReplayBufferClass.__name__}",
@@ -398,11 +398,15 @@ def build_pipeline(net_file: str, use_gui: bool, run_dir: str) -> Trainer:
         end          = SIM_END,
     )
 
-    reward = RewardClass(
-        normalise = REWARD_NORMALISE,
-        scale     = REWARD_SCALE,
-        alpha     = REWARD_ALPHA,
-    )
+    reward_kwargs: dict = {"normalise": REWARD_NORMALISE, "scale": REWARD_SCALE}
+    if RewardClass is CompositeReward:
+        reward_kwargs["alpha"] = REWARD_ALPHA
+    reward = RewardClass(**reward_kwargs)
+
+    eval_reward_kwargs: dict = {"normalise": REWARD_NORMALISE, "scale": REWARD_SCALE}
+    if EvalRewardClass is CompositeReward:
+        eval_reward_kwargs["alpha"] = REWARD_ALPHA
+    eval_reward = EvalRewardClass(**eval_reward_kwargs) if EvalRewardClass is not None else None
 
     policy = PolicyClass(
         obs_dim         = obs_builder.size(),
@@ -433,7 +437,8 @@ def build_pipeline(net_file: str, use_gui: bool, run_dir: str) -> Trainer:
     sched_name = SchedulerClass.__name__ if SchedulerClass else "None"
     print(f"  Environment   : {EnvironmentClass.__name__} (gui={use_gui})")
     print(f"  Observation   : {ObservationClass.__name__} (size={obs_builder.size()})")
-    print(f"  Reward        : {RewardClass.__name__}")
+    eval_name = EvalRewardClass.__name__ if EvalRewardClass else "same as train"
+    print(f"  Reward        : {RewardClass.__name__} (train) / {eval_name} (eval)")
     print(f"  Policy        : {PolicyClass.__name__} (device={policy.device})")
     print(f"  Scheduler     : {sched_name} (LR {LEARNING_RATE} -> {LR_MIN} over ~{TOTAL_UPDATES:,} steps)")
     print(f"  Replay buffer : {ReplayBufferClass.__name__} (capacity={BUFFER_CAPACITY:,})")
@@ -448,6 +453,7 @@ def build_pipeline(net_file: str, use_gui: bool, run_dir: str) -> Trainer:
         policy          = policy,
         replay_buffer   = replay_buffer,
         scheduler       = scheduler,
+        eval_reward     = eval_reward,
         step_length     = STEP_LENGTH,
         min_green_s     = MIN_GREEN_S,
         max_green_s     = MAX_GREEN_S,

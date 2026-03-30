@@ -133,7 +133,7 @@ class Trainer:
 
     def _log(self, index: int, metrics: dict, prefix: str = "") -> None:
         eps = metrics.get("epsilon")
-        eps_str = f"  ε={eps:.3f}" if eps is not None else ""
+        eps_str = f"  eps={eps:.3f}" if eps is not None else ""
         loss = metrics.get("mean_loss")
         loss_str = f"  loss={loss:.4f}" if loss is not None else ""
         lr = metrics.get("learning_rate")

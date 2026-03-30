@@ -25,6 +25,7 @@ class Agent:
         policy:          BasePolicy,
         replay_buffer:   BaseReplayBuffer,
         scheduler:       BaseScheduler | None = None,
+        eval_reward:     BaseReward | None    = None,
         step_length:     float = 5.0,
         min_green_s:     float = 15.0,
         max_green_s:     float = 90.0,
@@ -36,6 +37,7 @@ class Agent:
         self.policy        = policy
         self.replay_buffer = replay_buffer
         self.scheduler     = scheduler
+        self.eval_reward   = eval_reward
 
         self._step_length       = step_length
         self._min_green_steps   = max(1, math.ceil(min_green_s / step_length))
@@ -53,6 +55,8 @@ class Agent:
         self.environment.start(route_file)
         self.observation.reset()
         self.reward.reset()
+        if self.eval_reward is not None:
+            self.eval_reward.reset()
         self.policy.reset_phase_tracking()
 
         self._episode_reward = 0.0
@@ -120,10 +124,17 @@ class Agent:
 
         done     = self.environment.is_done()
         next_obs = self._get_observations()
-        rewards  = {tid: self.reward.compute(self.environment.traci, tid) for tid in tls_ids}
 
-        for tid in tls_ids:
-            rewards[tid] *= self._overshoot_scale(tid)
+        active_reward = (
+            self.eval_reward
+            if (not self._train_mode and self.eval_reward is not None)
+            else self.reward
+        )
+        rewards = {tid: active_reward.compute(self.environment.traci, tid) for tid in tls_ids}
+
+        if self._train_mode:
+            for tid in tls_ids:
+                rewards[tid] *= self._overshoot_scale(tid)
 
         total_reward = sum(rewards.values())
         self._episode_reward += total_reward
@@ -133,7 +144,7 @@ class Agent:
         if self._train_mode:
             for tid in tls_ids:
                 self.replay_buffer.push(
-                    state=obs[tid], action=actions[tid], reward=total_reward,
+                    state=obs[tid], action=actions[tid], reward=rewards[tid],
                     next_state=next_obs[tid], done=float(done),
                 )
 

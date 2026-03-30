@@ -130,10 +130,9 @@ def _write_eval_config(m, data_out: Path, models_dir: Path, path: Path) -> None:
             "max_vehicles": m.MAX_VEHICLES,
         },
         "reward": {
-            "class": m.RewardClass.__name__,
+            "class": "WaitTimeReward",
             "normalise": bool(m.REWARD_NORMALISE),
             "scale": float(m.REWARD_SCALE),
-            "alpha": float(m.REWARD_ALPHA),
         },
         "policy": {
             "learning_rate": float(m.LEARNING_RATE),

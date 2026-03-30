@@ -65,7 +65,7 @@ class DoubleDQNPolicy(BasePolicy):
         self._target.eval()
 
         self._optimiser = optim.Adam(self._online.parameters(), lr=lr)
-        self._loss_fn   = nn.MSELoss()
+        self._loss_fn   = nn.SmoothL1Loss()  # Huber loss — robust to large TD errors, prevents loss explosion
 
     def select_action(self, obs: np.ndarray, tls_id: str = "default") -> int:
         """Epsilon-greedy: random with prob epsilon, else greedy from Q-values."""
@@ -107,7 +107,7 @@ class DoubleDQNPolicy(BasePolicy):
 
         self._optimiser.zero_grad()
         loss.backward()
-        nn.utils.clip_grad_norm_(self._online.parameters(), max_norm=10.0)
+        nn.utils.clip_grad_norm_(self._online.parameters(), max_norm=1.0)
         self._optimiser.step()
 
         if not self._eval_mode:
