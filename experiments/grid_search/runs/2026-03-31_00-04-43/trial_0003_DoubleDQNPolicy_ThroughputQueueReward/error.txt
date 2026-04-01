@@ -1,0 +1,20 @@
+CUDA error: unknown error
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+
+Traceback (most recent call last):
+  File "C:\Users\samjo\OneDrive\Documents\Capstone\RL-Traffic-Light-Optimization\experiments\grid_search\gridsearch.py", line 508, in main
+    ep_stats = _run_episode_loop(agent, reward_wrapped, route_file)
+  File "C:\Users\samjo\OneDrive\Documents\Capstone\RL-Traffic-Light-Optimization\experiments\grid_search\gridsearch.py", line 277, in _run_episode_loop
+    obs, rewards, done, loss = agent.step(obs)
+  File "C:\Users\samjo\OneDrive\Documents\Capstone\RL-Traffic-Light-Optimization\modelling\agent.py", line 215, in step
+    loss = self.policy.update(self.replay_buffer)
+  File "C:\Users\samjo\OneDrive\Documents\Capstone\RL-Traffic-Light-Optimization\modelling\components\policy\double_dqn.py", line 89, in update
+    states      = torch.tensor(states,      dtype=torch.float32, device=self._device)
+RuntimeError: CUDA error: unknown error
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
