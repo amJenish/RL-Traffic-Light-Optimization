@@ -6,3 +6,11 @@ env/
 # Python cache
 __pycache__/
 
+# Streamlit local runs
+streamlit_runs/
+
+# Run outputs / local noise
+logs/
+*.log
+.DS_Store
+src/data/models/

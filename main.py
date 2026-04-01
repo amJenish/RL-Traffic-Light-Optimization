@@ -16,6 +16,41 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+
+def _default_sumo_home() -> str:
+    """Fallback when SUMO_HOME is not set in the environment.
+
+    Windows: same default as historical ``main.py`` — prefer a real install under
+    ``Program Files (x86)`` or ``Program Files`` if ``bin`` exists, else the classic x86 path.
+    macOS: ``pip install eclipse-sumo`` (``import sumo``), then common Homebrew layouts.
+    """
+    if sys.platform == "win32":
+        _win_candidates = (
+            r"C:\Program Files (x86)\Eclipse\Sumo",
+            r"C:\Program Files\Eclipse\Sumo",
+        )
+        for candidate in _win_candidates:
+            if os.path.isdir(os.path.join(candidate, "bin")):
+                return candidate
+        return _win_candidates[0]
+    if sys.platform == "darwin":
+        try:
+            import sumo  # noqa: PLC0415
+
+            return sumo.SUMO_HOME
+        except Exception:
+            pass
+        for candidate in ("/opt/homebrew/opt/sumo", "/usr/local/opt/sumo"):
+            if os.path.isdir(os.path.join(candidate, "bin")):
+                return candidate
+    try:
+        import sumo  # noqa: PLC0415
+
+        return sumo.SUMO_HOME
+    except Exception:
+        return r"C:\Program Files (x86)\Eclipse\Sumo"
+
+
 from modelling.components.environment.sumo_environment import SumoEnvironment
 from modelling.components.observation.queue_observation import QueueObservation
 from modelling.components.reward.wait_time              import WaitTimeReward
@@ -45,12 +80,10 @@ REWARD_CONFIG_PATH = os.path.join(
 POLICY_CONFIG_PATH = os.path.join(
     ROOT, "modelling", "components", "policy", "policy_configuration.json"
 )
-SUMO_HOME         = os.environ.get(
-    "SUMO_HOME", r"C:\Program Files (x86)\Eclipse\Sumo"
-)
+SUMO_HOME         = os.environ.get("SUMO_HOME") or _default_sumo_home()
 
 # Data Split & Training
-TRAIN_SIZE = 5
+TRAIN_SIZE = 25
 TEST_SIZE  = 5
 EPOCHS     = 60
 
@@ -59,6 +92,7 @@ EPOCHS     = 60
 EnvironmentClass  = SumoEnvironment
 ObservationClass  = QueueObservation
 RewardClass       = ThroughputReward
+EvalRewardClass   = None              # optional; None = same reward for train and eval
 PolicyClass       = DoubleDQNPolicy
 ReplayBufferClass = UniformReplayBuffer
 SchedulerClass    = CosineScheduler               # disable LR scheduling for stability
@@ -66,12 +100,13 @@ SchedulerClass    = CosineScheduler               # disable LR scheduling for st
 # Simulation
 STEP_LENGTH  = 10.0      # seconds per SUMO step
 SIM_BEGIN    = 28800      # 08:00
+# Sim window matches c881448; affects TOTAL_UPDATES / epsilon schedule
 SIM_END      = 50400      # 14:00
 
 # Phase Timing (seconds — Agent converts to sim steps internally)
 MIN_GREEN_S      = 15
 MAX_GREEN_S      = 90
-OVERSHOOT_COEFF  = 4.0     # how harshly to penalize exceeding max_green (higher = harsher)
+OVERSHOOT_COEFF  = 1.0     # how harshly to penalize exceeding max_green (higher = harsher)
 
 # Observation
 MAX_LANES      = 16
@@ -80,7 +115,7 @@ MAX_PHASE_TIME = 120.0
 MAX_VEHICLES   = 20
 
 # Policy scheduler floor (policy hyperparameters come from policy_configuration.json)
-LR_MIN = 0.0001
+LR_MIN         = 0.0001
 
 # Replay Buffer
 BUFFER_CAPACITY = 4096
@@ -98,8 +133,10 @@ LOGS_DIR = "logs"
 _sim_seconds     = SIM_END - SIM_BEGIN
 _steps_per_ep    = _sim_seconds / STEP_LENGTH
 _min_green_steps = max(1, math.ceil(MIN_GREEN_S / STEP_LENGTH))
-_decisions_per_ep = _steps_per_ep / (_min_green_steps + 1)
+_decisions_per_ep = _steps_per_ep / 2  # empirical: ~1 decision per 2 sim steps on average
 TOTAL_UPDATES    = int(EPOCHS * TRAIN_SIZE * _decisions_per_ep)
+if TOTAL_UPDATES < 1:
+    TOTAL_UPDATES = 1
 
 # ==========================================================================
 #  HELPERS
@@ -187,7 +224,7 @@ def _write_config_summary(
         "",
         "--- Components ---",
         f"Policy:        {PolicyClass.__name__}",
-        f"Reward:        {RewardClass.__name__}",
+        f"Reward:        {RewardClass.__name__} (train) / {EvalRewardClass.__name__ if EvalRewardClass else 'same'} (eval)",
         f"Observation:   {ObservationClass.__name__}",
         f"Environment:   {EnvironmentClass.__name__}",
         f"Replay Buffer: {ReplayBufferClass.__name__}",
@@ -407,6 +444,12 @@ def build_pipeline(
     )
 
     reward = RewardClass(**reward_kwargs)
+    eval_reward = None
+    if EvalRewardClass is not None:
+        eval_kw, _ = _load_component_config(
+            REWARD_CONFIG_PATH, EvalRewardClass.__name__, "Eval reward"
+        )
+        eval_reward = EvalRewardClass(**eval_kw)
 
     policy = PolicyClass(
         obs_dim         = obs_builder.size(),
@@ -437,7 +480,8 @@ def build_pipeline(
     sched_name = SchedulerClass.__name__ if SchedulerClass else "None"
     print(f"  Environment   : {EnvironmentClass.__name__} (gui={use_gui})")
     print(f"  Observation   : {ObservationClass.__name__} (size={obs_builder.size()})")
-    print(f"  Reward        : {RewardClass.__name__}")
+    eval_name = EvalRewardClass.__name__ if EvalRewardClass else "same as train"
+    print(f"  Reward        : {RewardClass.__name__} (train) / {eval_name} (eval)")
     print(f"  Policy        : {PolicyClass.__name__} (device={policy.device})")
     print(f"  Scheduler     : {sched_name} (LR {policy_kwargs['lr']} -> {LR_MIN} over ~{TOTAL_UPDATES:,} steps)")
     print(f"  Replay buffer : {ReplayBufferClass.__name__} (capacity={BUFFER_CAPACITY:,})")
@@ -452,6 +496,7 @@ def build_pipeline(
         policy          = policy,
         replay_buffer   = replay_buffer,
         scheduler       = scheduler,
+        eval_reward     = eval_reward,
         step_length     = STEP_LENGTH,
         min_green_s     = MIN_GREEN_S,
         max_green_s     = MAX_GREEN_S,

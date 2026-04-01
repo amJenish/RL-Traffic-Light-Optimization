@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import Any
+from typing import Any, Callable
 
 from modelling.agent import Agent
 
@@ -11,19 +11,21 @@ class Trainer:
 
     def __init__(
         self,
-        agent:       Agent,
-        split_path:  str,
-        flows_dir:   str,
-        output_dir:  str  = "src/data/models",
-        n_epochs:    int  = 3,
-        save_every:  int  = 10,
-        log_every:   int  = 5,
+        agent:        Agent,
+        split_path:   str,
+        flows_dir:    str,
+        output_dir:   str                       = "src/data/models",
+        n_epochs:     int                       = 3,
+        save_every:   int                       = 10,
+        log_every:    int                       = 5,
+        log_callback: Callable[[str], None] | None = None,
     ):
-        self.agent      = agent
-        self.output_dir = output_dir
-        self.n_epochs   = n_epochs
-        self.save_every = save_every
-        self.log_every  = log_every
+        self.agent        = agent
+        self.output_dir   = output_dir
+        self.n_epochs     = n_epochs
+        self.save_every   = save_every
+        self.log_every    = log_every
+        self.log_callback = log_callback
 
         os.makedirs(output_dir, exist_ok=True)
         self._checkpoint_dir = os.path.join(output_dir, "checkpoints")
@@ -36,19 +38,37 @@ class Trainer:
         self._test_days  = self._split["test"]
         self._flows_dir  = flows_dir
         self._train_log: list[dict] = []
+        self._pretest_log: list[dict] = []
         self._test_log:  list[dict] = []
 
+    def _emit(self, text: str = "") -> None:
+        """Print text to stdout and forward to log_callback if set."""
+        print(text)
+        if self.log_callback is not None:
+            self.log_callback(text)
+
     def run(self) -> dict[str, Any]:
-        """Full training loop + final evaluation. Returns train_log and test_log."""
-        print(f"\nStarting training")
-        print(f"  Train days : {len(self._train_days)}")
-        print(f"  Test days  : {len(self._test_days)}")
-        print(f"  Epochs     : {self.n_epochs}")
-        print(f"  Output     : {self.output_dir}\n")
+        """Full training loop + evaluation. Also logs a pre-train test evaluation."""
+        self._emit(f"\nStarting training")
+        self._emit(f"  Train days : {len(self._train_days)}")
+        self._emit(f"  Test days  : {len(self._test_days)}")
+        self._emit(f"  Epochs     : {self.n_epochs}")
+        self._emit(f"  Output     : {self.output_dir}\n")
+
+        # ------------------------------------------------------------------
+        # Pre-train evaluation (fresh policy on held-out test days)
+        # ------------------------------------------------------------------
+        self._emit(f"--- Pre-train evaluation on {len(self._test_days)} test days ---")
+        self.agent.set_eval_mode()
+        for day_id in self._test_days:
+            metrics = self._run_episode(day_id, train=False)
+            metrics["day_id"] = day_id
+            self._pretest_log.append(metrics)
+            self._log(day_id, metrics, prefix="PreT ")
 
         episode = 0
         for epoch in range(1, self.n_epochs + 1):
-            print(f"--- Epoch {epoch}/{self.n_epochs} ---")
+            self._emit(f"--- Epoch {epoch}/{self.n_epochs} ---")
             for day_id in self._train_days:
                 episode += 1
                 metrics = self._run_episode(day_id, train=True)
@@ -65,9 +85,9 @@ class Trainer:
                         self._checkpoint_dir, f"checkpoint_ep{episode:04d}.pt"
                     )
                     self.agent.save(path)
-                    print(f"  Checkpoint saved -> {path}")
+                    self._emit(f"  Checkpoint saved -> {path}")
 
-        print(f"\n--- Evaluating on {len(self._test_days)} test days ---")
+        self._emit(f"\n--- Evaluating on {len(self._test_days)} test days ---")
         self.agent.set_eval_mode()
         for test_episode, day_id in enumerate(self._test_days, start=1):
             metrics = self._run_episode(day_id, train=False)
@@ -77,12 +97,16 @@ class Trainer:
 
         final_path = os.path.join(self.output_dir, "final_model.pt")
         self.agent.save(final_path)
-        print(f"\nFinal model saved -> {final_path}")
+        self._emit(f"\nFinal model saved -> {final_path}")
 
         self._save_logs()
         self._print_summary()
 
-        return {"train_log": self._train_log, "test_log": self._test_log}
+        return {
+            "train_log": self._train_log,
+            "pretest_log": self._pretest_log,
+            "test_log": self._test_log,
+        }
 
     def _run_episode(self, day_id: int, train: bool) -> dict[str, Any]:
         """Run one episode (one day) in train or eval mode."""
@@ -109,12 +133,12 @@ class Trainer:
 
     def _log(self, index: int, metrics: dict, prefix: str = "") -> None:
         eps = metrics.get("epsilon")
-        eps_str = f"  ε={eps:.3f}" if eps is not None else ""
+        eps_str = f"  eps={eps:.3f}" if eps is not None else ""
         loss = metrics.get("mean_loss")
         loss_str = f"  loss={loss:.4f}" if loss is not None else ""
         lr = metrics.get("learning_rate")
         lr_str = f"  lr={lr:.6f}" if lr is not None else ""
-        print(
+        self._emit(
             f"  {prefix} ep={index:4d}"
             f"  reward={metrics['total_reward']:8.1f}"
             f"  steps={metrics['steps']:5d}"
@@ -123,18 +147,25 @@ class Trainer:
 
     def _save_logs(self) -> None:
         train_path = os.path.join(self.output_dir, "train_log.json")
+        pretest_path = os.path.join(self.output_dir, "pretest_log.json")
         test_path  = os.path.join(self.output_dir, "test_log.json")
         with open(train_path, "w") as f:
             json.dump(self._train_log, f, indent=2)
+        with open(pretest_path, "w") as f:
+            json.dump(self._pretest_log, f, indent=2)
         with open(test_path, "w") as f:
             json.dump(self._test_log, f, indent=2)
-        print(f"Logs saved -> {train_path}")
-        print(f"           -> {test_path}")
+        self._emit(f"Logs saved -> {train_path}")
+        self._emit(f"           -> {pretest_path}")
+        self._emit(f"           -> {test_path}")
 
     def _print_summary(self) -> None:
         if self._train_log:
             mean_reward = sum(m["total_reward"] for m in self._train_log) / len(self._train_log)
-            print(f"\nTrain mean reward : {mean_reward:.2f}")
+            self._emit(f"\nTrain mean reward : {mean_reward:.2f}")
+        if self._pretest_log:
+            mean_reward = sum(m["total_reward"] for m in self._pretest_log) / len(self._pretest_log)
+            self._emit(f"PreT  mean reward : {mean_reward:.2f}")
         if self._test_log:
             mean_reward = sum(m["total_reward"] for m in self._test_log) / len(self._test_log)
-            print(f"Test  mean reward : {mean_reward:.2f}")
+            self._emit(f"Test  mean reward : {mean_reward:.2f}")

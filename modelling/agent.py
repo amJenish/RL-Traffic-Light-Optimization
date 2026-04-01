@@ -25,6 +25,7 @@ class Agent:
         policy:          BasePolicy,
         replay_buffer:   BaseReplayBuffer,
         scheduler:       BaseScheduler | None = None,
+        eval_reward:     BaseReward | None    = None,
         step_length:     float = 5.0,
         min_green_s:     float = 15.0,
         max_green_s:     float = 90.0,
@@ -36,6 +37,7 @@ class Agent:
         self.policy        = policy
         self.replay_buffer = replay_buffer
         self.scheduler     = scheduler
+        self.eval_reward   = eval_reward
 
         self._step_length       = step_length
         self._min_green_steps   = max(1, math.ceil(min_green_s / step_length))
@@ -52,12 +54,27 @@ class Agent:
         self._pending_state: dict[str, np.ndarray] | None = None
         self._pending_action: dict[str, int] | None = None
         self._pending_duration: int = 0  # primitive simulation steps since pending decision
+        self._train_mode: bool = True
+
+    def _tls_rewards(self, tls_ids: list[str]) -> dict[str, float]:
+        active = (
+            self.eval_reward
+            if (not self._train_mode and self.eval_reward is not None)
+            else self.reward
+        )
+        out = {tid: active.compute(self.environment.traci, tid) for tid in tls_ids}
+        if self._train_mode:
+            for tid in tls_ids:
+                out[tid] *= self._overshoot_scale(tid)
+        return out
 
     def start_episode(self, route_file: str) -> dict[str, np.ndarray]:
         """Reset everything and launch SUMO for one episode. Returns initial observations."""
         self.environment.start(route_file)
         self.observation.reset()
         self.reward.reset()
+        if self.eval_reward is not None:
+            self.eval_reward.reset()
         self.policy.reset_phase_tracking()
 
         self._episode_reward = 0.0
@@ -143,32 +160,30 @@ class Agent:
                     done = True
                     pending_duration = self._pending_duration
 
-                    rewards = {
-                        tid: self.reward.compute(self.environment.traci, tid)
-                        for tid in tls_ids
-                    }
-                    for tid in tls_ids:
-                        rewards[tid] *= self._overshoot_scale(tid)
+                    rewards = self._tls_rewards(tls_ids)
 
-                    for tid in tls_ids:
-                        self.replay_buffer.push(
-                            state=self._pending_state[tid],
-                            action=self._pending_action[tid],
-                            reward=rewards[tid],
-                            next_state=terminal_obs[tid],
-                            done=float(done),
-                            duration=pending_duration,
-                        )
+                    if self._train_mode:
+                        for tid in tls_ids:
+                            self.replay_buffer.push(
+                                state=self._pending_state[tid],
+                                action=self._pending_action[tid],
+                                reward=rewards[tid],
+                                next_state=terminal_obs[tid],
+                                done=float(done),
+                                duration=pending_duration,
+                            )
 
                     total_reward = sum(rewards.values())
                     self._episode_reward += total_reward
                     self._episode_steps += 1
 
-                    loss = self.policy.update(self.replay_buffer)
-                    if loss is not None:
-                        self._episode_losses.append(loss)
-                        if self.scheduler is not None:
-                            self.scheduler.step()
+                    loss = None
+                    if self._train_mode:
+                        loss = self.policy.update(self.replay_buffer)
+                        if loss is not None:
+                            self._episode_losses.append(loss)
+                            if self.scheduler is not None:
+                                self.scheduler.step()
 
                     # Clear pending and close.
                     self._pending_state = None
@@ -189,34 +204,33 @@ class Agent:
 
         # 2) Finalize the pending transition at this decision epoch boundary.
         if self._pending_state is not None and self._pending_action is not None:
-            rewards = {
-                tid: self.reward.compute(self.environment.traci, tid) for tid in tls_ids
-            }
-            for tid in tls_ids:
-                rewards[tid] *= self._overshoot_scale(tid)
+            rewards = self._tls_rewards(tls_ids)
 
             done = float(self.environment.is_done())
             pending_duration = self._pending_duration
 
-            for tid in tls_ids:
-                self.replay_buffer.push(
-                    state=self._pending_state[tid],
-                    action=self._pending_action[tid],
-                    reward=rewards[tid],
-                    next_state=obs_now[tid],
-                    done=done,
-                    duration=pending_duration,
-                )
+            if self._train_mode:
+                for tid in tls_ids:
+                    self.replay_buffer.push(
+                        state=self._pending_state[tid],
+                        action=self._pending_action[tid],
+                        reward=rewards[tid],
+                        next_state=obs_now[tid],
+                        done=done,
+                        duration=pending_duration,
+                    )
 
             total_reward = sum(rewards.values())
             self._episode_reward += total_reward
             self._episode_steps += 1
 
-            loss = self.policy.update(self.replay_buffer)
-            if loss is not None:
-                self._episode_losses.append(loss)
-                if self.scheduler is not None:
-                    self.scheduler.step()
+            loss = None
+            if self._train_mode:
+                loss = self.policy.update(self.replay_buffer)
+                if loss is not None:
+                    self._episode_losses.append(loss)
+                    if self.scheduler is not None:
+                        self.scheduler.step()
 
             self._pending_state = None
             self._pending_action = None
@@ -250,34 +264,31 @@ class Agent:
 
         # 4) If the episode ends right after the chosen action, finalize immediately.
         if done and self._pending_state is not None and self._pending_action is not None:
-            terminal_rewards = {
-                tid: self.reward.compute(self.environment.traci, tid)
-                for tid in tls_ids
-            }
-            for tid in tls_ids:
-                terminal_rewards[tid] *= self._overshoot_scale(tid)
+            terminal_rewards = self._tls_rewards(tls_ids)
 
             pending_duration = self._pending_duration
-            for tid in tls_ids:
-                self.replay_buffer.push(
-                    state=self._pending_state[tid],
-                    action=self._pending_action[tid],
-                    reward=terminal_rewards[tid],
-                    next_state=next_obs[tid],
-                    done=float(done),
-                    duration=pending_duration,
-                )
+            if self._train_mode:
+                for tid in tls_ids:
+                    self.replay_buffer.push(
+                        state=self._pending_state[tid],
+                        action=self._pending_action[tid],
+                        reward=terminal_rewards[tid],
+                        next_state=next_obs[tid],
+                        done=float(done),
+                        duration=pending_duration,
+                    )
 
             total_reward = sum(terminal_rewards.values())
             self._episode_reward += total_reward
             self._episode_steps += 1
 
-            loss2 = self.policy.update(self.replay_buffer)
-            if loss2 is not None:
-                self._episode_losses.append(loss2)
-                if self.scheduler is not None:
-                    self.scheduler.step()
-                loss = loss2
+            loss = None
+            if self._train_mode:
+                loss = self.policy.update(self.replay_buffer)
+                if loss is not None:
+                    self._episode_losses.append(loss)
+                    if self.scheduler is not None:
+                        self.scheduler.step()
 
             self._pending_state = None
             self._pending_action = None
@@ -301,9 +312,11 @@ class Agent:
         }
 
     def set_eval_mode(self) -> None:
+        self._train_mode = False
         self.policy.set_eval_mode()
 
     def set_train_mode(self) -> None:
+        self._train_mode = True
         self.policy.set_train_mode()
 
     def save(self, path: str) -> None:

@@ -56,9 +56,10 @@ class QueueObservation(BaseObservation):
         hour_sin = math.sin(2 * math.pi * hour / 24)
         hour_cos = math.cos(2 * math.pi * hour / 24)
 
-        dow = int((sim_time // 86400)) % 7
-        dow_sin = math.sin(2 * math.pi * dow / 7)
-        dow_cos = math.cos(2 * math.pi * dow / 7)
+        # dow derived from sim_time is always 0 (sim starts at 28800s < 86400s),
+        # so dow_sin/cos carry no information — kept as zeros to preserve obs_dim.
+        dow_sin = 0.0
+        dow_cos = 0.0
 
         tail = [phase_norm, time_norm, hour_sin, hour_cos, dow_sin, dow_cos]
         if green_ratio is not None:
