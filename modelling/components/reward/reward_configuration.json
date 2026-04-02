@@ -10,8 +10,10 @@
     "normalise": false
   },
   "ThroughputQueueReward": {
-    "throughput_weight": 1.0,
-    "queue_weight": 1.0
+    "normalise": true,
+    "scale": 1.0,
+    "throughput_weight": 0.5,
+    "queue_weight": 0.25
   },
   "DeltaWaitTimeReward": {},
   "WaitTimeReward": {}

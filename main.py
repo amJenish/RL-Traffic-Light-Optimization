@@ -1,6 +1,7 @@
 """
 main.py — single entry point for the full RL traffic signal optimisation pipeline.
-All configuration lives at the top. Edit then run: python main.py [--gui]
+Configuration is loaded from config.json (repo root) by default.
+Run: python main.py [--gui] [--config path/to/config.json]
 """
 from typing import Any
 import argparse
@@ -15,6 +16,11 @@ from datetime import datetime
 ROOT = os.path.dirname(os.path.abspath(__file__))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+
+
+def _abort(msg: str) -> None:
+    print(f"\nERROR: {msg}")
+    sys.exit(1)
 
 
 def _default_sumo_home() -> str:
@@ -67,76 +73,156 @@ from modelling.components.reward.throughput_queue import ThroughputQueueReward
 
 
 # ==========================================================================
-#  CONFIGURATION
+#  CONFIGURATION (from config.json — see _apply_config)
 # ==========================================================================
 
-# File Paths
-CSV_PATH          = "src/data/synthetic_toronto_data.csv"
-INTERSECTION_PATH = "src/intersection.json"
-COLUMNS_PATH      = "src/columns.json"
-REWARD_CONFIG_PATH = os.path.join(
-    ROOT, "modelling", "components", "reward", "reward_configuration.json"
-)
-POLICY_CONFIG_PATH = os.path.join(
-    ROOT, "modelling", "components", "policy", "policy_configuration.json"
-)
-SUMO_HOME         = os.environ.get("SUMO_HOME") or _default_sumo_home()
-
-# Data Split & Training
-TRAIN_SIZE = 25
-TEST_SIZE  = 5
-EPOCHS     = 60
+DEFAULT_CONFIG_PATH = os.path.join(ROOT, "config.json")
 
 # Component Selection — swap any of these to use a different implementation
 # Rewards: CompositeReward | ThroughputQueueReward | ThroughputReward | DeltaWaitTimeReward | WaitTimeReward
 EnvironmentClass  = SumoEnvironment
 ObservationClass  = QueueObservation
-RewardClass       = ThroughputReward
+RewardClass       = ThroughputQueueReward
 EvalRewardClass   = None              # optional; None = same reward for train and eval
 PolicyClass       = DoubleDQNPolicy
 ReplayBufferClass = UniformReplayBuffer
-SchedulerClass    = CosineScheduler               # disable LR scheduling for stability
+SchedulerClass: type | None = None
 
-# Simulation
-STEP_LENGTH  = 10.0      # seconds per SUMO step
-SIM_BEGIN    = 28800      # 08:00
-# Sim window matches c881448; affects TOTAL_UPDATES / epsilon schedule
-SIM_END      = 50400      # 14:00
-
-# Phase Timing (seconds — Agent converts to sim steps internally)
-MIN_GREEN_S      = 15
-MAX_GREEN_S      = 90
-OVERSHOOT_COEFF  = 1.0     # how harshly to penalize exceeding max_green (higher = harsher)
-
-# Observation
-MAX_LANES      = 16
-MAX_PHASE      = 7       # max phase index (McCowan_Finch TLS has 8 phases → 0..7)
+# Populated by _apply_config()
+CSV_PATH = ""
+INTERSECTION_PATH = ""
+COLUMNS_PATH = ""
+REWARD_CONFIG_PATH = ""
+POLICY_CONFIG_PATH = ""
+SUMO_HOME = ""
+TRAIN_SIZE = 0
+TEST_SIZE = 0
+EPOCHS = 0
+STEP_LENGTH = 10.0
+DECISION_GAP = 10
+SIM_BEGIN = 0
+SIM_END = 0
+SIMULATION_GUI = False
+MIN_GREEN_S = 15
+MAX_GREEN_S = 90
+OVERSHOOT_COEFF = 1.0
+MAX_LANES = 16
+MAX_PHASE = 7
 MAX_PHASE_TIME = 120.0
-MAX_VEHICLES   = 20
-
-# Policy scheduler floor (policy hyperparameters come from policy_configuration.json)
-LR_MIN         = 0.0001
-
-# Replay Buffer
+MAX_VEHICLES = 20
+LR_MIN = 0.0001
 BUFFER_CAPACITY = 4096
-
-# Misc
-SEED       = 42
+SEED = 42
 SAVE_EVERY = 20
-LOG_EVERY  = 1
-
-# Output
-OUT_DIR  = "src/data"
+LOG_EVERY = 1
+OUT_DIR = "src/data"
 LOGS_DIR = "logs"
+TOTAL_UPDATES = 1
+DECISIONS_PER_EP_DIVISOR = 2.0
 
-# Estimated total update steps (for the LR scheduler and epsilon decay)
-_sim_seconds     = SIM_END - SIM_BEGIN
-_steps_per_ep    = _sim_seconds / STEP_LENGTH
-_min_green_steps = max(1, math.ceil(MIN_GREEN_S / STEP_LENGTH))
-_decisions_per_ep = _steps_per_ep / 2  # empirical: ~1 decision per 2 sim steps on average
-TOTAL_UPDATES    = int(EPOCHS * TRAIN_SIZE * _decisions_per_ep)
-if TOTAL_UPDATES < 1:
-    TOTAL_UPDATES = 1
+
+def _resolve_path(rel_or_abs: str) -> str:
+    if not rel_or_abs:
+        return rel_or_abs
+    if os.path.isabs(rel_or_abs):
+        return rel_or_abs
+    return os.path.normpath(os.path.join(ROOT, rel_or_abs.replace("/", os.sep)))
+
+
+def _load_config_data(path: str | None = None) -> dict[str, Any]:
+    cfg_path = path or DEFAULT_CONFIG_PATH
+    if not os.path.isfile(cfg_path):
+        _abort(f"Config file not found: {cfg_path}")
+    with open(cfg_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _apply_config(cfg: dict[str, Any]) -> None:
+    """Set module-level settings from config.json (also when gridsearch imports main)."""
+    global CSV_PATH, INTERSECTION_PATH, COLUMNS_PATH, REWARD_CONFIG_PATH, POLICY_CONFIG_PATH
+    global SUMO_HOME, TRAIN_SIZE, TEST_SIZE, EPOCHS, STEP_LENGTH, DECISION_GAP
+    global SIM_BEGIN, SIM_END, SIMULATION_GUI, MIN_GREEN_S, MAX_GREEN_S, OVERSHOOT_COEFF
+    global MAX_LANES, MAX_PHASE, MAX_PHASE_TIME, MAX_VEHICLES, LR_MIN, BUFFER_CAPACITY
+    global SEED, SAVE_EVERY, LOG_EVERY, OUT_DIR, LOGS_DIR, TOTAL_UPDATES, SchedulerClass
+    global DECISIONS_PER_EP_DIVISOR
+
+    paths = cfg.get("paths", {})
+    CSV_PATH = _resolve_path(paths.get("csv", "src/data/synthetic_toronto_data.csv"))
+    INTERSECTION_PATH = _resolve_path(paths.get("intersection", "src/intersection.json"))
+    COLUMNS_PATH = _resolve_path(paths.get("columns", "src/columns.json"))
+    REWARD_CONFIG_PATH = _resolve_path(
+        paths.get(
+            "reward_configuration",
+            os.path.join("modelling", "components", "reward", "reward_configuration.json"),
+        )
+    )
+    POLICY_CONFIG_PATH = _resolve_path(
+        paths.get(
+            "policy_configuration",
+            os.path.join("modelling", "components", "policy", "policy_configuration.json"),
+        )
+    )
+
+    cfg_sumo = (paths.get("sumo_home") or "").strip()
+    SUMO_HOME = os.environ.get("SUMO_HOME", "").strip() or cfg_sumo or _default_sumo_home()
+
+    training = cfg.get("training", {})
+    EPOCHS = int(training.get("n_epochs", 100))
+    TRAIN_SIZE = int(training.get("train_days", training.get("train_size", 25)))
+    TEST_SIZE = int(training.get("test_days", 5))
+    SAVE_EVERY = int(training.get("save_every", 20))
+    LOG_EVERY = int(training.get("log_every", 1))
+    SEED = int(training.get("seed", 42))
+    LR_MIN = float(training.get("lr_min", 0.0001))
+    DECISIONS_PER_EP_DIVISOR = float(training.get("decisions_per_ep_divisor", 2))
+    if DECISIONS_PER_EP_DIVISOR < 1e-9:
+        DECISIONS_PER_EP_DIVISOR = 2.0
+
+    sched_raw = training.get("scheduler", "cosine")
+    if sched_raw is None or (isinstance(sched_raw, str) and sched_raw.lower() in ("none", "")):
+        SchedulerClass = None
+    elif isinstance(sched_raw, str) and sched_raw.lower() == "cosine":
+        SchedulerClass = CosineScheduler
+    else:
+        _abort(f"Unknown training.scheduler value: {sched_raw!r} (use 'none' or 'cosine')")
+
+    sim = cfg.get("simulation", {})
+    STEP_LENGTH = float(sim.get("step_length", 10.0))
+    DECISION_GAP = int(sim.get("decision_gap", 10))
+    SIM_BEGIN = int(sim.get("begin", 28800))
+    SIM_END = int(sim.get("end", 64800))
+    SIMULATION_GUI = bool(sim.get("gui", False))
+
+    phase = cfg.get("phase_timing", {})
+    MIN_GREEN_S = int(phase.get("min_green_s", 15))
+    MAX_GREEN_S = int(phase.get("max_green_s", 90))
+    OVERSHOOT_COEFF = float(phase.get("overshoot_coeff", 1.0))
+
+    obs = cfg.get("observation", {})
+    MAX_LANES = int(obs.get("max_lanes", 16))
+    MAX_PHASE = int(obs.get("max_phase", 7))
+    MAX_PHASE_TIME = float(obs.get("max_phase_time", 120.0))
+    MAX_VEHICLES = int(obs.get("max_vehicles", 20))
+
+    replay = cfg.get("replay_buffer", {})
+    BUFFER_CAPACITY = int(replay.get("capacity", 4096))
+
+    out = cfg.get("output", {})
+    OUT_DIR = _resolve_path(out.get("out_dir", "src/data"))
+    LOGS_DIR = _resolve_path(out.get("logs_dir", "logs"))
+
+    _sim_seconds = SIM_END - SIM_BEGIN
+    _steps_per_ep = _sim_seconds / STEP_LENGTH
+    _decisions_per_ep = _steps_per_ep / DECISIONS_PER_EP_DIVISOR
+    TOTAL_UPDATES = int(EPOCHS * TRAIN_SIZE * _decisions_per_ep)
+    if TOTAL_UPDATES < 1:
+        TOTAL_UPDATES = 1
+
+
+if os.path.isfile(DEFAULT_CONFIG_PATH):
+    _apply_config(_load_config_data(DEFAULT_CONFIG_PATH))
+else:
+    _apply_config({})
 
 # ==========================================================================
 #  HELPERS
@@ -147,11 +233,6 @@ def _load_module(name: str, filepath: str):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-def _abort(msg: str):
-    print(f"\nERROR: {msg}")
-    sys.exit(1)
 
 
 def _check_file(path: str, label: str):
@@ -216,7 +297,9 @@ def _write_config_summary(
     policy_kwargs: dict[str, Any],
 ) -> None:
     """Write a human-readable config.txt for this run."""
-    sched_name = SchedulerClass.__name__ if SchedulerClass else "None (constant LR)"
+    sched_name = (
+        SchedulerClass.__name__ if SchedulerClass is not None else "None (constant LR)"
+    )
     reward_cfg_rel = os.path.relpath(REWARD_CONFIG_PATH, ROOT)
     policy_cfg_rel = os.path.relpath(POLICY_CONFIG_PATH, ROOT)
     lines = [
@@ -239,6 +322,7 @@ def _write_config_summary(
         "",
         "--- Simulation ---",
         f"Step length:   {STEP_LENGTH}s",
+        f"Decision gap:  {DECISION_GAP} (SUMO steps)",
         f"Sim window:    {SIM_BEGIN}s - {SIM_END}s",
         f"Min green:     {MIN_GREEN_S}s",
         f"Max green:     {MAX_GREEN_S}s (soft — overshoot_coeff={OVERSHOOT_COEFF})",
@@ -258,7 +342,7 @@ def _write_config_summary(
         "--- Policy ---",
         f"Config file:   {policy_cfg_rel}",
         f"Learning rate: {policy_kwargs['lr']} -> {LR_MIN} ({sched_name})",
-        f"Total updates: ~{TOTAL_UPDATES:,} (estimated)",
+        f"Total updates: ~{TOTAL_UPDATES:,} (estimated; divisor={DECISIONS_PER_EP_DIVISOR})",
         f"Gamma:         {policy_kwargs['gamma']}",
         f"Epsilon:       {policy_kwargs['epsilon_start']} -> {policy_kwargs['epsilon_end']} (decay {policy_kwargs['epsilon_decay']})",
         f"Target update: {policy_kwargs['target_update']}",
@@ -300,7 +384,7 @@ def validate_inputs(sumo_home: str):
     if not sumo_home:
         _abort(
             "SUMO_HOME not set. Set the SUMO_HOME environment variable or "
-            "edit SUMO_HOME at the top of main.py."
+            "paths.sumo_home in config.json."
         )
     if not os.path.exists(sumo_home):
         _abort(f"SUMO not found at: {sumo_home}")
@@ -435,12 +519,13 @@ def build_pipeline(
     )
 
     environment = EnvironmentClass(
-        net_file     = net_file,
-        step_length  = STEP_LENGTH,
-        gui          = use_gui,
-        sumo_home    = SUMO_HOME,
-        begin        = SIM_BEGIN,
-        end          = SIM_END,
+        net_file      = net_file,
+        step_length   = STEP_LENGTH,
+        decision_gap  = DECISION_GAP,
+        gui           = use_gui,
+        sumo_home     = SUMO_HOME,
+        begin         = SIM_BEGIN,
+        end           = SIM_END,
     )
 
     reward = RewardClass(**reward_kwargs)
@@ -477,7 +562,7 @@ def build_pipeline(
         seed     = SEED,
     )
 
-    sched_name = SchedulerClass.__name__ if SchedulerClass else "None"
+    sched_name = SchedulerClass.__name__ if SchedulerClass is not None else "None"
     print(f"  Environment   : {EnvironmentClass.__name__} (gui={use_gui})")
     print(f"  Observation   : {ObservationClass.__name__} (size={obs_builder.size()})")
     eval_name = EvalRewardClass.__name__ if EvalRewardClass else "same as train"
@@ -525,11 +610,22 @@ def build_pipeline(
 
 def main():
     parser = argparse.ArgumentParser(description="RL Traffic Signal Optimiser")
+    parser.add_argument(
+        "--config",
+        default=None,
+        help=f"Path to config JSON (default: {DEFAULT_CONFIG_PATH})",
+    )
     parser.add_argument("--gui", action="store_true", help="Launch sumo-gui")
     args = parser.parse_args()
-    use_gui = args.gui
+
+    if args.config:
+        _apply_config(_load_config_data(args.config))
+
+    use_gui = bool(args.gui or SIMULATION_GUI)
 
     _banner("RL Traffic Signal Optimiser")
+    cfg_display = os.path.abspath(args.config) if args.config else os.path.abspath(DEFAULT_CONFIG_PATH)
+    print(f"  Config file   : {cfg_display}")
     print(f"  CSV           : {CSV_PATH}")
     print(f"  Intersection  : {INTERSECTION_PATH}")
     print(f"  Columns       : {COLUMNS_PATH}")

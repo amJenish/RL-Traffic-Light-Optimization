@@ -1,6 +1,6 @@
 {
   "default": {
-    "lr": 0.01,
+    "lr": 0.001,
     "gamma": 0.97,
     "epsilon_start": 1.0,
     "epsilon_end": 0.05,

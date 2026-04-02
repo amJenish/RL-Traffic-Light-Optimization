@@ -1,51 +1,71 @@
 {
-  "_comment": "Optimised for GTX 1650 Ti + SUMO on Windows. Edit values to tune.",
+  "_comment": "Single source of truth for main.py (shared fields also used by evaluate_baseline.py). Paths are relative to the project root unless absolute.",
+
+  "paths": {
+    "csv": "src/data/synthetic_toronto_data.csv",
+    "intersection": "src/intersection.json",
+    "columns": "src/columns.json",
+    "reward_configuration": "modelling/components/reward/reward_configuration.json",
+    "policy_configuration": "modelling/components/policy/policy_configuration.json",
+    "sumo_home": ""
+  },
 
   "training": {
-    "n_epochs":    3,
-    "save_every":  10,
-    "log_every":   5,
-    "test_days":   6,
-    "seed":        42
+    "n_epochs": 100,
+    "train_days": 25,
+    "test_days": 5,
+    "save_every": 20,
+    "log_every": 1,
+    "seed": 42,
+    "lr_min": 0.0001,
+    "scheduler": "cosine",
+    "decisions_per_ep_divisor": 2
   },
 
   "simulation": {
-    "step_length":   5.0,
-    "decision_gap":  30,
-    "begin":         27000,
-    "end":           64800,
-    "gui":           false
+    "step_length": 10.0,
+    "decision_gap": 10,
+    "begin": 28800,
+    "end": 64800,
+    "gui": false
+  },
+
+  "phase_timing": {
+    "min_green_s": 15,
+    "max_green_s": 90,
+    "overshoot_coeff": 1.0
   },
 
   "observation": {
-    "max_lanes":      16,
-    "max_phase":       3,
+    "max_lanes": 16,
+    "max_phase": 7,
     "max_phase_time": 120.0,
-    "max_vehicles":   20
+    "max_vehicles": 20
   },
 
   "reward": {
     "normalise": true,
-    "scale":     1.0
+    "scale": 1.0
   },
 
   "policy": {
-    "learning_rate":   0.0005,
-    "gamma":           0.95,
-    "epsilon_start":   1.0,
-    "epsilon_end":     0.05,
-    "epsilon_decay":   0.99998415,
-    "target_update":   50,
-    "batch_size":      128,
-    "hidden":          256
+    "learning_rate": 0.001,
+    "gamma": 0.95,
+    "epsilon_start": 1.0,
+    "epsilon_end": 0.05,
+    "epsilon_decay": 0.99998415,
+    "target_update": 50,
+    "batch_size": 128,
+    "hidden": 256
   },
 
   "replay_buffer": {
-    "capacity": 100000
+    "capacity": 4096
   },
 
   "output": {
-    "out_dir":    "src/data",
+    "out_dir": "src/data",
+    "logs_dir": "logs",
     "models_dir": "src/data/models"
   }
 }
