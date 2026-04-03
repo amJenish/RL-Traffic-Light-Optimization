@@ -12,7 +12,7 @@
 
   "training": {
     "n_epochs": 100,
-    "train_days": 25,
+    "train_days": 5,
     "test_days": 5,
     "save_every": 20,
     "log_every": 1,
