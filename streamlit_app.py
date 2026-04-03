@@ -408,12 +408,12 @@ def main() -> None:
             st.caption("Live log")
             log_box = st.empty()
         with col_chart:
-            st.caption("Reward per episode")
+            st.caption("Mean train reward per epoch (updates from log)")
             chart_box = st.empty()
 
         log_lines: list[str] = []
         reward_series: list[dict] = []
-        total_episodes = int(epochs) * int(train_size)
+        _ts = int(train_size)
 
         def _on_log(text: str) -> None:
             log_lines.append(text)
@@ -426,16 +426,20 @@ def main() -> None:
                 try:
                     r_part = text.split("reward=")[1].split()[0]
                     ep_part = text.split("ep=")[1].split()[0] if "ep=" in text else None
+                    ep_i = int(ep_part) if ep_part else len(reward_series) + 1
+                    epoch_i = (ep_i - 1) // _ts + 1 if _ts > 0 else ep_i
                     reward_series.append({
-                        "episode": int(ep_part) if ep_part else len(reward_series) + 1,
+                        "episode": ep_i,
+                        "epoch": epoch_i,
                         "reward":  float(r_part),
                         "type":    "Test" if "Test" in text else "Train",
                     })
                     chart_df = pd.DataFrame(reward_series)
                     train_chart = chart_df[chart_df["type"] == "Train"]
                     if not train_chart.empty:
+                        per_epoch = train_chart.groupby("epoch", sort=True)["reward"].mean()
                         chart_box.line_chart(
-                            train_chart.set_index("episode")[["reward"]],
+                            per_epoch,
                             use_container_width=True,
                         )
                 except (IndexError, ValueError):
@@ -472,7 +476,7 @@ def main() -> None:
         train_df = pd.DataFrame(results["train_log"])
         pretest_df = pd.DataFrame(results.get("pretest_log") or [])
         test_df = pd.DataFrame(results["test_log"])
-        st.write("**Train log (per episode)**")
+        st.write("**Train log (one row per train day; epoch × day)**")
         st.dataframe(train_df, use_container_width=True)
         st.write("**Pre-train test log (held-out days, before learning)**")
         st.dataframe(pretest_df, use_container_width=True)
@@ -480,7 +484,11 @@ def main() -> None:
         st.dataframe(test_df, use_container_width=True)
 
         if not train_df.empty and "total_reward" in train_df.columns:
-            st.line_chart(train_df.set_index("episode")["total_reward"])
+            if "epoch" in train_df.columns:
+                st.write("**Mean total reward per epoch (train)**")
+                st.line_chart(train_df.groupby("epoch", sort=True)["total_reward"].mean())
+            else:
+                st.line_chart(train_df.set_index("episode")["total_reward"])
 
         mean_test = (
             sum(x["total_reward"] for x in results["test_log"]) / len(results["test_log"])

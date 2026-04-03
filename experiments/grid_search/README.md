@@ -78,6 +78,7 @@ Inside each trial folder you’ll find:
 - `policy_configuration.json` (snapshot for that trial)
 - `config.txt` (trial summary)
 - `train_log.json`, `test_log.json`
+- `graphs/` — `train_curves.png` and `test_rewards.png` (written automatically when the trial finishes, same plots as `visualization.render_run_graphs`)
 - `checkpoints/` and `final_model.pt` (if the trial runs)
 
 The sweep-level files:

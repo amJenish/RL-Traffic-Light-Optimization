@@ -5,7 +5,7 @@ Produces four figures saved to src/data/models/plots/:
   1. bar_mean_reward.png — mean total reward per model
   2. box_reward_dist.png — reward distribution across the 6 test days
   3. line_reward_per_day.png — per-day reward for all three models overlaid
-  4. learning_curve.png — DQN training reward over 150 episodes
+  4. learning_curve.png — DQN training reward per epoch (mean over train days)
 """
 
 import json
@@ -14,8 +14,14 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+from visualization.visualize_results import (
+    aggregate_train_for_plot,
+    figure_single_plot_with_config_side,
+)
+
 # ── paths ─────────────────────────────────────────────────────────────────────
 MODELS_DIR = pathlib.Path("src/data/models")
+_RUN_CFG_DIR = MODELS_DIR
 PLOTS_DIR = MODELS_DIR / "plots"
 PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -50,20 +56,19 @@ STYLE = {
 plt.rcParams.update(STYLE)
 
 # ── 1. Bar chart — mean reward ─────────────────────────────────────────────
-fig, ax = plt.subplots(figsize=(6, 4))
+fig, ax = figure_single_plot_with_config_side(_RUN_CFG_DIR, figsize=(10.5, 4.2))
 means = [np.mean(rewards(log)) for log in LOGS]
 bars = ax.bar(MODELS, means, color=COLORS, width=0.5, zorder=3)
 ax.bar_label(bars, fmt="%.2f", padding=4, fontsize=9)
 ax.set_ylabel("Mean Total Reward")
 ax.set_title("Mean Test Reward by Policy")
 ax.set_ylim(min(means) * 1.15, 0)
-fig.tight_layout()
-fig.savefig(PLOTS_DIR / "bar_mean_reward.png")
+fig.savefig(PLOTS_DIR / "bar_mean_reward.png", bbox_inches="tight")
 plt.close(fig)
 print("Saved bar_mean_reward.png")
 
 # ── 2. Box plot — reward distribution ─────────────────────────────────────
-fig, ax = plt.subplots(figsize=(6, 4))
+fig, ax = figure_single_plot_with_config_side(_RUN_CFG_DIR, figsize=(10.5, 4.2))
 bp = ax.boxplot(
     [rewards(log) for log in LOGS],
     tick_labels=MODELS,
@@ -81,7 +86,7 @@ for patch, color in zip(bp["boxes"], COLORS):
 ax.set_ylabel("Total Reward")
 ax.set_title("Reward Distribution Across Test Days")
 fig.tight_layout()
-fig.savefig(PLOTS_DIR / "box_reward_dist.png")
+fig.savefig(PLOTS_DIR / "box_reward_dist.png", bbox_inches="tight")
 plt.close(fig)
 print("Saved box_reward_dist.png")
 
@@ -93,7 +98,7 @@ def aligned_rewards(log, ids):
     lookup = {entry["day_id"]: entry["total_reward"] for entry in log}
     return [lookup[d] for d in ids]
 
-fig, ax = plt.subplots(figsize=(7, 4))
+fig, ax = figure_single_plot_with_config_side(_RUN_CFG_DIR, figsize=(10.5, 4.2))
 for label, log, color in zip(MODELS, LOGS, COLORS):
     ax.plot(
         shared_ids,
@@ -109,29 +114,36 @@ ax.set_ylabel("Total Reward")
 ax.set_title("Per-Day Reward: All Policies")
 ax.xaxis.set_major_locator(mticker.FixedLocator(shared_ids))
 ax.legend(framealpha=0.8)
-fig.tight_layout()
-fig.savefig(PLOTS_DIR / "line_reward_per_day.png")
+fig.savefig(PLOTS_DIR / "line_reward_per_day.png", bbox_inches="tight")
 plt.close(fig)
 print("Saved line_reward_per_day.png")
 
-# ── 4. Learning curve — DQN training ─────────────────────────────────────
-episodes = [e["episode"]      for e in train_log]
-tr_reward = [e["total_reward"] for e in train_log]
+# ── 4. Learning curve — DQN training (per epoch) ─────────────────────────
+_cfg_path = pathlib.Path("config.json")
+_train_days = None
+if _cfg_path.is_file():
+    with open(_cfg_path, encoding="utf-8") as _cf:
+        _tcfg = json.load(_cf)
+        _t = _tcfg.get("training", {})
+        _train_days = int(_t.get("train_days", _t.get("train_size", 0)) or 0) or None
 
-# Smooth with a rolling mean for readability
-window = 10
+epochs, tr_reward, _, _, x_label, reward_lbl = aggregate_train_for_plot(
+    train_log, train_days=_train_days
+)
+
+window = min(10, max(1, len(tr_reward) // 5))
 smoothed = np.convolve(tr_reward, np.ones(window) / window, mode="valid")
-smoothed_x = episodes[window - 1:]
+smoothed_x = epochs[window - 1 :]
 
-fig, ax = plt.subplots(figsize=(8, 4))
-ax.plot(episodes, tr_reward, color="#bbbbbb", linewidth=0.8, label="Raw reward", zorder=2)
-ax.plot(smoothed_x, smoothed, color=COLORS[2], linewidth=2, label=f"{window}-ep rolling mean", zorder=3)
-ax.set_xlabel("Training Episode")
+fig, ax = figure_single_plot_with_config_side(_RUN_CFG_DIR, figsize=(10.5, 4.2))
+ax.plot(epochs, tr_reward, color="#bbbbbb", linewidth=0.8, label=reward_lbl, zorder=2)
+roll = f"{window}-epoch rolling mean" if x_label == "Epoch" else f"{window}-step rolling mean"
+ax.plot(smoothed_x, smoothed, color=COLORS[2], linewidth=2, label=roll, zorder=3)
+ax.set_xlabel(f"Training {x_label}")
 ax.set_ylabel("Total Reward")
 ax.set_title("DQN Learning Curve (Training)")
 ax.legend(framealpha=0.8)
-fig.tight_layout()
-fig.savefig(PLOTS_DIR / "learning_curve.png")
+fig.savefig(PLOTS_DIR / "learning_curve.png", bbox_inches="tight")
 plt.close(fig)
 print("Saved learning_curve.png")
 

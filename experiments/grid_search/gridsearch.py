@@ -30,6 +30,7 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 import main as main_mod
+from visualization.visualize_results import render_run_graphs
 from modelling.agent import Agent
 from modelling.components.environment.sumo_environment import SumoEnvironment
 from modelling.components.observation.queue_observation import QueueObservation
@@ -59,6 +60,14 @@ POLICY_CLASS_MAP: dict[str, Any] = {
 
 def _ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
+
+
+def _try_render_trial_graphs(trial_dir: str) -> None:
+    """Write ``graphs/train_curves.png`` and ``graphs/test_rewards.png`` for this trial."""
+    try:
+        render_run_graphs(trial_dir)
+    except Exception as e:
+        print(f"[gridsearch] warning: could not write graphs under {trial_dir!r}: {e}")
 
 
 def _timestamp() -> str:
@@ -598,6 +607,8 @@ def main() -> None:
                 test_metrics_example=test_example,
             )
 
+            _try_render_trial_graphs(trial_dir)
+
         except Exception as e:
             # Write failure row but keep sweep running.
             fail_row: dict[str, Any] = {
@@ -639,6 +650,8 @@ def main() -> None:
                     train_metrics_example=train_example,
                     test_metrics_example=test_example,
                 )
+                if partial_train_log:
+                    _try_render_trial_graphs(trial_dir)
             except Exception:
                 pass
 

@@ -66,6 +66,7 @@ from modelling.components.replay_buffer.uniform         import UniformReplayBuff
 from modelling.components.scheduler.cosine              import CosineScheduler
 from modelling.agent   import Agent
 from modelling.trainer import Trainer
+from visualization.visualize_results import render_run_graphs
 from modelling.components.reward.delta_wait_time import DeltaWaitTimeReward
 from modelling.components.reward.composite_reward import CompositeReward
 from modelling.components.reward.throughput import ThroughputReward
@@ -668,6 +669,11 @@ def main():
         )
         print(f"  Mean test reward : {mean_test:.2f}")
     print(f"\nAll results saved to: {run_dir}")
+    try:
+        graphs_path = render_run_graphs(run_dir)
+        print(f"Graphs saved to: {graphs_path}")
+    except Exception as exc:
+        print(f"Warning: could not write graphs: {exc}")
 
 
 if __name__ == "__main__":
