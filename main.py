@@ -592,6 +592,7 @@ def build_pipeline(
 
     split_path = os.path.join(OUT_DIR, "processed", "split.json")
     flows_dir  = os.path.join(OUT_DIR, "sumo", "flows")
+    days_dir   = os.path.join(OUT_DIR, "processed", "days")
 
     trainer = Trainer(
         agent      = agent,
@@ -601,6 +602,7 @@ def build_pipeline(
         n_epochs   = EPOCHS,
         save_every = SAVE_EVERY,
         log_every  = LOG_EVERY,
+        days_dir   = days_dir,
     )
 
     return trainer

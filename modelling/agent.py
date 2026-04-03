@@ -5,7 +5,7 @@ soft-penalizes holding past max_green instead of forcing a switch."""
 import math
 import os
 import numpy as np
-from typing import Any
+from typing import Any, Dict, List
 
 from modelling.components.environment.base   import BaseEnvironment
 from modelling.components.observation.base   import BaseObservation
@@ -55,6 +55,7 @@ class Agent:
         self._pending_action: dict[str, int] | None = None
         self._pending_duration: int = 0  # primitive simulation steps since pending decision
         self._train_mode: bool = True
+        self._phase_log: Dict[str, List[Dict[str, Any]]] = {}
 
     def _tls_rewards(self, tls_ids: list[str]) -> dict[str, float]:
         active = (
@@ -83,6 +84,7 @@ class Agent:
         self._pending_state   = None
         self._pending_action  = None
         self._pending_duration = 0
+        self._phase_log = {}
 
         for _ in range(5):
             self.environment.step(1)
@@ -303,13 +305,18 @@ class Agent:
         self.environment.close()
         mean_loss = float(np.mean(self._episode_losses)) if self._episode_losses else None
         lr = self.scheduler.get_lr() if self.scheduler else None
-        return {
+        metrics: dict[str, Any] = {
             "total_reward": self._episode_reward,
             "steps":        self._episode_steps,
             "mean_loss":    mean_loss,
             "epsilon":      getattr(self.policy, "epsilon", None),
             "learning_rate": lr,
         }
+        if not self._train_mode:
+            metrics["phase_sequence"] = {
+                k: list(v) for k, v in self._phase_log.items()
+            }
+        return metrics
 
     def set_eval_mode(self) -> None:
         self._train_mode = False
@@ -356,6 +363,14 @@ class Agent:
         for tls_id, action in actions.items():
             if action == 1:
                 current_phase = traci.trafficlight.getPhase(tls_id)
+                if not self._train_mode:
+                    self._phase_log.setdefault(tls_id, []).append({
+                        "phase": int(current_phase),
+                        "duration_s": float(
+                            self._steps_in_phase.get(tls_id, 0) * self._step_length
+                        ),
+                        "sim_time": float(self.environment.get_sim_time()),
+                    })
                 n_phases = len(
                     traci.trafficlight.getAllProgramLogics(tls_id)[0].phases
                 )

@@ -2,9 +2,20 @@
 
 import json
 import os
+import statistics
+import sys
+from pathlib import Path
 from typing import Any, Callable
 
+import pandas as pd
+
 from modelling.agent import Agent
+
+# Project root (for preprocessing.BuildRoute.time_to_seconds)
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+from preprocessing.BuildRoute import time_to_seconds  # noqa: E402
 
 
 class Trainer:
@@ -19,6 +30,7 @@ class Trainer:
         save_every:   int                       = 10,
         log_every:    int                       = 5,
         log_callback: Callable[[str], None] | None = None,
+        days_dir:     str | None = None,
     ):
         self.agent        = agent
         self.output_dir   = output_dir
@@ -26,6 +38,7 @@ class Trainer:
         self.save_every   = save_every
         self.log_every    = log_every
         self.log_callback = log_callback
+        self._days_dir    = days_dir
 
         os.makedirs(output_dir, exist_ok=True)
         self._checkpoint_dir = os.path.join(output_dir, "checkpoints")
@@ -95,6 +108,43 @@ class Trainer:
             self._test_log.append(metrics)
             self._log(test_episode, metrics, prefix="Test ")
 
+        schedule_path: str | None = None
+        if self._days_dir:
+            all_entries: list[dict[str, Any]] = []
+            for m in self._test_log:
+                day_id = int(m["day_id"])
+                seq = m.get("phase_sequence") or {}
+                coverage = self._load_coverage_intervals(day_id)
+                if not coverage:
+                    continue
+                for tls_id, events in seq.items():
+                    for ev in events:
+                        st = float(ev["sim_time"])
+                        if not any(a <= st < b for a, b in coverage):
+                            continue
+                        all_entries.append(
+                            {
+                                "tls_id": tls_id,
+                                "day_id": day_id,
+                                "phase": int(ev["phase"]),
+                                "duration_s": float(ev["duration_s"]),
+                                "sim_time": st,
+                                "bucket_start_s": 900 * (int(st) // 900),
+                            }
+                        )
+            if all_entries:
+                schedule = self._aggregate_schedule(all_entries)
+                schedule_path = os.path.join(self.output_dir, "schedule.json")
+                self._save_schedule(schedule, schedule_path)
+                self._emit(f"Schedule saved -> {schedule_path}")
+            else:
+                self._emit(
+                    "  No schedule entries after coverage filter "
+                    "(check days_dir CSVs and phase_sequence)."
+                )
+        else:
+            self._emit("  days_dir not set — skipping schedule.json aggregation")
+
         final_path = os.path.join(self.output_dir, "final_model.pt")
         self.agent.save(final_path)
         self._emit(f"\nFinal model saved -> {final_path}")
@@ -102,11 +152,62 @@ class Trainer:
         self._save_logs()
         self._print_summary()
 
-        return {
+        out: dict[str, Any] = {
             "train_log": self._train_log,
             "pretest_log": self._pretest_log,
             "test_log": self._test_log,
         }
+        if schedule_path is not None:
+            out["schedule_path"] = schedule_path
+        return out
+
+    def _load_coverage_intervals(self, day_id: int) -> list[tuple[int, int]]:
+        """Return [begin_s, end_s) intervals from processed day CSV (demand coverage)."""
+        if not self._days_dir:
+            return []
+        path = os.path.join(self._days_dir, f"day_{day_id:02d}.csv")
+        if not os.path.isfile(path):
+            self._emit(f"  Warning: day CSV not found: {path}")
+            return []
+        df = pd.read_csv(path)
+        intervals: list[tuple[int, int]] = []
+        for _, row in df.iterrows():
+            begin = time_to_seconds(row["start_time"])
+            if "end_time" in df.columns and pd.notna(row.get("end_time")):
+                end = time_to_seconds(row["end_time"])
+            else:
+                end = begin + 15 * 60
+            intervals.append((begin, end))
+        return intervals
+
+    def _aggregate_schedule(self, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Group by (tls_id, phase, 15-min bucket); median/std/n on duration_s."""
+        groups: dict[tuple[str, int, int], list[float]] = {}
+        for e in entries:
+            key = (e["tls_id"], int(e["phase"]), int(e["bucket_start_s"]))
+            groups.setdefault(key, []).append(float(e["duration_s"]))
+
+        rows: list[dict[str, Any]] = []
+        for (tls_id, phase, bucket_start_s), durations in groups.items():
+            n = len(durations)
+            med = float(statistics.median(durations))
+            std = float(statistics.pstdev(durations)) if n > 1 else 0.0
+            rows.append(
+                {
+                    "tls_id": tls_id,
+                    "phase": phase,
+                    "bucket_start_s": bucket_start_s,
+                    "median_s": med,
+                    "std_s": std,
+                    "n": n,
+                }
+            )
+        rows.sort(key=lambda r: (r["bucket_start_s"], r["tls_id"], r["phase"]))
+        return rows
+
+    def _save_schedule(self, schedule: list[dict[str, Any]], path: str) -> None:
+        with open(path, "w") as f:
+            json.dump({"buckets": schedule}, f, indent=2)
 
     def _run_episode(self, day_id: int, train: bool) -> dict[str, Any]:
         """Run one episode (one day) in train or eval mode."""

@@ -163,6 +163,7 @@ def _run_baseline(
 
     split_path = os.path.join(cfg["output"]["out_dir"], "processed", "split.json")
     flows_dir = os.path.join(cfg["output"]["out_dir"], "sumo", "flows")
+    days_dir = os.path.join(cfg["output"]["out_dir"], "processed", "days")
     tmp_dir = os.path.join(
         cfg["output"]["models_dir"],
         f"_tmp_{name.lower().replace(' ', '_').replace('-', '_')}",
@@ -174,6 +175,7 @@ def _run_baseline(
         flows_dir = flows_dir,
         output_dir = tmp_dir,
         n_epochs = 0,
+        days_dir = days_dir,
     )
 
     results = trainer.run()

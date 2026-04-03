@@ -80,14 +80,12 @@ def _apply_generated_config_from_dataframe(df: pd.DataFrame) -> None:
 
 
 def _recompute_derived(m) -> None:
-    """Match main.py: TOTAL_UPDATES and EPSILON_DECAY from timing constants."""
+    """Recompute TOTAL_UPDATES after the user changes timing/training constants."""
     sim_seconds = m.SIM_END - m.SIM_BEGIN
     steps_per_ep = sim_seconds / m.STEP_LENGTH
-    min_gs = max(1, math.ceil(m.MIN_GREEN_S / m.STEP_LENGTH))
-    decisions_per_ep = steps_per_ep / (min_gs + 1)
-    m.TOTAL_UPDATES = int(m.EPOCHS * m.TRAIN_SIZE * decisions_per_ep)
-    tu = max(1, m.TOTAL_UPDATES)
-    m.EPSILON_DECAY = (m.EPSILON_END / m.EPSILON_START) ** (1.0 / (0.85 * tu))
+    divisor = getattr(m, "DECISIONS_PER_EP_DIVISOR", 2.0) or 2.0
+    decisions_per_ep = steps_per_ep / divisor
+    m.TOTAL_UPDATES = max(1, int(m.EPOCHS * m.TRAIN_SIZE * decisions_per_ep))
 
 
 def _sumo_bin_on_path(sumo_home: str) -> None:
@@ -108,6 +106,14 @@ def _try_eclipse_sumo_home() -> str:
 
 def _write_eval_config(m, data_out: Path, models_dir: Path, path: Path) -> None:
     """Config for evaluate_baseline.py — reward class and all params match main.py."""
+    reward_kwargs, _ = m._load_component_config(
+        m.REWARD_CONFIG_PATH, m.RewardClass.__name__, "Reward"
+    )
+    policy_kwargs_raw, _ = m._load_component_config(
+        m.POLICY_CONFIG_PATH, m.PolicyClass.__name__, "Policy"
+    )
+    policy_kwargs = m._resolve_policy_params(policy_kwargs_raw)
+
     cfg = {
         "training": {
             "n_epochs": 0,
@@ -118,7 +124,7 @@ def _write_eval_config(m, data_out: Path, models_dir: Path, path: Path) -> None:
         },
         "simulation": {
             "step_length": float(m.STEP_LENGTH),
-            "decision_gap": 10,
+            "decision_gap": int(getattr(m, "DECISION_GAP", 10)),
             "begin": int(m.SIM_BEGIN),
             "end": int(m.SIM_END),
             "gui": False,
@@ -130,19 +136,18 @@ def _write_eval_config(m, data_out: Path, models_dir: Path, path: Path) -> None:
             "max_vehicles": m.MAX_VEHICLES,
         },
         "reward": {
-            "class": "WaitTimeReward",
-            "normalise": bool(m.REWARD_NORMALISE),
-            "scale": float(m.REWARD_SCALE),
+            "class": m.RewardClass.__name__,
+            **reward_kwargs,
         },
         "policy": {
-            "learning_rate": float(m.LEARNING_RATE),
-            "gamma": float(m.GAMMA),
-            "epsilon_start": float(m.EPSILON_START),
-            "epsilon_end": float(m.EPSILON_END),
-            "epsilon_decay": float(m.EPSILON_DECAY),
-            "target_update": int(m.TARGET_UPDATE),
-            "batch_size": int(m.BATCH_SIZE),
-            "hidden": int(m.HIDDEN_SIZE),
+            "learning_rate": float(policy_kwargs["lr"]),
+            "gamma": float(policy_kwargs["gamma"]),
+            "epsilon_start": float(policy_kwargs["epsilon_start"]),
+            "epsilon_end": float(policy_kwargs["epsilon_end"]),
+            "epsilon_decay": float(policy_kwargs["epsilon_decay"]),
+            "target_update": int(policy_kwargs["target_update"]),
+            "batch_size": int(policy_kwargs["batch_size"]),
+            "hidden": int(policy_kwargs["hidden"]),
         },
         "replay_buffer": {"capacity": int(m.BUFFER_CAPACITY)},
         "output": {
@@ -394,8 +399,15 @@ def main() -> None:
             with st.spinner("Building SUMO network…"):
                 net_file = m.run_build_network(sumo_home)
             with st.spinner("Creating run folder…"):
+                reward_kwargs, _ = m._load_component_config(
+                    m.REWARD_CONFIG_PATH, m.RewardClass.__name__, "Reward"
+                )
+                policy_kwargs_raw, _ = m._load_component_config(
+                    m.POLICY_CONFIG_PATH, m.PolicyClass.__name__, "Policy"
+                )
+                policy_kwargs = m._resolve_policy_params(policy_kwargs_raw)
                 run_dir = m._create_run_dir()
-                m._write_config_summary(run_dir, use_gui)
+                m._write_config_summary(run_dir, use_gui, reward_kwargs, policy_kwargs)
         except Exception as e:
             st.exception(e)
             return
@@ -457,7 +469,7 @@ def main() -> None:
                     pass
 
         try:
-            trainer = m.build_pipeline(net_file, use_gui, run_dir)
+            trainer = m.build_pipeline(net_file, use_gui, run_dir, reward_kwargs, policy_kwargs)
             trainer.log_callback = _on_log
             results = trainer.run()
         except Exception as e:
