@@ -116,7 +116,7 @@ SEED = 42
 SAVE_EVERY = 20
 LOG_EVERY = 1
 OUT_DIR = "src/data"
-LOGS_DIR = "logs"
+RESULTS_DIR = "src/data/results"
 TOTAL_UPDATES = 1
 DECISIONS_PER_EP_DIVISOR = 2.0
 
@@ -143,7 +143,7 @@ def _apply_config(cfg: dict[str, Any]) -> None:
     global SUMO_HOME, TRAIN_SIZE, TEST_SIZE, EPOCHS, STEP_LENGTH, DECISION_GAP
     global SIM_BEGIN, SIM_END, SIMULATION_GUI, MIN_GREEN_S, MAX_GREEN_S, OVERSHOOT_COEFF
     global MAX_LANES, MAX_PHASE, MAX_PHASE_TIME, MAX_VEHICLES, LR_MIN, BUFFER_CAPACITY
-    global SEED, SAVE_EVERY, LOG_EVERY, OUT_DIR, LOGS_DIR, TOTAL_UPDATES, SchedulerClass
+    global SEED, SAVE_EVERY, LOG_EVERY, OUT_DIR, RESULTS_DIR, TOTAL_UPDATES, SchedulerClass
     global DECISIONS_PER_EP_DIVISOR
 
     paths = cfg.get("paths", {})
@@ -209,7 +209,8 @@ def _apply_config(cfg: dict[str, Any]) -> None:
 
     out = cfg.get("output", {})
     OUT_DIR = _resolve_path(out.get("out_dir", "src/data"))
-    LOGS_DIR = _resolve_path(out.get("logs_dir", "logs"))
+    _results = out.get("results_dir") or out.get("logs_dir", "src/data/results")
+    RESULTS_DIR = _resolve_path(_results)
 
     _sim_seconds = SIM_END - SIM_BEGIN
     _steps_per_ep = _sim_seconds / STEP_LENGTH
@@ -282,10 +283,10 @@ def _resolve_policy_params(policy_kwargs: dict[str, Any]) -> dict[str, Any]:
 
 
 def _create_run_dir() -> str:
-    """Create a timestamped run folder inside LOGS_DIR and return its path."""
+    """Create a timestamped run folder inside RESULTS_DIR and return its path."""
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     run_name = f"{timestamp}_{PolicyClass.__name__}_{RewardClass.__name__}"
-    run_dir = os.path.join(LOGS_DIR, run_name)
+    run_dir = os.path.join(RESULTS_DIR, run_name)
     os.makedirs(os.path.join(run_dir, "checkpoints"), exist_ok=True)
     return run_dir
 

@@ -4,6 +4,7 @@ streamlit>=1.28.0
 # Core RL pipeline
 torch>=2.0.0
 numpy>=1.24.0
+matplotlib>=3.7.0
 
 # Preprocessing  (BuildRoute.py, data_to_rou.py)
 pandas>=1.3.0

@@ -4,7 +4,7 @@ Visualization scripts and optional static assets for the RL traffic project. Thi
 
 ## Configuration
 
-Paths and training-related settings come from the repo root **`config.json`** (see `output.out_dir`, `output.models_dir`, `output.logs_dir`, `training`, `simulation`, etc.). Edit that file to change where logs and models are written; the scripts here read the same file.
+Paths and training-related settings come from the repo root **`config.json`** (see `output.out_dir`, `output.results_dir`, `output.result_graphs_dir`, `output.models_dir`, `training`, `simulation`, etc.). Edit that file to change where runs, graphs, and models are written; the scripts here read the same file.
 
 Run scripts from the **repository root** so `config.json` resolves correctly:
 

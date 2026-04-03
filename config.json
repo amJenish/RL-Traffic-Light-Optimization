@@ -12,7 +12,7 @@
 
   "training": {
     "n_epochs": 100,
-    "train_days": 25,
+    "train_days": 5,
     "test_days": 5,
     "save_every": 20,
     "log_every": 1,
@@ -65,7 +65,8 @@
 
   "output": {
     "out_dir": "src/data",
-    "logs_dir": "logs",
+    "results_dir": "src/data/results",
+    "result_graphs_dir": "src/data/result_graphs",
     "models_dir": "src/data/models"
   }
 }
