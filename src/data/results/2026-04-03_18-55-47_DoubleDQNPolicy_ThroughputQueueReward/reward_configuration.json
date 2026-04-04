@@ -1,0 +1,21 @@
+{
+  "default": {
+    "normalise": true,
+    "scale": 1.0
+  },
+  "CompositeReward": {
+    "alpha": 0.65
+  },
+  "ThroughputReward": {
+    "normalise": false
+  },
+  "ThroughputQueueReward": {
+    "normalise": true,
+    "scale": 1.0,
+    "throughput_weight": 0.5,
+    "queue_weight": 0.25,
+    "switch_weight": 0.5
+  },
+  "DeltaWaitTimeReward": {},
+  "WaitTimeReward": {}
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "total_reward": 358.21875,
+    "steps": 3595,
+    "mean_loss": null,
+    "epsilon": 1.0,
+    "learning_rate": 0.001,
+    "day_id": 0
+  },
+  {
+    "total_reward": 369.828125,
+    "steps": 3595,
+    "mean_loss": null,
+    "epsilon": 1.0,
+    "learning_rate": 0.001,
+    "day_id": 1
+  },
+  {
+    "total_reward": 340.234375,
+    "steps": 3595,
+    "mean_loss": null,
+    "epsilon": 1.0,
+    "learning_rate": 0.001,
+    "day_id": 2
+  },
+  {
+    "total_reward": 412.03125,
+    "steps": 3595,
+    "mean_loss": null,
+    "epsilon": 1.0,
+    "learning_rate": 0.001,
+    "day_id": 4
+  },
+  {
+    "total_reward": 235.421875,
+    "steps": 3595,
+    "mean_loss": null,
+    "epsilon": 1.0,
+    "learning_rate": 0.001,
+    "day_id": 5
+  }
+]

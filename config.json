@@ -1,5 +1,5 @@
 {
-  "_comment": "Single source of truth for main.py (shared fields also used by evaluate_baseline.py). Paths are relative to the project root unless absolute.",
+  "_comment": "Single source of truth for main.py. Paths are relative to the project root unless absolute. Reward/policy hyperparameters: reward_configuration.json and policy_configuration.json. Class selection: components.reward_class / components.policy_class.",
 
   "paths": {
     "csv": "src/data/synthetic_toronto_data.csv",
@@ -11,10 +11,10 @@
   },
 
   "training": {
-    "n_epochs": 100,
-    "train_days": 5,
+    "n_epochs": 200,
+    "train_days": 1,
     "test_days": 5,
-    "save_every": 20,
+    "save_every": 999,
     "log_every": 1,
     "seed": 42,
     "lr_min": 0.0001,
@@ -23,17 +23,18 @@
   },
 
   "simulation": {
-    "step_length": 10.0,
+    "step_length": 1.0,
     "decision_gap": 10,
     "begin": 28800,
-    "end": 64800,
+    "end": 36000,
     "gui": false
   },
 
   "phase_timing": {
     "min_green_s": 15,
     "max_green_s": 90,
-    "overshoot_coeff": 1.0
+    "overshoot_coeff": 1.0,
+    "yellow_duration_s": 4.0
   },
 
   "observation": {
@@ -43,13 +44,13 @@
     "max_vehicles": 20
   },
 
-  "reward": {
-    "normalise": true,
-    "scale": 1.0
+  "components": {
+    "reward_class": "WaitingTimeReward",
+    "policy_class": "DoubleDQNPolicy"
   },
 
   "policy": {
-    "learning_rate": 0.001,
+    "learning_rate": 0.01,
     "gamma": 0.95,
     "epsilon_start": 1.0,
     "epsilon_end": 0.05,
@@ -60,7 +61,7 @@
   },
 
   "replay_buffer": {
-    "capacity": 4096
+    "capacity": 8000
   },
 
   "output": {

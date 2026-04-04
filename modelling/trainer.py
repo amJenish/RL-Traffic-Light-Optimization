@@ -103,7 +103,9 @@ class Trainer:
         self._emit(f"\n--- Evaluating on {len(self._test_days)} test days ---")
         self.agent.set_eval_mode()
         for test_episode, day_id in enumerate(self._test_days, start=1):
-            metrics = self._run_episode(day_id, train=False)
+            metrics = self._run_episode(
+                day_id, train=False, test_sequence_idx=test_episode
+            )
             metrics["day_id"] = day_id
             self._test_log.append(metrics)
             self._log(test_episode, metrics, prefix="Test ")
@@ -111,9 +113,17 @@ class Trainer:
         schedule_path: str | None = None
         if self._days_dir:
             all_entries: list[dict[str, Any]] = []
-            for m in self._test_log:
+            for ep_idx, m in enumerate(self._test_log, start=1):
                 day_id = int(m["day_id"])
-                seq = m.get("phase_sequence") or {}
+                seq_path = os.path.join(
+                    self.output_dir, "test_sequences", f"episode_{ep_idx:03d}.json"
+                )
+                if os.path.isfile(seq_path):
+                    with open(seq_path, encoding="utf-8") as sf:
+                        seq_data = json.load(sf)
+                    seq = seq_data.get("tls_sequences") or {}
+                else:
+                    seq = {}
                 coverage = self._load_coverage_intervals(day_id)
                 if not coverage:
                     continue
@@ -140,7 +150,7 @@ class Trainer:
             else:
                 self._emit(
                     "  No schedule entries after coverage filter "
-                    "(check days_dir CSVs and phase_sequence)."
+                    "(check days_dir CSVs and test_sequences/episode_*.json)."
                 )
         else:
             self._emit("  days_dir not set — skipping schedule.json aggregation")
@@ -209,7 +219,24 @@ class Trainer:
         with open(path, "w") as f:
             json.dump({"buckets": schedule}, f, indent=2)
 
-    def _run_episode(self, day_id: int, train: bool) -> dict[str, Any]:
+    def _write_test_sequence_json(
+        self,
+        episode_idx: int,
+        tls_sequences: dict[str, list[dict[str, Any]]],
+    ) -> None:
+        seq_dir = os.path.join(self.output_dir, "test_sequences")
+        os.makedirs(seq_dir, exist_ok=True)
+        path = os.path.join(seq_dir, f"episode_{episode_idx:03d}.json")
+        payload = {"episode": episode_idx, "tls_sequences": tls_sequences}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+
+    def _run_episode(
+        self,
+        day_id: int,
+        train: bool,
+        test_sequence_idx: int | None = None,
+    ) -> dict[str, Any]:
         """Run one episode (one day) in train or eval mode."""
         route_file = os.path.join(
             self._flows_dir, f"flows_day_{day_id:02d}.rou.xml"
@@ -230,7 +257,12 @@ class Trainer:
         while not done:
             obs, rewards, done, loss = self.agent.step(obs)
 
-        return self.agent.end_episode()
+        metrics = self.agent.end_episode()
+        if not train:
+            export = self.agent.take_phase_sequence_export()
+            if test_sequence_idx is not None:
+                self._write_test_sequence_json(test_sequence_idx, export)
+        return metrics
 
     def _log(self, index: int, metrics: dict, prefix: str = "") -> None:
         eps = metrics.get("epsilon")

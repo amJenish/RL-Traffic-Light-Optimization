@@ -95,7 +95,9 @@ class ThroughputReward(BaseReward):
         if accumulate:
             self._accumulated[tls_id] = self._accumulated.get(tls_id, 0) + passed
 
-    def compute(self, traci: Any, tls_id: str) -> float:
+    def compute(
+        self, traci: Any, tls_id: str, *, switched: bool = False
+    ) -> float:
         total = float(self._accumulated.pop(tls_id, 0))
         dep_lanes = self._lanes_cache.get(tls_id, [])
         if self._normalise and dep_lanes:

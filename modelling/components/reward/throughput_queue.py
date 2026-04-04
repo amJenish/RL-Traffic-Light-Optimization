@@ -20,12 +20,14 @@ class ThroughputQueueReward(BaseReward):
         scale: float = 1.0,
         throughput_weight: float = 1.0,
         queue_weight: float = 1.0,
+        switch_weight: float = 0.5,
         **kwargs: Any,
     ):
         self._normalise = normalise
         self._scale = scale
         self._throughput_weight = throughput_weight
         self._queue_weight = queue_weight
+        self._switch_weight = switch_weight
 
         self._prev_on_departure: dict[str, frozenset[str]] = {}
         self._accumulated_throughput: dict[str, int] = {}
@@ -60,7 +62,9 @@ class ThroughputQueueReward(BaseReward):
                 self._accumulated_throughput.get(tls_id, 0) + passed
             )
 
-    def compute(self, traci: Any, tls_id: str) -> float:
+    def compute(
+        self, traci: Any, tls_id: str, *, switched: bool = False
+    ) -> float:
         """Finalize interval reward: weighted throughput minus weighted queue."""
         throughput = float(self._accumulated_throughput.pop(tls_id, 0))
 
@@ -82,6 +86,7 @@ class ThroughputQueueReward(BaseReward):
                 queue /= len(controlled_lanes)
 
         reward = self._throughput_weight * throughput - self._queue_weight * queue
+        reward -= self._switch_weight * float(switched)
         return reward * self._scale
 
     def reset(self) -> None:

@@ -1,6 +1,8 @@
 """
 main.py — single entry point for the full RL traffic signal optimisation pipeline.
-Configuration is loaded from config.json (repo root) by default.
+Loads config.json (repo root) by default: paths, training, simulation, observation,
+replay_buffer, output, and components (reward_class / policy_class). Per-class kwargs
+come from paths.reward_configuration and paths.policy_configuration.
 Run: python main.py [--gui] [--config path/to/config.json]
 """
 from typing import Any
@@ -59,7 +61,7 @@ def _default_sumo_home() -> str:
 
 from modelling.components.environment.sumo_environment import SumoEnvironment
 from modelling.components.observation.queue_observation import QueueObservation
-from modelling.components.reward.wait_time              import WaitTimeReward
+from modelling.components.reward.vehicle_count import VehicleCountReward
 from modelling.components.policy.dqn                    import DQNPolicy
 from modelling.components.policy.double_dqn             import DoubleDQNPolicy
 from modelling.components.replay_buffer.uniform         import UniformReplayBuffer
@@ -67,10 +69,12 @@ from modelling.components.scheduler.cosine              import CosineScheduler
 from modelling.agent   import Agent
 from modelling.trainer import Trainer
 from visualization.visualize_results import render_run_graphs
-from modelling.components.reward.delta_wait_time import DeltaWaitTimeReward
+from modelling.components.reward.delta_vehicle_count import DeltaVehicleCountReward
 from modelling.components.reward.composite_reward import CompositeReward
 from modelling.components.reward.throughput import ThroughputReward
 from modelling.components.reward.throughput_queue import ThroughputQueueReward
+from modelling.components.reward.waiting_time import WaitingTimeReward
+from modelling.components.reward.delta_waiting_time import DeltaWaitingTimeReward
 
 
 # ==========================================================================
@@ -79,17 +83,18 @@ from modelling.components.reward.throughput_queue import ThroughputQueueReward
 
 DEFAULT_CONFIG_PATH = os.path.join(ROOT, "config.json")
 
-# Component Selection — swap any of these to use a different implementation
-# Rewards: CompositeReward | ThroughputQueueReward | ThroughputReward | DeltaWaitTimeReward | WaitTimeReward
+# Fixed component implementations (not selectable via JSON)
 EnvironmentClass  = SumoEnvironment
 ObservationClass  = QueueObservation
-RewardClass       = ThroughputQueueReward
-EvalRewardClass   = None              # optional; None = same reward for train and eval
-PolicyClass       = DoubleDQNPolicy
 ReplayBufferClass = UniformReplayBuffer
+EvalRewardClass: type | None = None  # optional; None = same reward for train and eval
+
+# Reward / policy classes: defaults below; overridden by config.json → components.*
+RewardClass: type = ThroughputQueueReward
+PolicyClass: type = DoubleDQNPolicy
 SchedulerClass: type | None = None
 
-# Populated by _apply_config()
+# Paths and scalars — filled only by _apply_config(); numeric defaults are the .get(..., default) values inside it.
 CSV_PATH = ""
 INTERSECTION_PATH = ""
 COLUMNS_PATH = ""
@@ -99,27 +104,28 @@ SUMO_HOME = ""
 TRAIN_SIZE = 0
 TEST_SIZE = 0
 EPOCHS = 0
-STEP_LENGTH = 10.0
-DECISION_GAP = 10
+STEP_LENGTH = 0.0
+DECISION_GAP = 0
 SIM_BEGIN = 0
 SIM_END = 0
 SIMULATION_GUI = False
-MIN_GREEN_S = 15
-MAX_GREEN_S = 90
-OVERSHOOT_COEFF = 1.0
-MAX_LANES = 16
-MAX_PHASE = 7
-MAX_PHASE_TIME = 120.0
-MAX_VEHICLES = 20
-LR_MIN = 0.0001
-BUFFER_CAPACITY = 4096
-SEED = 42
-SAVE_EVERY = 20
-LOG_EVERY = 1
-OUT_DIR = "src/data"
-RESULTS_DIR = "src/data/results"
-TOTAL_UPDATES = 1
-DECISIONS_PER_EP_DIVISOR = 2.0
+MIN_GREEN_S = 0
+MAX_GREEN_S = 0
+OVERSHOOT_COEFF = 0.0
+YELLOW_DURATION_S = 0.0
+MAX_LANES = 0
+MAX_PHASE = 0
+MAX_PHASE_TIME = 0.0
+MAX_VEHICLES = 0
+LR_MIN = 0.0
+BUFFER_CAPACITY = 0
+SEED = 0
+SAVE_EVERY = 0
+LOG_EVERY = 0
+OUT_DIR = ""
+RESULTS_DIR = ""
+TOTAL_UPDATES = 0
+DECISIONS_PER_EP_DIVISOR = 0.0
 
 
 def _resolve_path(rel_or_abs: str) -> str:
@@ -142,10 +148,42 @@ def _apply_config(cfg: dict[str, Any]) -> None:
     """Set module-level settings from config.json (also when gridsearch imports main)."""
     global CSV_PATH, INTERSECTION_PATH, COLUMNS_PATH, REWARD_CONFIG_PATH, POLICY_CONFIG_PATH
     global SUMO_HOME, TRAIN_SIZE, TEST_SIZE, EPOCHS, STEP_LENGTH, DECISION_GAP
-    global SIM_BEGIN, SIM_END, SIMULATION_GUI, MIN_GREEN_S, MAX_GREEN_S, OVERSHOOT_COEFF
+    global SIM_BEGIN, SIM_END, SIMULATION_GUI, MIN_GREEN_S, MAX_GREEN_S, OVERSHOOT_COEFF, YELLOW_DURATION_S
     global MAX_LANES, MAX_PHASE, MAX_PHASE_TIME, MAX_VEHICLES, LR_MIN, BUFFER_CAPACITY
     global SEED, SAVE_EVERY, LOG_EVERY, OUT_DIR, RESULTS_DIR, TOTAL_UPDATES, SchedulerClass
     global DECISIONS_PER_EP_DIVISOR
+    global RewardClass, PolicyClass
+
+    _reward_by_name: dict[str, type] = {
+        "CompositeReward": CompositeReward,
+        "DeltaVehicleCountReward": DeltaVehicleCountReward,
+        "DeltaWaitingTimeReward": DeltaWaitingTimeReward,
+        "DeltaWaitTimeReward": DeltaWaitingTimeReward,
+        "ThroughputQueueReward": ThroughputQueueReward,
+        "ThroughputReward": ThroughputReward,
+        "VehicleCountReward": VehicleCountReward,
+        "WaitingTimeReward": WaitingTimeReward,
+        "WaitTimeReward": WaitingTimeReward,
+    }
+    _policy_by_name: dict[str, type] = {
+        "DQNPolicy": DQNPolicy,
+        "DoubleDQNPolicy": DoubleDQNPolicy,
+    }
+    comp = cfg.get("components", {})
+    _rn = comp.get("reward_class", "ThroughputQueueReward")
+    _pn = comp.get("policy_class", "DoubleDQNPolicy")
+    if _rn not in _reward_by_name:
+        _abort(
+            f"Unknown components.reward_class {_rn!r}. "
+            f"Use one of: {', '.join(sorted(_reward_by_name))}"
+        )
+    if _pn not in _policy_by_name:
+        _abort(
+            f"Unknown components.policy_class {_pn!r}. "
+            f"Use one of: {', '.join(sorted(_policy_by_name))}"
+        )
+    RewardClass = _reward_by_name[_rn]
+    PolicyClass = _policy_by_name[_pn]
 
     paths = cfg.get("paths", {})
     CSV_PATH = _resolve_path(paths.get("csv", "src/data/synthetic_toronto_data.csv"))
@@ -188,7 +226,7 @@ def _apply_config(cfg: dict[str, Any]) -> None:
         _abort(f"Unknown training.scheduler value: {sched_raw!r} (use 'none' or 'cosine')")
 
     sim = cfg.get("simulation", {})
-    STEP_LENGTH = float(sim.get("step_length", 10.0))
+    STEP_LENGTH = float(sim.get("step_length", 1.0))
     DECISION_GAP = int(sim.get("decision_gap", 10))
     SIM_BEGIN = int(sim.get("begin", 28800))
     SIM_END = int(sim.get("end", 64800))
@@ -198,6 +236,7 @@ def _apply_config(cfg: dict[str, Any]) -> None:
     MIN_GREEN_S = int(phase.get("min_green_s", 15))
     MAX_GREEN_S = int(phase.get("max_green_s", 90))
     OVERSHOOT_COEFF = float(phase.get("overshoot_coeff", 1.0))
+    YELLOW_DURATION_S = float(phase.get("yellow_duration_s", 4.0))
 
     obs = cfg.get("observation", {})
     MAX_LANES = int(obs.get("max_lanes", 16))
@@ -206,7 +245,7 @@ def _apply_config(cfg: dict[str, Any]) -> None:
     MAX_VEHICLES = int(obs.get("max_vehicles", 20))
 
     replay = cfg.get("replay_buffer", {})
-    BUFFER_CAPACITY = int(replay.get("capacity", 4096))
+    BUFFER_CAPACITY = int(replay.get("capacity", 32768))
 
     out = cfg.get("output", {})
     OUT_DIR = _resolve_path(out.get("out_dir", "src/data"))
@@ -572,8 +611,10 @@ def build_pipeline(
     print(f"  Policy        : {PolicyClass.__name__} (device={policy.device})")
     print(f"  Scheduler     : {sched_name} (LR {policy_kwargs['lr']} -> {LR_MIN} over ~{TOTAL_UPDATES:,} steps)")
     print(f"  Replay buffer : {ReplayBufferClass.__name__} (capacity={BUFFER_CAPACITY:,})")
-    print(f"  Phase timing  : min={MIN_GREEN_S}s  max={MAX_GREEN_S}s  "
-          f"(decide every {STEP_LENGTH}s after min)")
+    print(
+        f"  Phase timing  : min={MIN_GREEN_S}s  max={MAX_GREEN_S}s  "
+        f"yellow={YELLOW_DURATION_S}s  (decide every {STEP_LENGTH}s after min)"
+    )
     print(f"  Run folder    : {run_dir}")
 
     agent = Agent(
@@ -584,10 +625,11 @@ def build_pipeline(
         replay_buffer   = replay_buffer,
         scheduler       = scheduler,
         eval_reward     = eval_reward,
-        step_length     = STEP_LENGTH,
-        min_green_s     = MIN_GREEN_S,
-        max_green_s     = MAX_GREEN_S,
-        overshoot_coeff = OVERSHOOT_COEFF,
+        step_length       = STEP_LENGTH,
+        min_green_s       = MIN_GREEN_S,
+        max_green_s       = MAX_GREEN_S,
+        overshoot_coeff   = OVERSHOOT_COEFF,
+        yellow_duration_s = YELLOW_DURATION_S,
     )
 
     split_path = os.path.join(OUT_DIR, "processed", "split.json")

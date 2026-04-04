@@ -1,17 +1,13 @@
 {
   "train": [
-    2,
-    3,
-    5,
-    7,
-    8
+    3
   ],
   "test": [
     0,
     1,
+    2,
     4,
-    6,
-    9
+    5
   ],
   "intersection_name": "McCowan_Finch",
   "active_approaches": [
@@ -21,7 +17,7 @@
     "W"
   ],
   "min_red_seconds": 15,
-  "n_days": 10,
+  "n_days": 6,
   "n_slots": 32,
   "slot_minutes": 15,
   "edge_ids": {

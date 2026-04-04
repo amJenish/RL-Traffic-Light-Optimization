@@ -1,0 +1,1119 @@
+{
+  "episode": 3,
+  "tls_sequences": {
+    "J_centre": [
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 6240.0,
+        "duration_steps": 624,
+        "sim_time": 35070.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35100.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35130.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35160.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35190.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35220.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35250.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35280.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35310.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35340.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35370.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35400.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35430.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35460.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35490.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35520.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35550.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35580.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35610.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35640.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35670.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35700.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35730.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35760.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35790.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35820.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35850.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35880.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35910.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35940.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 35970.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 36000.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 36030.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 7330.0,
+        "duration_steps": 733,
+        "sim_time": 43370.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 30.0,
+        "duration_steps": 3,
+        "sim_time": 43410.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 43440.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 40.0,
+        "duration_steps": 4,
+        "sim_time": 43490.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 43520.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 50.0,
+        "duration_steps": 5,
+        "sim_time": 43580.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 43610.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 50.0,
+        "duration_steps": 5,
+        "sim_time": 43670.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 43700.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 80.0,
+        "duration_steps": 8,
+        "sim_time": 43790.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 43820.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 43850.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 43880.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 43910.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 43940.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 43970.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44000.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44030.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44060.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44090.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44120.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44150.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44180.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44210.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44240.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44270.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44300.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44330.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44360.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44390.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44420.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44450.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44480.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44510.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44540.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44570.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44600.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44630.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44660.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44690.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44720.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44750.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44780.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44810.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44840.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44870.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44900.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44930.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44960.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 44990.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45020.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45050.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45080.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45110.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45140.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45170.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45200.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45230.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45260.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45290.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45320.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45350.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45380.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45410.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45440.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 45470.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 45570.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 45670.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 9060.0,
+        "duration_steps": 906,
+        "sim_time": 54740.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 54840.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 54940.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 55040.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 55140.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 55240.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 55340.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 55440.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 55540.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 55640.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 55740.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 55840.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 55940.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 56040.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 56140.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 56240.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 56340.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 56440.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 56540.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56570.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56600.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56630.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56660.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56690.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56720.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56750.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56780.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56810.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56840.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56870.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56900.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56930.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56960.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 56990.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 57020.0
+      },
+      {
+        "phase": 4,
+        "phase_name": "",
+        "phase_state": "rrrrGgGgrrrrGgGg",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 57050.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 20.0,
+        "duration_steps": 2,
+        "sim_time": 57080.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "",
+        "phase_state": "GgGgrrrrGgGgrrrr",
+        "duration_s": 90.0,
+        "duration_steps": 9,
+        "sim_time": 57180.0
+      }
+    ]
+  }
+}

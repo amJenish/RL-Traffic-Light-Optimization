@@ -74,7 +74,7 @@ synthetic_toronto_data.xls / .csv
 │                   │   │  SUMO-Demand-Generation-      │
 │  SumoEnvironment  │   │  Pipeline. Converts any count │
 │  QueueObservation │   │  CSV → rou.xml using          │
-│  WaitTimeReward   │   │  edge_mapping.csv or auto-    │
+│ VehicleCountReward  │   │  edge_mapping.csv or auto-    │
 │  DQNPolicy        │   │  edge detection on net.xml.   │
 │  UniformReplay    │   │  Uses vehicle counts (number=)│
 │  Agent + Trainer  │   │  rather than vehsPerHour.     │
@@ -111,7 +111,7 @@ synthetic_toronto_data.xls / .csv
 | `trainer.py` | Epoch loop over training days + final evaluation on held-out test days. Saves checkpoints and JSON logs. |
 | `components/environment/sumo_environment.py` | SUMO/TraCI wrapper. Manages episode lifecycle (start → step → done → close). |
 | `components/observation/queue_observation.py` | Builds the state vector: halting counts per lane + phase info + time-of-day and day-of-week sin/cos encoding. |
-| `components/reward/wait_time.py` | Instantaneous negative halting-vehicle count. Goes down when queues grow, up when they clear — clean signal for DQN. |
+| `components/reward/vehicle_count.py` | Instantaneous negative halting-vehicle count (`VehicleCountReward`). Goes down when queues grow, up when they clear — clean signal for DQN. |
 | `components/policy/dqn.py` | Online + target Q-networks (2-layer MLP), Adam optimiser, epsilon-greedy with multiplicative decay, hard target sync every N updates, min/max green phase enforcement. |
 | `components/replay_buffer/uniform.py` | Fixed-capacity circular buffer, uniform random sampling. |
 

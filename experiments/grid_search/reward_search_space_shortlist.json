@@ -18,14 +18,14 @@
       }
     },
     {
-      "RewardClass": "DeltaWaitTimeReward",
+      "RewardClass": "DeltaVehicleCountReward",
       "params": {
         "normalise": [true],
         "scale": [1.0]
       }
     },
     {
-      "RewardClass": "WaitTimeReward",
+      "RewardClass": "VehicleCountReward",
       "params": {
         "normalise": [true],
         "scale": [1.0]

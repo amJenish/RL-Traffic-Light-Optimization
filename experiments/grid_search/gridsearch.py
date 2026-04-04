@@ -38,18 +38,24 @@ from modelling.components.policy.dqn import DQNPolicy
 from modelling.components.policy.double_dqn import DoubleDQNPolicy
 from modelling.components.replay_buffer.uniform import UniformReplayBuffer
 from modelling.components.reward.throughput import ThroughputReward
-from modelling.components.reward.wait_time import WaitTimeReward
-from modelling.components.reward.delta_wait_time import DeltaWaitTimeReward
+from modelling.components.reward.vehicle_count import VehicleCountReward
+from modelling.components.reward.delta_vehicle_count import DeltaVehicleCountReward
 from modelling.components.reward.composite_reward import CompositeReward
 from modelling.components.reward.throughput_queue import ThroughputQueueReward
+from modelling.components.reward.waiting_time import WaitingTimeReward
+from modelling.components.reward.delta_waiting_time import DeltaWaitingTimeReward
 
 
 REWARD_CLASS_MAP: dict[str, Any] = {
     "ThroughputReward": ThroughputReward,
     "ThroughputQueueReward": ThroughputQueueReward,
     "CompositeReward": CompositeReward,
-    "DeltaWaitTimeReward": DeltaWaitTimeReward,
-    "WaitTimeReward": WaitTimeReward,
+    "DeltaVehicleCountReward": DeltaVehicleCountReward,
+    "VehicleCountReward": VehicleCountReward,
+    "WaitingTimeReward": WaitingTimeReward,
+    "WaitTimeReward": WaitingTimeReward,
+    "DeltaWaitTimeReward": DeltaWaitingTimeReward,
+    "DeltaWaitingTimeReward": DeltaWaitingTimeReward,
 }
 
 POLICY_CLASS_MAP: dict[str, Any] = {
@@ -116,8 +122,12 @@ class RewardWithCrossingsKPI:
         self._primary.on_simulation_step(traci, tls_id, accumulate=accumulate)
         self._kpi.on_simulation_step(traci, tls_id, accumulate=accumulate)
 
-    def compute(self, traci: Any, tls_id: str) -> float:
-        primary_interval = self._primary.compute(traci, tls_id)
+    def compute(
+        self, traci: Any, tls_id: str, *, switched: bool = False
+    ) -> float:
+        primary_interval = self._primary.compute(
+            traci, tls_id, switched=switched
+        )
         kpi_interval = self._kpi.compute(traci, tls_id)
         self._crossings_total += float(kpi_interval)
         return float(primary_interval)
@@ -223,6 +233,7 @@ def _build_agent(
         min_green_s=main_mod.MIN_GREEN_S,
         max_green_s=main_mod.MAX_GREEN_S,
         overshoot_coeff=main_mod.OVERSHOOT_COEFF,
+        yellow_duration_s=main_mod.YELLOW_DURATION_S,
     )
     return agent, reward_wrapped
 

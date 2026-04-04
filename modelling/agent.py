@@ -26,10 +26,11 @@ class Agent:
         replay_buffer:   BaseReplayBuffer,
         scheduler:       BaseScheduler | None = None,
         eval_reward:     BaseReward | None    = None,
-        step_length:     float = 5.0,
+        step_length:     float = 1.0,
         min_green_s:     float = 15.0,
         max_green_s:     float = 90.0,
         overshoot_coeff: float = 4.0,
+        yellow_duration_s: float = 4.0,
     ):
         self.environment   = environment
         self.observation   = observation
@@ -40,6 +41,8 @@ class Agent:
         self.eval_reward   = eval_reward
 
         self._step_length       = step_length
+        self._yellow_duration_s = yellow_duration_s
+        self._yellow_steps      = max(1, round(yellow_duration_s / step_length))
         self._min_green_steps   = max(1, math.ceil(min_green_s / step_length))
         self._max_green_steps   = max(1, math.ceil(max_green_s / step_length))
         self._overshoot_coeff   = overshoot_coeff
@@ -63,7 +66,15 @@ class Agent:
             if (not self._train_mode and self.eval_reward is not None)
             else self.reward
         )
-        out = {tid: active.compute(self.environment.traci, tid) for tid in tls_ids}
+        pa = self._pending_action
+        out = {
+            tid: active.compute(
+                self.environment.traci,
+                tid,
+                switched=(pa is not None and pa.get(tid) == 1),
+            )
+            for tid in tls_ids
+        }
         if self._train_mode:
             for tid in tls_ids:
                 out[tid] *= self._overshoot_scale(tid)
@@ -86,9 +97,23 @@ class Agent:
         self._pending_duration = 0
         self._phase_log = {}
 
-        for _ in range(5):
+        warmup_steps = max(5, round(25 / self._step_length))
+        for _ in range(warmup_steps):
             self.environment.step(1)
             self._notify_simulation_step(accumulate_reward=False)
+
+        # Land on green before the first decision. _pending_state is still None here
+        # (only cleared above; first step() sets it), so yellow substeps must not touch
+        # _pending_duration — accumulate_reward=False is correct.
+        traci_w = self.environment.traci
+        for tid in list(traci_w.trafficlight.getIDList()):
+            logic0 = traci_w.trafficlight.getAllProgramLogics(tid)[0]
+            n0 = len(logic0.phases)
+            cur0 = traci_w.trafficlight.getPhase(tid)
+            if self._is_yellow_phase(logic0.phases[cur0].state):
+                self._execute_yellow_clearance(
+                    tid, logic0, n0, cur0, accumulate_reward=False
+                )
 
         tls_ids = self.environment.get_tls_ids()
         if not tls_ids:
@@ -243,12 +268,12 @@ class Agent:
         for tid in tls_ids:
             actions[tid] = self.policy.select_action(obs_now[tid], tid)
 
-        self._apply_actions(actions)
+        yellow_extra, phase_advanced_tls = self._apply_actions(actions)
 
         # Start of the next pending interval: the current decision epoch itself.
         self._pending_state = obs_now
         self._pending_action = actions
-        self._pending_duration = 0
+        self._pending_duration = yellow_extra
 
         self.environment.step(1)
         self._notify_simulation_step(accumulate_reward=True)
@@ -256,7 +281,7 @@ class Agent:
 
         # Update time-since-switch counters after this step.
         for tid in tls_ids:
-            if actions[tid] == 1:
+            if tid in phase_advanced_tls:
                 self._steps_in_phase[tid] = 0
             else:
                 self._steps_in_phase[tid] = self._steps_in_phase.get(tid, 0) + 1
@@ -312,11 +337,33 @@ class Agent:
             "epsilon":      getattr(self.policy, "epsilon", None),
             "learning_rate": lr,
         }
-        if not self._train_mode:
-            metrics["phase_sequence"] = {
-                k: list(v) for k, v in self._phase_log.items()
-            }
         return metrics
+
+    def take_phase_sequence_export(self) -> dict[str, list[dict[str, Any]]]:
+        """Copy eval phase segments and clear the buffer. Call after end_episode in eval."""
+        if self._train_mode:
+            return {}
+        out: dict[str, list[dict[str, Any]]] = {
+            k: list(v) for k, v in self._phase_log.items()
+        }
+        self._phase_log.clear()
+        if os.environ.get("RL_DEBUG"):
+            expected = self._yellow_steps * self._step_length
+            for _tls_id, entries in out.items():
+                for entry in entries:
+                    if self._is_yellow_phase(entry["phase_state"]):
+                        ds = float(entry["duration_s"])
+                        assert ds <= expected + 1e-6, (
+                            "Yellow phase logged with unexpected duration: "
+                            f"{entry['duration_s']}"
+                        )
+                        assert math.isclose(ds, expected, rel_tol=0, abs_tol=1e-5) or (
+                            ds < expected - 1e-6
+                        ), (
+                            "Yellow phase duration should be full clearance or "
+                            f"truncated at episode end: {entry['duration_s']}"
+                        )
+        return out
 
     def set_eval_mode(self) -> None:
         self._train_mode = False
@@ -352,27 +399,146 @@ class Agent:
 
     def _get_observations(self) -> dict[str, np.ndarray]:
         traci = self.environment.traci
+        if os.environ.get("RL_DEBUG"):
+            for tls_id in self.environment.get_tls_ids():
+                logic = traci.trafficlight.getAllProgramLogics(tls_id)[0]
+                ph = logic.phases[traci.trafficlight.getPhase(tls_id)]
+                assert not self._is_yellow_phase(ph.state), (
+                    f"Agent received yellow phase as observation at {tls_id}: "
+                    f"{ph.state}"
+                )
         return {
             tls_id: self.observation.build(traci, tls_id)
             for tls_id in self.environment.get_tls_ids()
         }
 
-    def _apply_actions(self, actions: dict[str, int]) -> None:
-        """Action 0 = keep current phase, action 1 = advance to next phase."""
+    @staticmethod
+    def _is_yellow_phase(phase_state: str) -> bool:
+        """True if phase is yellow-only (no green links in SUMO state string)."""
+        return (
+            "y" in phase_state
+            and "G" not in phase_state
+            and "g" not in phase_state
+        )
+
+    def _sumo_steps_during_yellow(self, accumulate_reward: bool = True) -> int:
+        """Advance simulation for fixed yellow duration; return steps executed."""
+        steps = 0
+        for _ in range(self._yellow_steps):
+            if self.environment.is_done():
+                break
+            self.environment.step(1)
+            self._notify_simulation_step(accumulate_reward=accumulate_reward)
+            steps += 1
+        return steps
+
+    def _execute_yellow_clearance(
+        self,
+        tls_id: str,
+        logic: Any,
+        n_phases: int,
+        yellow_idx: int,
+        *,
+        accumulate_reward: bool = True,
+    ) -> int:
+        """Leave a yellow phase with fixed-duration substeps; land on following green."""
+        steps = self._sumo_steps_during_yellow(accumulate_reward=accumulate_reward)
+        green_phase = (yellow_idx + 1) % n_phases
+        self.environment.traci.trafficlight.setPhase(tls_id, green_phase)
+        if not self._train_mode:
+            ph = logic.phases[yellow_idx]
+            duration_s = float(steps * self._step_length)
+            sl = self._step_length
+            self._phase_log.setdefault(tls_id, []).append(
+                {
+                    "phase": int(yellow_idx),
+                    "phase_name": getattr(ph, "name", "") or "",
+                    "phase_state": getattr(ph, "state", "") or "",
+                    "duration_s": duration_s,
+                    "duration_steps": int(duration_s / sl) if sl > 0 else 0,
+                    "sim_time": float(self.environment.get_sim_time()),
+                }
+            )
+        return steps
+
+    def _execute_green_switch(
+        self,
+        tls_id: str,
+        logic: Any,
+        n_phases: int,
+        current_phase: int,
+    ) -> int:
+        """Log green exit, optionally cross yellow with fixed time, land on next green."""
         traci = self.environment.traci
-        for tls_id, action in actions.items():
-            if action == 1:
-                current_phase = traci.trafficlight.getPhase(tls_id)
-                if not self._train_mode:
-                    self._phase_log.setdefault(tls_id, []).append({
-                        "phase": int(current_phase),
-                        "duration_s": float(
-                            self._steps_in_phase.get(tls_id, 0) * self._step_length
-                        ),
+        if not self._train_mode:
+            ph = logic.phases[current_phase]
+            duration_s = float(
+                self._steps_in_phase.get(tls_id, 0) * self._step_length
+            )
+            sl = self._step_length
+            duration_steps = int(duration_s / sl) if sl > 0 else 0
+            self._phase_log.setdefault(tls_id, []).append(
+                {
+                    "phase": int(current_phase),
+                    "phase_name": getattr(ph, "name", "") or "",
+                    "phase_state": getattr(ph, "state", "") or "",
+                    "duration_s": duration_s,
+                    "duration_steps": duration_steps,
+                    "sim_time": float(self.environment.get_sim_time()),
+                }
+            )
+        next_phase = (current_phase + 1) % n_phases
+        next_state = logic.phases[next_phase].state
+        extra = 0
+        if self._is_yellow_phase(next_state):
+            traci.trafficlight.setPhase(tls_id, next_phase)
+            extra = self._sumo_steps_during_yellow()
+            if not self._train_mode:
+                yph = logic.phases[next_phase]
+                duration_s_y = float(extra * self._step_length)
+                sl = self._step_length
+                self._phase_log.setdefault(tls_id, []).append(
+                    {
+                        "phase": int(next_phase),
+                        "phase_name": getattr(yph, "name", "") or "",
+                        "phase_state": getattr(yph, "state", "") or "",
+                        "duration_s": duration_s_y,
+                        "duration_steps": int(duration_s_y / sl) if sl > 0 else 0,
                         "sim_time": float(self.environment.get_sim_time()),
-                    })
-                n_phases = len(
-                    traci.trafficlight.getAllProgramLogics(tls_id)[0].phases
+                    }
                 )
-                next_phase = (current_phase + 1) % n_phases
-                traci.trafficlight.setPhase(tls_id, next_phase)
+            green_phase = (next_phase + 1) % n_phases
+            traci.trafficlight.setPhase(tls_id, green_phase)
+        else:
+            traci.trafficlight.setPhase(tls_id, next_phase)
+        return extra
+
+    def _apply_actions(self, actions: dict[str, int]) -> tuple[int, set[str]]:
+        """Action 0 = hold, 1 = advance to next green (auto-crossing yellow).
+
+        Returns (extra primitive steps for SMDP pending_duration, tls_ids that changed phase).
+        """
+        traci = self.environment.traci
+        extra_pending = 0
+        advanced: set[str] = set()
+        for tls_id, action in actions.items():
+            logic = traci.trafficlight.getAllProgramLogics(tls_id)[0]
+            n_phases = len(logic.phases)
+            cur = traci.trafficlight.getPhase(tls_id)
+            cur_state = logic.phases[cur].state
+
+            if self._is_yellow_phase(cur_state):
+                extra_pending += self._execute_yellow_clearance(
+                    tls_id, logic, n_phases, cur
+                )
+                advanced.add(tls_id)
+                continue
+
+            if action != 1:
+                continue
+
+            extra_pending += self._execute_green_switch(
+                tls_id, logic, n_phases, cur
+            )
+            advanced.add(tls_id)
+        return extra_pending, advanced

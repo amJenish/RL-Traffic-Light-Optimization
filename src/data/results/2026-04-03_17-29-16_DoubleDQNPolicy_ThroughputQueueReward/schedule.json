@@ -1,0 +1,492 @@
+{
+  "buckets": [
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 28800,
+      "median_s": 20.0,
+      "std_s": 1.1545951007185853,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 28800,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 70
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 29700,
+      "median_s": 20.0,
+      "std_s": 1.16236731153953,
+      "n": 73
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 29700,
+      "median_s": 20.0,
+      "std_s": 1.1469767022723503,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 30600,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 30600,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 31500,
+      "median_s": 20.0,
+      "std_s": 2.5508168626278653,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 31500,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 32400,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 32400,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 33300,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 33300,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 36000,
+      "median_s": 20.0,
+      "std_s": 4.136548071625397,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 2,
+      "bucket_start_s": 36000,
+      "median_s": 70.0,
+      "std_s": 0.0,
+      "n": 1
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 36000,
+      "median_s": 20.0,
+      "std_s": 16.43355495305449,
+      "n": 72
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 36900,
+      "median_s": 20.0,
+      "std_s": 1.6216216216216215,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 36900,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 37800,
+      "median_s": 20.0,
+      "std_s": 1.1469767022723503,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 37800,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 38700,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 38700,
+      "median_s": 20.0,
+      "std_s": 1.6110727964792761,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 39600,
+      "median_s": 20.0,
+      "std_s": 2.542084058017101,
+      "n": 72
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 39600,
+      "median_s": 20.0,
+      "std_s": 1.9722323674765438,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 40500,
+      "median_s": 20.0,
+      "std_s": 1.1545951007185853,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 40500,
+      "median_s": 20.0,
+      "std_s": 3.2684828709318445,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 41400,
+      "median_s": 20.0,
+      "std_s": 1.1545951007185853,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 41400,
+      "median_s": 20.0,
+      "std_s": 3.287671232876712,
+      "n": 73
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 42300,
+      "median_s": 20.0,
+      "std_s": 1.998263134713633,
+      "n": 72
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 42300,
+      "median_s": 20.0,
+      "std_s": 3.8464951178128417,
+      "n": 72
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 46800,
+      "median_s": 20.0,
+      "std_s": 4.665585305733261,
+      "n": 73
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 46800,
+      "median_s": 20.0,
+      "std_s": 5.040651075536386,
+      "n": 70
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 47700,
+      "median_s": 20.0,
+      "std_s": 1.998263134713633,
+      "n": 72
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 47700,
+      "median_s": 20.0,
+      "std_s": 3.418678551533383,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 48600,
+      "median_s": 20.0,
+      "std_s": 1.1545951007185853,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 48600,
+      "median_s": 20.0,
+      "std_s": 1.9722323674765438,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 49500,
+      "median_s": 20.0,
+      "std_s": 1.1469767022723503,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 49500,
+      "median_s": 20.0,
+      "std_s": 1.9722323674765438,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 50400,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 50400,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 51300,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 51300,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 52200,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 52200,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 53100,
+      "median_s": 20.0,
+      "std_s": 1.1469767022723503,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 53100,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 57600,
+      "median_s": 20.0,
+      "std_s": 4.239941791929359,
+      "n": 73
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 57600,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 58500,
+      "median_s": 20.0,
+      "std_s": 2.2939534045447005,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 58500,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 59400,
+      "median_s": 20.0,
+      "std_s": 1.1469767022723503,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 59400,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 74
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 60300,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 60300,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 61200,
+      "median_s": 20.0,
+      "std_s": 3.6087506499505455,
+      "n": 73
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 61200,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 62100,
+      "median_s": 20.0,
+      "std_s": 7.22010079622161,
+      "n": 73
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 62100,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 71
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 63000,
+      "median_s": 20.0,
+      "std_s": 2.32473462307906,
+      "n": 73
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 63000,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 63900,
+      "median_s": 20.0,
+      "std_s": 3.4409301068170506,
+      "n": 75
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 63900,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 75
+    }
+  ]
+}

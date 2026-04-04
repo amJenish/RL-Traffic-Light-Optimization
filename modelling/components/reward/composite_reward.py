@@ -20,7 +20,9 @@ class CompositeReward(BaseReward):
         self._prev_halting: dict[str, float] = {}
         self._initialized: set[str] = set()
 
-    def compute(self, traci: Any, tls_id: str) -> float:
+    def compute(
+        self, traci: Any, tls_id: str, *, switched: bool = False
+    ) -> float:
         """alpha * (prev - current) + (1 - alpha) * (-current), scaled."""
         lanes = list(dict.fromkeys(
             traci.trafficlight.getControlledLanes(tls_id)

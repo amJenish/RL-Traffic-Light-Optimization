@@ -4,17 +4,16 @@
       "PolicyClass": "DoubleDQNPolicy",
       "seeds": [42],
       "params": {
-        "lr": [0.001, 0.01],
-        "gamma": [0.97],
+        "lr": [0.001],
         "epsilon_start": [1.0],
         "epsilon_end": [0.05],
         "epsilon_decay": ["auto"],
-        "target_update": [200],
         "batch_size": [256],
+        "gamma": [0.97],
         "hidden": [256],
+        "target_update": [200],
         "n_actions": [2]
       }
     }
   ]
 }
-

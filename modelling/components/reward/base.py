@@ -7,7 +7,9 @@ from typing import Any
 class BaseReward(ABC):
 
     @abstractmethod
-    def compute(self, traci: Any, tls_id: str) -> float:
+    def compute(
+        self, traci: Any, tls_id: str, *, switched: bool = False
+    ) -> float:
         """Compute scalar reward for one traffic light at the current step."""
         ...
 

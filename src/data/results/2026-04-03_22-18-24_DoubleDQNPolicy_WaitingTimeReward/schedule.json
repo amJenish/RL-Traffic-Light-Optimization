@@ -1,0 +1,28 @@
+{
+  "buckets": [
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 36000,
+      "median_s": 20.0,
+      "std_s": 40.0,
+      "n": 5
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 36000,
+      "median_s": 20.0,
+      "std_s": 0.0,
+      "n": 2
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 4,
+      "bucket_start_s": 62100,
+      "median_s": 4850.0,
+      "std_s": 0.0,
+      "n": 1
+    }
+  ]
+}

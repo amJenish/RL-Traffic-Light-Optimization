@@ -50,8 +50,14 @@ def _banner(text: str):
 
 _REWARD_CLASS_MAP = {
     "CompositeReward":    ("modelling.components.reward.composite_reward", "CompositeReward"),
-    "DeltaWaitTimeReward":("modelling.components.reward.delta_wait_time",  "DeltaWaitTimeReward"),
-    "WaitTimeReward":     ("modelling.components.reward.wait_time",        "WaitTimeReward"),
+    "DeltaVehicleCountReward": (
+        "modelling.components.reward.delta_vehicle_count",
+        "DeltaVehicleCountReward",
+    ),
+    "VehicleCountReward": (
+        "modelling.components.reward.vehicle_count",
+        "VehicleCountReward",
+    ),
     "ThroughputReward":   ("modelling.components.reward.throughput",       "ThroughputReward"),
 }
 
@@ -123,6 +129,8 @@ def _build_agent(cfg: dict, int_cfg: dict, policy, sumo_home: str, gui: bool):
     min_green_s = float(int_cfg.get("min_green_s", 15))
     max_green_s = float(int_cfg.get("max_green_s", 90))
     step_length = float(scfg["step_length"])
+    ptc = cfg.get("phase_timing", {})
+    yellow_duration_s = float(ptc.get("yellow_duration_s", 4.0))
 
     return Agent(
         environment = environment,
@@ -133,6 +141,7 @@ def _build_agent(cfg: dict, int_cfg: dict, policy, sumo_home: str, gui: bool):
         step_length = step_length,
         min_green_s = min_green_s,
         max_green_s = max_green_s,
+        yellow_duration_s = yellow_duration_s,
     )
 
 
