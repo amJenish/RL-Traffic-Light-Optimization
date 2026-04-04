@@ -4,12 +4,14 @@ driven by intersection.json and columns.json.
 """
 
 import argparse
+import hashlib
 import json
 import math
 import os
 import re
 import random
 import xml.etree.ElementTree as ET
+from typing import Optional
 from xml.dom import minidom
 
 import pandas as pd
@@ -229,14 +231,85 @@ def _allowed_movements(active, int_cfg):
     return allowed
 
 
-def write_sumo_flows(df, active, slot_minutes, out_dir, int_cfg=None):
-    """Generate one .rou.xml flow file per sim_day with overnight fill and taper."""
+def _variation_rng(seed: int, day_id: int, row_index: int, tag: str) -> random.Random:
+    """Deterministic RNG for demand variation (stable across Python runs)."""
+    payload = f"{seed}:{day_id}:{row_index}:{tag}".encode()
+    digest = hashlib.sha256(payload).digest()
+    s = int.from_bytes(digest[:8], "big") & ((1 << 63) - 1)
+    return random.Random(s)
+
+
+def _emit_subslot_flows(
+    add_flow,
+    slot_begin: float,
+    slot_end: float,
+    from_approach: str,
+    to_approach: str,
+    base_vph: float,
+    *,
+    full_slot_seconds: float,
+    subslots_per_slot: int,
+    spread: float,
+    rng: Optional[random.Random],
+) -> None:
+    """Split one CSV slot into shorter SUMO flows with fluctuating vehsPerHour.
+
+    Rates are renormalized so expected vehicles in the interval match a single
+    constant base_vph over the same duration. Falls back to one flow if variation
+    is off or any sub-rate would drop below SUMO's practical emission threshold.
+    """
+    duration = slot_end - slot_begin
+    if duration <= 0:
+        return
+    k = int(subslots_per_slot)
+    if (
+        k <= 1
+        or spread <= 0.0
+        or rng is None
+        or duration < full_slot_seconds - 1e-6
+    ):
+        add_flow(slot_begin, slot_end, from_approach, to_approach, base_vph)
+        return
+
+    weights = [math.exp(spread * rng.gauss(0.0, 1.0)) for _ in range(k)]
+    wsum = sum(weights)
+    vph_list = [base_vph * k * w / wsum for w in weights]
+    if min(vph_list) < 0.5:
+        add_flow(slot_begin, slot_end, from_approach, to_approach, base_vph)
+        return
+
+    step = duration / k
+    for i in range(k):
+        b = slot_begin + i * step
+        e = slot_end if i == k - 1 else slot_begin + (i + 1) * step
+        add_flow(b, e, from_approach, to_approach, vph_list[i])
+
+
+def write_sumo_flows(
+    df,
+    active,
+    slot_minutes,
+    out_dir,
+    int_cfg=None,
+    *,
+    subslots_per_slot: int = 5,
+    spread: float = 0.85,
+    variation_seed: int = 42,
+):
+    """Generate one .rou.xml flow file per sim_day with overnight fill and taper.
+
+    When ``subslots_per_slot`` > 1 and ``spread`` > 0, each full-width CSV slot
+    is emitted as several consecutive flows with randomized ``vehsPerHour`` (same
+    expected vehicle count as one flat rate).
+    """
     os.makedirs(out_dir, exist_ok=True)
     slots_sorted = sorted(df["start_time"].unique())
     data_start = time_to_seconds(slots_sorted[0])
     data_end = time_to_seconds(slots_sorted[-1]) + slot_minutes * 60
     vph_factor = 60.0 / slot_minutes
+    full_slot_seconds = float(slot_minutes * 60)
     n_days = df["sim_day"].nunique()
+    use_variation = int(subslots_per_slot) > 1 and float(spread) > 0.0
 
     if int_cfg is None:
         int_cfg = {}
@@ -289,27 +362,61 @@ def write_sumo_flows(df, active, slot_minutes, out_dir, int_cfg=None):
                 target = TURN_TARGETS[d][movement]
                 add_flow(0, data_start, d, target, OVERNIGHT_VPH / n_allowed)
 
-        for _, row in day_df.iterrows():
+        for row_index, (_, row) in enumerate(day_df.iterrows()):
             begin = time_to_seconds(row["start_time"])
-            end = begin + slot_minutes * 60
+            end = begin + full_slot_seconds
             for d, movement in sorted(allowed):
                 target = TURN_TARGETS[d][movement]
-                add_flow(begin, end, d, target, row[f"{d}_{movement}"] * vph_factor)
+                base_vph = row[f"{d}_{movement}"] * vph_factor
+                tag = f"{d}_{movement}"
+                rng = (
+                    _variation_rng(variation_seed, day_id, row_index, tag)
+                    if use_variation
+                    else None
+                )
+                _emit_subslot_flows(
+                    add_flow,
+                    begin,
+                    end,
+                    d,
+                    target,
+                    base_vph,
+                    full_slot_seconds=full_slot_seconds,
+                    subslots_per_slot=subslots_per_slot,
+                    spread=spread,
+                    rng=rng,
+                )
 
         remaining = SIM_DURATION - data_end
         if remaining > 0:
             last_row = day_df.iloc[-1]
-            n_taper = math.ceil(remaining / (slot_minutes * 60))
+            n_taper = math.ceil(remaining / full_slot_seconds)
             for i in range(n_taper):
                 t_frac = i / max(n_taper - 1, 1)
-                begin = data_end + i * slot_minutes * 60
-                end = min(begin + slot_minutes * 60, SIM_DURATION)
+                begin = data_end + i * full_slot_seconds
+                end = min(begin + full_slot_seconds, SIM_DURATION)
+                taper_row_index = 1_000_000 + i
                 for d, movement in sorted(allowed):
                     target = TURN_TARGETS[d][movement]
                     last_vph = last_row[f"{d}_{movement}"] * vph_factor
-                    add_flow(
-                        begin, end, d, target,
-                        last_vph * (1 - t_frac) + (OVERNIGHT_VPH / n_allowed) * t_frac,
+                    blended = last_vph * (1 - t_frac) + (OVERNIGHT_VPH / n_allowed) * t_frac
+                    tag = f"taper{i}_{d}_{movement}"
+                    rng = (
+                        _variation_rng(variation_seed, day_id, taper_row_index, tag)
+                        if use_variation
+                        else None
+                    )
+                    _emit_subslot_flows(
+                        add_flow,
+                        begin,
+                        end,
+                        d,
+                        target,
+                        blended,
+                        full_slot_seconds=full_slot_seconds,
+                        subslots_per_slot=subslots_per_slot,
+                        spread=spread,
+                        rng=rng,
                     )
 
         raw = ET.tostring(root, encoding="unicode")
@@ -320,6 +427,11 @@ def write_sumo_flows(df, active, slot_minutes, out_dir, int_cfg=None):
             fh.write('<?xml version="1.0" encoding="UTF-8"?>\n')
             fh.write("\n".join(lines))
 
+    if use_variation:
+        print(
+            f"  Demand variation: {int(subslots_per_slot)} sub-slots/slot, spread={float(spread):.3g} "
+            f"(seed={variation_seed})"
+        )
     print(f"  Written {n_days} SUMO flow files -> {out_dir}")
 
 
@@ -367,6 +479,24 @@ def main():
     parser.add_argument(
         "--date-mode", choices=("error", "offset", "concat"), default="concat",
     )
+    parser.add_argument(
+        "--subslots",
+        type=int,
+        default=5,
+        help="Sub-intervals per CSV time slot for SUMO flows (1 = single flat vehsPerHour per slot)",
+    )
+    parser.add_argument(
+        "--demand-spread",
+        type=float,
+        default=0.85,
+        help="Strength of random rate swings between sub-slots; 0 disables variation",
+    )
+    parser.add_argument(
+        "--demand-seed",
+        type=int,
+        default=None,
+        help="RNG seed for demand variation (default: same as --seed)",
+    )
     parser.add_argument("--write-sumocfg", action="store_true")
     parser.add_argument("--sumocfg-out", default="simulation.sumocfg")
     args = parser.parse_args()
@@ -406,7 +536,17 @@ def main():
     write_day_csvs(df, active, days_dir)
 
     print("Writing SUMO flow files …")
-    write_sumo_flows(df, active, slot_minutes, flows_dir, int_cfg)
+    demand_seed = args.demand_seed if args.demand_seed is not None else args.seed
+    write_sumo_flows(
+        df,
+        active,
+        slot_minutes,
+        flows_dir,
+        int_cfg,
+        subslots_per_slot=args.subslots,
+        spread=args.demand_spread,
+        variation_seed=demand_seed,
+    )
 
     print("Creating train/test split …")
     split = split_days(n_days, args.test_days, args.seed)

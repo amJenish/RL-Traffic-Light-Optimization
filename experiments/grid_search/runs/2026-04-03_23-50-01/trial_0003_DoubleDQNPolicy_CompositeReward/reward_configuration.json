@@ -1,0 +1,8 @@
+{
+  "default": {},
+  "CompositeReward": {
+    "alpha": 0.8,
+    "normalise": true,
+    "scale": 1.0
+  }
+}

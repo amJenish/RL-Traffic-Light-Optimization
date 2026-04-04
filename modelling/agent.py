@@ -4,8 +4,10 @@ soft-penalizes holding past max_green instead of forcing a switch."""
 
 import math
 import os
-import numpy as np
+from collections.abc import Sequence
 from typing import Any, Dict, List
+
+import numpy as np
 
 from modelling.components.environment.base   import BaseEnvironment
 from modelling.components.observation.base   import BaseObservation
@@ -31,6 +33,7 @@ class Agent:
         max_green_s:     float = 90.0,
         overshoot_coeff: float = 4.0,
         yellow_duration_s: float = 4.0,
+        episode_kpis:    Sequence[Any] | None = None,
     ):
         self.environment   = environment
         self.observation   = observation
@@ -39,6 +42,7 @@ class Agent:
         self.replay_buffer = replay_buffer
         self.scheduler     = scheduler
         self.eval_reward   = eval_reward
+        self._episode_kpis = tuple(episode_kpis or ())
 
         self._step_length       = step_length
         self._yellow_duration_s = yellow_duration_s
@@ -87,6 +91,8 @@ class Agent:
         self.reward.reset()
         if self.eval_reward is not None:
             self.eval_reward.reset()
+        for kpi in self._episode_kpis:
+            kpi.reset()
         self.policy.reset_phase_tracking()
 
         self._episode_reward = 0.0
@@ -329,7 +335,13 @@ class Agent:
         """Close SUMO and return episode metrics."""
         self.environment.close()
         mean_loss = float(np.mean(self._episode_losses)) if self._episode_losses else None
-        lr = self.scheduler.get_lr() if self.scheduler else None
+        if self.scheduler is not None:
+            lr = self.scheduler.get_lr()
+        else:
+            lr = None
+            opt = getattr(self.policy, "optimizer", None)
+            if opt is not None and opt.param_groups:
+                lr = float(opt.param_groups[0]["lr"])
         metrics: dict[str, Any] = {
             "total_reward": self._episode_reward,
             "steps":        self._episode_steps,
@@ -337,6 +349,9 @@ class Agent:
             "epsilon":      getattr(self.policy, "epsilon", None),
             "learning_rate": lr,
         }
+        elapsed = self._kpi_elapsed_s()
+        for kpi in self._episode_kpis:
+            kpi.contribute_episode_metrics(metrics, elapsed)
         return metrics
 
     def take_phase_sequence_export(self) -> dict[str, list[dict[str, Any]]]:
@@ -391,11 +406,20 @@ class Agent:
                 state = torch.load(sched_path, map_location="cpu")
                 self.scheduler.load_state_dict(state)
 
+    def _kpi_elapsed_s(self) -> float:
+        b = getattr(self.environment, "_begin", None)
+        e = getattr(self.environment, "_end", None)
+        if b is not None and e is not None:
+            return float(e - b)
+        return 1.0
+
     def _notify_simulation_step(self, accumulate_reward: bool = True) -> None:
         """Let rewards that need per-SUMO-step accounting (e.g. throughput) update state."""
         traci = self.environment.traci
         for tls_id in self.environment.get_tls_ids():
             self.reward.on_simulation_step(traci, tls_id, accumulate=accumulate_reward)
+            for kpi in self._episode_kpis:
+                kpi.on_simulation_step(traci, tls_id, accumulate=accumulate_reward)
 
     def _get_observations(self) -> dict[str, np.ndarray]:
         traci = self.environment.traci

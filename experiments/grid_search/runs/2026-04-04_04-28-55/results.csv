@@ -1,0 +1,1 @@
+trial_id,status,seed,reward_class_name,policy_class_name,config_key,test_crossings_rate_mean,test_crossings_rate_std,reward.alpha,reward.normalise,reward.queue_weight,reward.scale,reward.switch_weight,reward.throughput_weight,policy.batch_size,policy.epsilon_decay,policy.epsilon_end,policy.epsilon_start,policy.gamma,policy.hidden,policy.lr,policy.n_actions,policy.target_update

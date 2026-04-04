@@ -1,16 +1,16 @@
 {
-  "_comment": "Single source of truth for main.py. Paths are relative to the project root unless absolute. Reward/policy hyperparameters: reward_configuration.json and policy_configuration.json. Class selection: components.reward_class / components.policy_class.",
+  "_comment": "Project defaults for main.py / Streamlit. Reward and policy hyperparameters live in reward_configuration and policy_configuration below. Optional paths.reward_configuration / paths.policy_configuration point to external JSON fallbacks when those embedded objects are omitted or empty. Top-level policy and reward override last. components.* selects Python classes.",
 
   "paths": {
+    "_about": "Data locations and SUMO. To load reward/policy from files instead of embedded config, set reward_configuration and policy_configuration to JSON paths.",
     "csv": "src/data/synthetic_toronto_data.csv",
     "intersection": "src/intersection.json",
     "columns": "src/columns.json",
-    "reward_configuration": "modelling/components/reward/reward_configuration.json",
-    "policy_configuration": "modelling/components/policy/policy_configuration.json",
     "sumo_home": ""
   },
 
   "training": {
+    "_about": "Trainer loop: epochs, train/test day counts, logging, LR floor, optional cosine scheduler, and divisor for estimated decisions per episode (used for epsilon decay and TOTAL_UPDATES).",
     "n_epochs": 200,
     "train_days": 1,
     "test_days": 5,
@@ -23,6 +23,7 @@
   },
 
   "simulation": {
+    "_about": "SUMO step length, how often the agent acts (decision_gap in SUMO steps), simulation time window in seconds from midnight, and whether to use GUI.",
     "step_length": 1.0,
     "decision_gap": 10,
     "begin": 28800,
@@ -30,7 +31,15 @@
     "gui": false
   },
 
+  "flow_demand": {
+    "_about": "Before SUMO: split each CSV time slot into sub-intervals with randomized vehsPerHour (renormalized so expected vehicles per slot match the counts). Set subslots_per_slot to 1 or spread to 0 for the old flat rate per slot.",
+    "subslots_per_slot": 5,
+    "spread": 0.85,
+    "seed": null
+  },
+
   "phase_timing": {
+    "_about": "Traffic-signal timing passed to the agent: minimum green before a switch is allowed, soft maximum green, yellow length, and overshoot_coeff scaling how far past max green is tolerated.",
     "min_green_s": 15,
     "max_green_s": 90,
     "overshoot_coeff": 1.0,
@@ -38,6 +47,7 @@
   },
 
   "observation": {
+    "_about": "Observation vector shapes / caps for QueueObservation (lanes, phases, timers, per-lane vehicle counts).",
     "max_lanes": 16,
     "max_phase": 7,
     "max_phase_time": 120.0,
@@ -45,26 +55,95 @@
   },
 
   "components": {
-    "reward_class": "WaitingTimeReward",
-    "policy_class": "DoubleDQNPolicy"
+    "_about": "Which concrete classes main.py imports. eval_reward_class null means train and eval use the same reward.",
+    "reward_class": "CompositeReward",
+    "policy_class": "DoubleDQNPolicy",
+    "eval_reward_class": null,
+    "environment_class": "SumoEnvironment",
+    "observation_class": "QueueObservation",
+    "replay_buffer_class": "UniformReplayBuffer"
+  },
+
+  "reward_configuration": {
+    "_about": "Merged as {**default, **<components.reward_class>}. Keys starting with _ and parameter_help are ignored when building kwargs. Add or edit a block named exactly like the reward class.",
+    "parameter_help": {
+      "normalise": "If true, reward modules may scale raw signals to a bounded range (class-specific).",
+      "scale": "Global multiplier applied to the (possibly normalised) reward.",
+      "alpha": "CompositeReward: weight on the first sub-reward vs the second (see CompositeReward implementation).",
+      "throughput_weight": "ThroughputQueueReward: relative weight of the throughput term.",
+      "queue_weight": "ThroughputQueueReward: relative weight of the queue term.",
+      "switch_weight": "Penalty weight for phase switches (ThroughputQueueReward, WaitingTimeReward)."
+    },
+    "default": {
+      "normalise": true,
+      "scale": 1.0
+    },
+    "CompositeReward": {
+      "alpha": 0.65
+    },
+    "ThroughputReward": {
+      "normalise": false
+    },
+    "ThroughputQueueReward": {
+      "normalise": true,
+      "scale": 1.0,
+      "throughput_weight": 0.5,
+      "queue_weight": 0.25,
+      "switch_weight": 0.5
+    },
+    "DeltaVehicleCountReward": {},
+    "VehicleCountReward": {},
+    "WaitingTimeReward": {
+      "normalise": true,
+      "scale": 1.0,
+      "switch_weight": 0.5
+    },
+    "DeltaWaitingTimeReward": {}
+  },
+
+  "policy_configuration": {
+    "_about": "Merged as {**default, **<components.policy_class>}. Epsilon decay may be the string 'auto' (derived from TOTAL_UPDATES) or a numeric factor per step. learning_rate in top-level policy overrides lr here.",
+    "parameter_help": {
+      "lr": "Adam learning rate for the Q-network.",
+      "gamma": "Discount factor for bootstrapped targets.",
+      "epsilon_start": "Initial exploration probability (epsilon-greedy).",
+      "epsilon_end": "Floor for epsilon after decay.",
+      "epsilon_decay": "Per-step epsilon multiplier, or 'auto' to match ~85% of total gradient updates.",
+      "target_update": "How often (in gradient steps) to sync target network weights.",
+      "batch_size": "Transitions sampled per training step.",
+      "hidden": "Width of the hidden MLP layers.",
+      "n_actions": "Number of discrete actions (typically 2: stay / switch phase)."
+    },
+    "default": {
+      "lr": 0.01,
+      "gamma": 0.95,
+      "epsilon_start": 1.0,
+      "epsilon_end": 0.05,
+      "epsilon_decay": "auto",
+      "target_update": 50,
+      "batch_size": 128,
+      "hidden": 256,
+      "n_actions": 2
+    },
+    "DoubleDQNPolicy": {},
+    "DQNPolicy": {}
   },
 
   "policy": {
-    "learning_rate": 0.01,
-    "gamma": 0.95,
-    "epsilon_start": 1.0,
-    "epsilon_end": 0.05,
-    "epsilon_decay": 0.99998415,
-    "target_update": 50,
-    "batch_size": 128,
-    "hidden": 256
+    "_about": "Optional last-chance overrides on merged policy kwargs. learning_rate is mapped to lr. Omit keys you do not want to override."
+  },
+
+  "reward": {
+    "_about": "Optional last-chance overrides on merged reward kwargs (same keys as the selected reward class / default)."
   },
 
   "replay_buffer": {
+    "_about": "UniformReplayBuffer capacity (number of transitions stored).",
     "capacity": 8000
   },
 
   "output": {
+    "_about": "Directories for processed data, training logs, plots, and saved models.",
     "out_dir": "src/data",
     "results_dir": "src/data/results",
     "result_graphs_dir": "src/data/result_graphs",

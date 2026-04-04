@@ -4,7 +4,7 @@ Grid search runner for RL traffic control.
 This is a lightweight "GridSearchCV equivalent" for your setup:
 - Sweep reward + policy hyperparameters using JSON search spaces.
 - Run each trial end-to-end (train on train days, evaluate on test days).
-- Compute a shared KPI (crossings) that matches `ThroughputReward` semantics.
+- Compute KPIs via `KPIS` (crossings, throughput, neg lane-waiting integral); `schedule.json` per trial when possible.
 - Write per-trial results to `results.csv` and an aggregated `leaderboard.csv`.
 """
 
@@ -30,8 +30,10 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 import main as main_mod
-from visualization.visualize_results import render_run_graphs
+from KPIS import aggregate_test_kpis, default_episode_kpis
 from modelling.agent import Agent
+from modelling.schedule_export import write_schedule_for_run, write_test_sequence_episode_json
+from visualization.visualize_results import render_run_graphs
 from modelling.components.environment.sumo_environment import SumoEnvironment
 from modelling.components.observation.queue_observation import QueueObservation
 from modelling.components.policy.dqn import DQNPolicy
@@ -102,41 +104,6 @@ def _flatten_params(d: dict[str, Any], prefix: str = "") -> dict[str, Any]:
     return out
 
 
-class RewardWithCrossingsKPI:
-    """Wraps a primary reward and tracks crossings using ThroughputReward semantics.
-
-    The returned reward is exactly the primary reward's compute output.
-    """
-
-    def __init__(self, primary_reward: Any, kpi_reward: ThroughputReward):
-        self._primary = primary_reward
-        self._kpi = kpi_reward
-        self._crossings_total: float = 0.0
-
-    def reset(self) -> None:
-        self._primary.reset()
-        self._kpi.reset()
-        self._crossings_total = 0.0
-
-    def on_simulation_step(self, traci: Any, tls_id: str, *, accumulate: bool = True) -> None:
-        self._primary.on_simulation_step(traci, tls_id, accumulate=accumulate)
-        self._kpi.on_simulation_step(traci, tls_id, accumulate=accumulate)
-
-    def compute(
-        self, traci: Any, tls_id: str, *, switched: bool = False
-    ) -> float:
-        primary_interval = self._primary.compute(
-            traci, tls_id, switched=switched
-        )
-        kpi_interval = self._kpi.compute(traci, tls_id)
-        self._crossings_total += float(kpi_interval)
-        return float(primary_interval)
-
-    @property
-    def crossings_total(self) -> float:
-        return float(self._crossings_total)
-
-
 @dataclass
 class Trial:
     trial_id: str
@@ -201,8 +168,6 @@ def _build_agent(
     )
 
     primary_reward = reward_cls(**reward_kwargs)
-    kpi_reward = ThroughputReward(normalise=False, scale=1.0)
-    reward_wrapped = RewardWithCrossingsKPI(primary_reward, kpi_reward)
 
     policy = policy_cls(
         obs_dim=obs_builder.size(),
@@ -225,17 +190,18 @@ def _build_agent(
     agent = Agent(
         environment=environment,
         observation=obs_builder,
-        reward=reward_wrapped,
+        reward=primary_reward,
         policy=policy,
         replay_buffer=replay_buffer,
-        scheduler=None,  # keep consistent with your stable setup
+        scheduler=None,
         step_length=main_mod.STEP_LENGTH,
         min_green_s=main_mod.MIN_GREEN_S,
         max_green_s=main_mod.MAX_GREEN_S,
         overshoot_coeff=main_mod.OVERSHOOT_COEFF,
         yellow_duration_s=main_mod.YELLOW_DURATION_S,
+        episode_kpis=default_episode_kpis(),
     )
-    return agent, reward_wrapped
+    return agent
 
 
 def _write_trial_snapshot(trial_dir: str, trial: Trial) -> None:
@@ -290,21 +256,21 @@ def _write_config_txt(
         f.write("\n".join(lines) + "\n")
 
 
-def _run_episode_loop(agent: Agent, reward_wrapped: RewardWithCrossingsKPI, route_file: str) -> dict[str, Any]:
+def _run_episode_loop(agent: Agent, route_file: str) -> dict[str, Any]:
     obs = agent.start_episode(route_file)
     done = False
     while not done:
         obs, rewards, done, loss = agent.step(obs)
-    metrics = agent.end_episode()
-    return {
-        **metrics,
-        "crossings_total": reward_wrapped.crossings_total,
-    }
+    return agent.end_episode()
 
 
-def _compute_rate(crossings_total: float) -> float:
-    elapsed = float(main_mod.SIM_END - main_mod.SIM_BEGIN)
-    return float(crossings_total) / max(1e-9, elapsed)
+def _run_test_episode_save_sequence(
+    agent: Agent, route_file: str, trial_dir: str, episode_idx: int
+) -> dict[str, Any]:
+    metrics = _run_episode_loop(agent, route_file)
+    export = agent.take_phase_sequence_export()
+    write_test_sequence_episode_json(trial_dir, episode_idx, export)
+    return metrics
 
 
 def _is_diverged(mean_loss: float | None, threshold: float) -> bool:
@@ -406,6 +372,8 @@ def build_leaderboard(results_csv_path: str, leaderboard_csv_path: str) -> None:
         rates = [float(t["test_crossings_rate_mean"]) for t in trials]
         mean_rate = float(np.mean(rates))
         std_rate = float(np.std(rates))
+        tr = [float(t.get("test_throughput_rate_mean", 0)) for t in trials]
+        nw = [float(t.get("test_neg_lane_waiting_integral_mean", 0)) for t in trials]
 
         out_rows.append(
             {
@@ -413,29 +381,60 @@ def build_leaderboard(results_csv_path: str, leaderboard_csv_path: str) -> None:
                 "n_seeds": len(trials),
                 "mean_crossings_rate": mean_rate,
                 "std_crossings_rate": std_rate,
+                "mean_throughput_rate": float(np.mean(tr)) if tr else 0.0,
+                "std_throughput_rate": float(np.std(tr)) if len(tr) > 1 else 0.0,
+                "mean_neg_lane_waiting_integral": float(np.mean(nw)) if nw else 0.0,
+                "std_neg_lane_waiting_integral": float(np.std(nw)) if len(nw) > 1 else 0.0,
             }
         )
 
     out_rows.sort(key=lambda x: (-x["mean_crossings_rate"], x["std_crossings_rate"]))
 
+    lb_fields = [
+        "config_key",
+        "n_seeds",
+        "mean_crossings_rate",
+        "std_crossings_rate",
+        "mean_throughput_rate",
+        "std_throughput_rate",
+        "mean_neg_lane_waiting_integral",
+        "std_neg_lane_waiting_integral",
+    ]
     with open(leaderboard_csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["config_key", "n_seeds", "mean_crossings_rate", "std_crossings_rate"],
+            fieldnames=lb_fields,
         )
         writer.writeheader()
         writer.writerows(out_rows)
+
+
+def _apply_training_epochs_for_grid(epochs: int) -> None:
+    """Override ``main_mod.EPOCHS`` and recompute ``TOTAL_UPDATES`` (for ``epsilon_decay`` auto)."""
+    main_mod.EPOCHS = int(epochs)
+    sim_seconds = float(main_mod.SIM_END - main_mod.SIM_BEGIN)
+    steps_per_ep = sim_seconds / main_mod.STEP_LENGTH
+    divisor = float(getattr(main_mod, "DECISIONS_PER_EP_DIVISOR", 2.0) or 2.0)
+    decisions_per_ep = steps_per_ep / divisor
+    main_mod.TOTAL_UPDATES = max(1, int(main_mod.EPOCHS * main_mod.TRAIN_SIZE * decisions_per_ep))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="RL grid search runner (RL version of GridSearchCV).")
     parser.add_argument("--reward_space", default=None, help="Path to reward_search_space.json")
     parser.add_argument("--policy_space", default=None, help="Path to policy_search_space.json")
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=300,
+        help="Training epochs per trial (overrides root config EPOCHS; default 300)",
+    )
     parser.add_argument("--use_gui", action="store_true", help="Launch sumo-gui")
     parser.add_argument("--max_trials", type=int, default=0, help="0 = no limit")
     parser.add_argument("--diverged_loss_threshold", type=float, default=1e4, help="Mean loss threshold")
     parser.add_argument("--output_root", default="experiments/grid_search", help="Root folder for the sweep")
     args = parser.parse_args()
+    _apply_training_epochs_for_grid(args.epochs)
 
     this_dir = os.path.dirname(os.path.abspath(__file__))
     reward_space_path = args.reward_space or os.path.join(this_dir, "reward_search_space.json")
@@ -468,6 +467,14 @@ def main() -> None:
         "config_key",
         "test_crossings_rate_mean",
         "test_crossings_rate_std",
+        "test_crossings_total_mean",
+        "test_crossings_total_std",
+        "test_throughput_rate_mean",
+        "test_throughput_rate_std",
+        "test_throughput_total_mean",
+        "test_throughput_total_std",
+        "test_neg_lane_waiting_integral_mean",
+        "test_neg_lane_waiting_integral_std",
     ]
 
     # Flatten param kwargs into fields. Use the union across all trials so the
@@ -503,7 +510,7 @@ def main() -> None:
             _write_trial_snapshot(trial_dir, trial)
 
             # Build agent per trial seed.
-            agent, reward_wrapped = _build_agent(
+            agent = _build_agent(
                 net_file=net_file,
                 use_gui=bool(args.use_gui),
                 reward_class_name=trial.reward_class_name,
@@ -525,10 +532,14 @@ def main() -> None:
                 for day_id in split["train"]:
                     episode_counter += 1
                     route_file = os.path.join(flows_dir, f"flows_day_{day_id:02d}.rou.xml")
-                    ep_stats = _run_episode_loop(agent, reward_wrapped, route_file)
-                    ep_cross_rate = _compute_rate(float(ep_stats["crossings_total"]))
-                    ep_stats["crossings_rate"] = ep_cross_rate
-                    ep_stats["crossings_total"] = float(ep_stats["crossings_total"])
+                    ep_stats = _run_episode_loop(agent, route_file)
+                    ep_stats["crossings_total"] = float(
+                        ep_stats.get("crossings_total", ep_stats.get("kpi_crossings_total", 0))
+                    )
+                    ep_stats["crossings_rate"] = float(
+                        ep_stats.get("crossings_rate", ep_stats.get("kpi_crossings_rate", 0))
+                    )
+                    ep_cross_rate = ep_stats["crossings_rate"]
                     ep_stats["epoch"] = epoch
                     ep_stats["day_id"] = day_id
                     ep_stats["episode"] = episode_counter
@@ -553,8 +564,6 @@ def main() -> None:
             # Test
             agent.set_eval_mode()
             test_log: list[dict[str, Any]] = []
-            test_crossings_rates: list[float] = []
-            test_crossings_totals: list[float] = []
             test_total_rewards: list[float] = []
             test_losses: list[float] = []
 
@@ -562,26 +571,32 @@ def main() -> None:
             for test_day_id in split["test"]:
                 test_episode_counter += 1
                 route_file = os.path.join(flows_dir, f"flows_day_{test_day_id:02d}.rou.xml")
-                ep_stats = _run_episode_loop(agent, reward_wrapped, route_file)
-                ep_cross_rate = _compute_rate(float(ep_stats["crossings_total"]))
-                ep_stats["crossings_rate"] = ep_cross_rate
-                ep_stats["crossings_total"] = float(ep_stats["crossings_total"])
+                ep_stats = _run_test_episode_save_sequence(
+                    agent, route_file, trial_dir, test_episode_counter
+                )
+                ep_stats["crossings_total"] = float(
+                    ep_stats.get("crossings_total", ep_stats.get("kpi_crossings_total", 0))
+                )
+                ep_stats["crossings_rate"] = float(
+                    ep_stats.get("crossings_rate", ep_stats.get("kpi_crossings_rate", 0))
+                )
+                ep_cross_rate = ep_stats["crossings_rate"]
                 ep_stats["day_id"] = test_day_id
                 ep_stats["episode"] = test_episode_counter
 
                 test_log.append(ep_stats)
 
-                test_crossings_rates.append(ep_cross_rate)
-                test_crossings_totals.append(float(ep_stats["crossings_total"]))
                 test_total_rewards.append(float(ep_stats.get("total_reward", 0.0)))
                 ep_loss = ep_stats.get("mean_loss")
                 if ep_loss is not None:
                     test_losses.append(float(ep_loss))
 
-            # Collect aggregates for leaderboard.
-            test_rates_arr = np.array(test_crossings_rates, dtype=np.float64) if test_crossings_rates else np.array([0.0])
-            test_rate_mean = float(np.mean(test_rates_arr))
-            test_rate_std = float(np.std(test_rates_arr))
+            _sim_elapsed = float(main_mod.SIM_END - main_mod.SIM_BEGIN)
+            kpi_agg = aggregate_test_kpis(test_log, _sim_elapsed)
+            days_dir = os.path.join(main_mod.OUT_DIR, "processed", "days")
+            _sched = write_schedule_for_run(trial_dir, test_log, days_dir, warn=print)
+            if _sched:
+                print(f"[gridsearch] schedule.json -> {_sched}")
 
             # Save trial artifacts (logs + final model).
             with open(os.path.join(trial_dir, "train_log.json"), "w", encoding="utf-8") as f:
@@ -598,8 +613,7 @@ def main() -> None:
                 "reward_class_name": trial.reward_class_name,
                 "policy_class_name": trial.policy_class_name,
                 "config_key": _config_key(trial),
-                "test_crossings_rate_mean": test_rate_mean,
-                "test_crossings_rate_std": test_rate_std,
+                **kpi_agg,
             }
             for k, v in sorted(trial.reward_kwargs.items()):
                 row[f"reward.{k}"] = v
@@ -631,6 +645,14 @@ def main() -> None:
                 "config_key": _config_key(trial),
                 "test_crossings_rate_mean": 0.0,
                 "test_crossings_rate_std": 0.0,
+                "test_crossings_total_mean": 0.0,
+                "test_crossings_total_std": 0.0,
+                "test_throughput_rate_mean": 0.0,
+                "test_throughput_rate_std": 0.0,
+                "test_throughput_total_mean": 0.0,
+                "test_throughput_total_std": 0.0,
+                "test_neg_lane_waiting_integral_mean": 0.0,
+                "test_neg_lane_waiting_integral_std": 0.0,
             }
             for k, v in sorted(trial.reward_kwargs.items()):
                 fail_row[f"reward.{k}"] = v

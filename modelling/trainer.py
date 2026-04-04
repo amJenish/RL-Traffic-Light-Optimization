@@ -2,20 +2,22 @@
 
 import json
 import os
-import statistics
 import sys
 from pathlib import Path
 from typing import Any, Callable
 
-import pandas as pd
-
 from modelling.agent import Agent
+from modelling.schedule_export import (
+    aggregate_schedule,
+    collect_schedule_entries_from_run,
+    write_schedule_json,
+    write_test_sequence_episode_json,
+)
 
-# Project root (for preprocessing.BuildRoute.time_to_seconds)
+# Project root
 _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
-from preprocessing.BuildRoute import time_to_seconds  # noqa: E402
 
 
 class Trainer:
@@ -112,40 +114,16 @@ class Trainer:
 
         schedule_path: str | None = None
         if self._days_dir:
-            all_entries: list[dict[str, Any]] = []
-            for ep_idx, m in enumerate(self._test_log, start=1):
-                day_id = int(m["day_id"])
-                seq_path = os.path.join(
-                    self.output_dir, "test_sequences", f"episode_{ep_idx:03d}.json"
-                )
-                if os.path.isfile(seq_path):
-                    with open(seq_path, encoding="utf-8") as sf:
-                        seq_data = json.load(sf)
-                    seq = seq_data.get("tls_sequences") or {}
-                else:
-                    seq = {}
-                coverage = self._load_coverage_intervals(day_id)
-                if not coverage:
-                    continue
-                for tls_id, events in seq.items():
-                    for ev in events:
-                        st = float(ev["sim_time"])
-                        if not any(a <= st < b for a, b in coverage):
-                            continue
-                        all_entries.append(
-                            {
-                                "tls_id": tls_id,
-                                "day_id": day_id,
-                                "phase": int(ev["phase"]),
-                                "duration_s": float(ev["duration_s"]),
-                                "sim_time": st,
-                                "bucket_start_s": 900 * (int(st) // 900),
-                            }
-                        )
+            all_entries = collect_schedule_entries_from_run(
+                self.output_dir,
+                self._test_log,
+                self._days_dir,
+                warn=self._emit,
+            )
             if all_entries:
-                schedule = self._aggregate_schedule(all_entries)
+                schedule = aggregate_schedule(all_entries)
                 schedule_path = os.path.join(self.output_dir, "schedule.json")
-                self._save_schedule(schedule, schedule_path)
+                write_schedule_json(schedule_path, schedule)
                 self._emit(f"Schedule saved -> {schedule_path}")
             else:
                 self._emit(
@@ -170,66 +148,6 @@ class Trainer:
         if schedule_path is not None:
             out["schedule_path"] = schedule_path
         return out
-
-    def _load_coverage_intervals(self, day_id: int) -> list[tuple[int, int]]:
-        """Return [begin_s, end_s) intervals from processed day CSV (demand coverage)."""
-        if not self._days_dir:
-            return []
-        path = os.path.join(self._days_dir, f"day_{day_id:02d}.csv")
-        if not os.path.isfile(path):
-            self._emit(f"  Warning: day CSV not found: {path}")
-            return []
-        df = pd.read_csv(path)
-        intervals: list[tuple[int, int]] = []
-        for _, row in df.iterrows():
-            begin = time_to_seconds(row["start_time"])
-            if "end_time" in df.columns and pd.notna(row.get("end_time")):
-                end = time_to_seconds(row["end_time"])
-            else:
-                end = begin + 15 * 60
-            intervals.append((begin, end))
-        return intervals
-
-    def _aggregate_schedule(self, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Group by (tls_id, phase, 15-min bucket); median/std/n on duration_s."""
-        groups: dict[tuple[str, int, int], list[float]] = {}
-        for e in entries:
-            key = (e["tls_id"], int(e["phase"]), int(e["bucket_start_s"]))
-            groups.setdefault(key, []).append(float(e["duration_s"]))
-
-        rows: list[dict[str, Any]] = []
-        for (tls_id, phase, bucket_start_s), durations in groups.items():
-            n = len(durations)
-            med = float(statistics.median(durations))
-            std = float(statistics.pstdev(durations)) if n > 1 else 0.0
-            rows.append(
-                {
-                    "tls_id": tls_id,
-                    "phase": phase,
-                    "bucket_start_s": bucket_start_s,
-                    "median_s": med,
-                    "std_s": std,
-                    "n": n,
-                }
-            )
-        rows.sort(key=lambda r: (r["bucket_start_s"], r["tls_id"], r["phase"]))
-        return rows
-
-    def _save_schedule(self, schedule: list[dict[str, Any]], path: str) -> None:
-        with open(path, "w") as f:
-            json.dump({"buckets": schedule}, f, indent=2)
-
-    def _write_test_sequence_json(
-        self,
-        episode_idx: int,
-        tls_sequences: dict[str, list[dict[str, Any]]],
-    ) -> None:
-        seq_dir = os.path.join(self.output_dir, "test_sequences")
-        os.makedirs(seq_dir, exist_ok=True)
-        path = os.path.join(seq_dir, f"episode_{episode_idx:03d}.json")
-        payload = {"episode": episode_idx, "tls_sequences": tls_sequences}
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
 
     def _run_episode(
         self,

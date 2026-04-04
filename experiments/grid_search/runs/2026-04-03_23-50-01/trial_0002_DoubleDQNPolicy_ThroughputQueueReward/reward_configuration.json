@@ -1,0 +1,10 @@
+{
+  "default": {},
+  "ThroughputQueueReward": {
+    "throughput_weight": 1.0,
+    "queue_weight": 0.25,
+    "switch_weight": 0.0,
+    "normalise": true,
+    "scale": 1.0
+  }
+}

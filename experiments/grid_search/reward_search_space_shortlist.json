@@ -5,30 +5,17 @@
       "params": {
         "normalise": [true],
         "scale": [1.0],
-        "throughput_weight": [1.0, 2.0],
-        "queue_weight": [0.25, 0.5]
+        "throughput_weight": [0.5],
+        "queue_weight": [0.25],
+        "switch_weight": [0.0, 0.5]
       }
     },
     {
-      "RewardClass": "CompositeReward",
+      "RewardClass": "WaitingTimeReward",
       "params": {
         "normalise": [true],
         "scale": [1.0],
-        "alpha": [0.65, 0.8]
-      }
-    },
-    {
-      "RewardClass": "DeltaVehicleCountReward",
-      "params": {
-        "normalise": [true],
-        "scale": [1.0]
-      }
-    },
-    {
-      "RewardClass": "VehicleCountReward",
-      "params": {
-        "normalise": [true],
-        "scale": [1.0]
+        "switch_weight": [0.0, 0.5]
       }
     }
   ]

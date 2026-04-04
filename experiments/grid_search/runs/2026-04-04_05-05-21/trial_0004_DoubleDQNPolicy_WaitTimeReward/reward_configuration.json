@@ -1,0 +1,8 @@
+{
+  "default": {},
+  "WaitTimeReward": {
+    "normalise": true,
+    "scale": 1.0,
+    "switch_weight": 0.5
+  }
+}

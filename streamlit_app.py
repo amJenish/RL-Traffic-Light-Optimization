@@ -21,6 +21,8 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from KPIS import aggregate_test_kpis, write_results_csv
+
 from streamlit_config_forms import invalidate_config_widget_sync, render_column_and_intersection_forms
 from streamlit_intersection_helpers import (
     build_intersection_dict,
@@ -109,9 +111,11 @@ def _write_eval_config(m, data_out: Path, models_dir: Path, path: Path) -> None:
     reward_kwargs, _ = m._load_component_config(
         m.REWARD_CONFIG_PATH, m.RewardClass.__name__, "Reward"
     )
+    reward_kwargs = m.merge_reward_kwargs_from_config(reward_kwargs)
     policy_kwargs_raw, _ = m._load_component_config(
         m.POLICY_CONFIG_PATH, m.PolicyClass.__name__, "Policy"
     )
+    policy_kwargs_raw = m.merge_policy_kwargs_from_config(policy_kwargs_raw)
     policy_kwargs = m._resolve_policy_params(policy_kwargs_raw)
 
     cfg = {
@@ -402,9 +406,11 @@ def main() -> None:
                 reward_kwargs, _ = m._load_component_config(
                     m.REWARD_CONFIG_PATH, m.RewardClass.__name__, "Reward"
                 )
+                reward_kwargs = m.merge_reward_kwargs_from_config(reward_kwargs)
                 policy_kwargs_raw, _ = m._load_component_config(
                     m.POLICY_CONFIG_PATH, m.PolicyClass.__name__, "Policy"
                 )
+                policy_kwargs_raw = m.merge_policy_kwargs_from_config(policy_kwargs_raw)
                 policy_kwargs = m._resolve_policy_params(policy_kwargs_raw)
                 run_dir = m._create_run_dir()
                 m._write_config_summary(run_dir, use_gui, reward_kwargs, policy_kwargs)
@@ -472,6 +478,33 @@ def main() -> None:
             trainer = m.build_pipeline(net_file, use_gui, run_dir, reward_kwargs, policy_kwargs)
             trainer.log_callback = _on_log
             results = trainer.run()
+            _elapsed = float(m.SIM_END - m.SIM_BEGIN)
+            _kpi_row = {
+                "run_name": os.path.basename(run_dir),
+                "reward_class": m.RewardClass.__name__,
+                "policy_class": m.PolicyClass.__name__,
+                **aggregate_test_kpis(results["test_log"], _elapsed),
+            }
+            _kpi_fields = [
+                "run_name",
+                "reward_class",
+                "policy_class",
+                "test_crossings_rate_mean",
+                "test_crossings_rate_std",
+                "test_crossings_total_mean",
+                "test_crossings_total_std",
+                "test_throughput_rate_mean",
+                "test_throughput_rate_std",
+                "test_throughput_total_mean",
+                "test_throughput_total_std",
+                "test_neg_lane_waiting_integral_mean",
+                "test_neg_lane_waiting_integral_std",
+            ]
+            write_results_csv(
+                os.path.join(run_dir, "results.csv"),
+                _kpi_row,
+                fieldnames=_kpi_fields,
+            )
         except Exception as e:
             st.exception(e)
             return

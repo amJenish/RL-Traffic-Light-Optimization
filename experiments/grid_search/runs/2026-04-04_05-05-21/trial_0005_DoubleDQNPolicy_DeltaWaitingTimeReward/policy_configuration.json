@@ -1,0 +1,14 @@
+{
+  "default": {},
+  "DoubleDQNPolicy": {
+    "lr": 0.001,
+    "epsilon_start": 1.0,
+    "epsilon_end": 0.05,
+    "epsilon_decay": 0.9999951050246053,
+    "batch_size": 256,
+    "gamma": 0.97,
+    "hidden": 256,
+    "target_update": 200,
+    "n_actions": 2
+  }
+}

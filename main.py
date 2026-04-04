@@ -1,8 +1,12 @@
 """
 main.py — single entry point for the full RL traffic signal optimisation pipeline.
 Loads config.json (repo root) by default: paths, training, simulation, observation,
-replay_buffer, output, and components (reward_class / policy_class). Per-class kwargs
-come from paths.reward_configuration and paths.policy_configuration.
+replay_buffer, output, components (classes), optional embedded reward_configuration /
+policy_configuration objects, and optional top-level policy / reward overrides.
+Per-class kwargs merge default + class block from embedded config (if non-empty) else from
+optional paths.reward_configuration / paths.policy_configuration files; then config.json policy / reward
+override (learning_rate maps to lr). Keys starting with _ and the reward key parameter_help
+are documentation-only and are not passed to constructors.
 Run: python main.py [--gui] [--config path/to/config.json]
 """
 from typing import Any
@@ -68,6 +72,7 @@ from modelling.components.replay_buffer.uniform         import UniformReplayBuff
 from modelling.components.scheduler.cosine              import CosineScheduler
 from modelling.agent   import Agent
 from modelling.trainer import Trainer
+from KPIS import aggregate_test_kpis, default_episode_kpis, write_results_csv
 from visualization.visualize_results import render_run_graphs
 from modelling.components.reward.delta_vehicle_count import DeltaVehicleCountReward
 from modelling.components.reward.composite_reward import CompositeReward
@@ -83,11 +88,15 @@ from modelling.components.reward.delta_waiting_time import DeltaWaitingTimeRewar
 
 DEFAULT_CONFIG_PATH = os.path.join(ROOT, "config.json")
 
-# Fixed component implementations (not selectable via JSON)
+# Infrastructure component classes — defaults; overridden by config.json → components.*
 EnvironmentClass  = SumoEnvironment
 ObservationClass  = QueueObservation
 ReplayBufferClass = UniformReplayBuffer
 EvalRewardClass: type | None = None  # optional; None = same reward for train and eval
+
+# config.json ``policy`` / ``reward`` override merged kwargs from *configuration.json (file first, then these).
+POLICY_KWARGS_OVERRIDES: dict[str, Any] = {}
+REWARD_KWARGS_OVERRIDES: dict[str, Any] = {}
 
 # Reward / policy classes: defaults below; overridden by config.json → components.*
 RewardClass: type = ThroughputQueueReward
@@ -100,6 +109,9 @@ INTERSECTION_PATH = ""
 COLUMNS_PATH = ""
 REWARD_CONFIG_PATH = ""
 POLICY_CONFIG_PATH = ""
+# Full reward/policy configuration documents from config.json (non-empty dict → use instead of paths).
+REWARD_CONFIG_DOCUMENT: dict[str, Any] | None = None
+POLICY_CONFIG_DOCUMENT: dict[str, Any] | None = None
 SUMO_HOME = ""
 TRAIN_SIZE = 0
 TEST_SIZE = 0
@@ -126,6 +138,9 @@ OUT_DIR = ""
 RESULTS_DIR = ""
 TOTAL_UPDATES = 0
 DECISIONS_PER_EP_DIVISOR = 0.0
+FLOW_DEMAND_SUBSLOTS = 5
+FLOW_DEMAND_SPREAD = 0.85
+FLOW_DEMAND_VARIATION_SEED = 42
 
 
 def _resolve_path(rel_or_abs: str) -> str:
@@ -144,15 +159,39 @@ def _load_config_data(path: str | None = None) -> dict[str, Any]:
         return json.load(f)
 
 
+def _normalize_policy_overrides(raw: dict[str, Any] | None) -> dict[str, Any]:
+    """Map config.json ``policy`` keys to policy kwargs (``learning_rate`` → ``lr``)."""
+    if not raw:
+        return {}
+    out: dict[str, Any] = dict(raw)
+    if "learning_rate" in out:
+        out["lr"] = out.pop("learning_rate")
+    return {k: v for k, v in out.items() if v is not None}
+
+
+def merge_reward_kwargs_from_config(file_merged: dict[str, Any]) -> dict[str, Any]:
+    """Apply root ``config.json`` ``reward`` overrides on top of reward_configuration merge."""
+    return {**file_merged, **REWARD_KWARGS_OVERRIDES}
+
+
+def merge_policy_kwargs_from_config(file_merged: dict[str, Any]) -> dict[str, Any]:
+    """Apply root ``config.json`` ``policy`` overrides on top of policy_configuration merge."""
+    return {**file_merged, **POLICY_KWARGS_OVERRIDES}
+
+
 def _apply_config(cfg: dict[str, Any]) -> None:
     """Set module-level settings from config.json (also when gridsearch imports main)."""
     global CSV_PATH, INTERSECTION_PATH, COLUMNS_PATH, REWARD_CONFIG_PATH, POLICY_CONFIG_PATH
+    global REWARD_CONFIG_DOCUMENT, POLICY_CONFIG_DOCUMENT
     global SUMO_HOME, TRAIN_SIZE, TEST_SIZE, EPOCHS, STEP_LENGTH, DECISION_GAP
     global SIM_BEGIN, SIM_END, SIMULATION_GUI, MIN_GREEN_S, MAX_GREEN_S, OVERSHOOT_COEFF, YELLOW_DURATION_S
     global MAX_LANES, MAX_PHASE, MAX_PHASE_TIME, MAX_VEHICLES, LR_MIN, BUFFER_CAPACITY
     global SEED, SAVE_EVERY, LOG_EVERY, OUT_DIR, RESULTS_DIR, TOTAL_UPDATES, SchedulerClass
     global DECISIONS_PER_EP_DIVISOR
+    global FLOW_DEMAND_SUBSLOTS, FLOW_DEMAND_SPREAD, FLOW_DEMAND_VARIATION_SEED
     global RewardClass, PolicyClass
+    global EnvironmentClass, ObservationClass, ReplayBufferClass, EvalRewardClass
+    global POLICY_KWARGS_OVERRIDES, REWARD_KWARGS_OVERRIDES
 
     _reward_by_name: dict[str, type] = {
         "CompositeReward": CompositeReward,
@@ -169,6 +208,16 @@ def _apply_config(cfg: dict[str, Any]) -> None:
         "DQNPolicy": DQNPolicy,
         "DoubleDQNPolicy": DoubleDQNPolicy,
     }
+    _environment_by_name: dict[str, type] = {
+        "SumoEnvironment": SumoEnvironment,
+    }
+    _observation_by_name: dict[str, type] = {
+        "QueueObservation": QueueObservation,
+    }
+    _replay_by_name: dict[str, type] = {
+        "UniformReplayBuffer": UniformReplayBuffer,
+    }
+
     comp = cfg.get("components", {})
     _rn = comp.get("reward_class", "ThroughputQueueReward")
     _pn = comp.get("policy_class", "DoubleDQNPolicy")
@@ -185,22 +234,69 @@ def _apply_config(cfg: dict[str, Any]) -> None:
     RewardClass = _reward_by_name[_rn]
     PolicyClass = _policy_by_name[_pn]
 
+    _en = comp.get("environment_class", "SumoEnvironment")
+    if _en not in _environment_by_name:
+        _abort(
+            f"Unknown components.environment_class {_en!r}. "
+            f"Use one of: {', '.join(sorted(_environment_by_name))}"
+        )
+    EnvironmentClass = _environment_by_name[_en]
+
+    _on = comp.get("observation_class", "QueueObservation")
+    if _on not in _observation_by_name:
+        _abort(
+            f"Unknown components.observation_class {_on!r}. "
+            f"Use one of: {', '.join(sorted(_observation_by_name))}"
+        )
+    ObservationClass = _observation_by_name[_on]
+
+    _bn = comp.get("replay_buffer_class", "UniformReplayBuffer")
+    if _bn not in _replay_by_name:
+        _abort(
+            f"Unknown components.replay_buffer_class {_bn!r}. "
+            f"Use one of: {', '.join(sorted(_replay_by_name))}"
+        )
+    ReplayBufferClass = _replay_by_name[_bn]
+
+    eval_raw = comp.get("eval_reward_class")
+    if eval_raw is None or (
+        isinstance(eval_raw, str) and eval_raw.strip().lower() in ("", "none", "null")
+    ):
+        EvalRewardClass = None
+    elif isinstance(eval_raw, str):
+        if eval_raw not in _reward_by_name:
+            _abort(
+                f"Unknown components.eval_reward_class {eval_raw!r}. "
+                f"Use one of: {', '.join(sorted(_reward_by_name))}"
+            )
+        EvalRewardClass = _reward_by_name[eval_raw]
+    else:
+        _abort(f"components.eval_reward_class must be a string or null, got {eval_raw!r}")
+
+    _policy_raw = cfg.get("policy") or {}
+    POLICY_KWARGS_OVERRIDES = _normalize_policy_overrides({
+        k: v
+        for k, v in _policy_raw.items()
+        if not (isinstance(k, str) and k.startswith("_"))
+    })
+    _reward_raw = cfg.get("reward") or {}
+    REWARD_KWARGS_OVERRIDES = {
+        k: v
+        for k, v in _reward_raw.items()
+        if v is not None and not (isinstance(k, str) and k.startswith("_"))
+    }
+
+    _rc_doc = cfg.get("reward_configuration")
+    REWARD_CONFIG_DOCUMENT = _rc_doc if isinstance(_rc_doc, dict) and _rc_doc else None
+    _pc_doc = cfg.get("policy_configuration")
+    POLICY_CONFIG_DOCUMENT = _pc_doc if isinstance(_pc_doc, dict) and _pc_doc else None
+
     paths = cfg.get("paths", {})
     CSV_PATH = _resolve_path(paths.get("csv", "src/data/synthetic_toronto_data.csv"))
     INTERSECTION_PATH = _resolve_path(paths.get("intersection", "src/intersection.json"))
     COLUMNS_PATH = _resolve_path(paths.get("columns", "src/columns.json"))
-    REWARD_CONFIG_PATH = _resolve_path(
-        paths.get(
-            "reward_configuration",
-            os.path.join("modelling", "components", "reward", "reward_configuration.json"),
-        )
-    )
-    POLICY_CONFIG_PATH = _resolve_path(
-        paths.get(
-            "policy_configuration",
-            os.path.join("modelling", "components", "policy", "policy_configuration.json"),
-        )
-    )
+    REWARD_CONFIG_PATH = _resolve_path(paths.get("reward_configuration", "") or "")
+    POLICY_CONFIG_PATH = _resolve_path(paths.get("policy_configuration", "") or "")
 
     cfg_sumo = (paths.get("sumo_home") or "").strip()
     SUMO_HOME = os.environ.get("SUMO_HOME", "").strip() or cfg_sumo or _default_sumo_home()
@@ -216,6 +312,14 @@ def _apply_config(cfg: dict[str, Any]) -> None:
     DECISIONS_PER_EP_DIVISOR = float(training.get("decisions_per_ep_divisor", 2))
     if DECISIONS_PER_EP_DIVISOR < 1e-9:
         DECISIONS_PER_EP_DIVISOR = 2.0
+
+    _fd = cfg.get("flow_demand") or {}
+    if not isinstance(_fd, dict):
+        _fd = {}
+    FLOW_DEMAND_SUBSLOTS = max(1, int(_fd.get("subslots_per_slot", 5)))
+    FLOW_DEMAND_SPREAD = float(_fd.get("spread", 0.85))
+    _fd_seed = _fd.get("seed")
+    FLOW_DEMAND_VARIATION_SEED = int(_fd_seed) if _fd_seed is not None else SEED
 
     sched_raw = training.get("scheduler", "cosine")
     if sched_raw is None or (isinstance(sched_raw, str) and sched_raw.lower() in ("none", "")):
@@ -287,18 +391,51 @@ def _banner(text: str):
     print(f"{'='*60}")
 
 
+def _strip_meta_kwargs_block(block: Any) -> dict[str, Any]:
+    """Remove documentation keys from a default or per-class block (``_*``, ``parameter_help``)."""
+    if not isinstance(block, dict):
+        return {}
+    return {
+        k: v
+        for k, v in block.items()
+        if not (isinstance(k, str) and (k.startswith("_") or k == "parameter_help"))
+    }
+
+
 def _load_component_config(path: str, class_name: str, label: str) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Load config JSON and merge default + class-specific blocks."""
-    if not os.path.exists(path):
-        _abort(f"{label} config not found: {path}")
-    with open(path) as f:
-        all_cfg = json.load(f)
-    default_cfg = all_cfg.get("default", {})
-    class_cfg = all_cfg.get(class_name, {})
-    if not isinstance(default_cfg, dict) or not isinstance(class_cfg, dict):
-        _abort(f"{label} config must map keys to objects: {path}")
+    """Merge default + class-specific blocks from embedded config (if set) or from JSON file."""
+    if label == "Policy":
+        all_cfg = POLICY_CONFIG_DOCUMENT
+    else:
+        all_cfg = REWARD_CONFIG_DOCUMENT  # "Reward", "Eval reward", etc.
+
+    if all_cfg is None:
+        if not os.path.exists(path):
+            _abort(f"{label} config not found: {path}")
+        with open(path, encoding="utf-8") as f:
+            all_cfg = json.load(f)
+
+    default_raw = all_cfg.get("default", {}) or {}
+    class_raw = all_cfg.get(class_name, {}) or {}
+    if not isinstance(default_raw, dict) or not isinstance(class_raw, dict):
+        _abort(f"{label} config must map 'default' and class names to objects")
+    default_cfg = _strip_meta_kwargs_block(default_raw)
+    class_cfg = _strip_meta_kwargs_block(class_raw)
     merged = {**default_cfg, **class_cfg}
     return merged, all_cfg
+
+
+def _snapshot_component_file_body(doc: dict[str, Any]) -> dict[str, Any]:
+    """Strip documentation-only keys for reward_configuration.json / policy_configuration.json copies."""
+    out: dict[str, Any] = {}
+    for k, v in doc.items():
+        if k in ("_about", "parameter_help") or (isinstance(k, str) and k.startswith("_")):
+            continue
+        if isinstance(v, dict):
+            out[k] = _strip_meta_kwargs_block(v)
+        else:
+            out[k] = v
+    return out
 
 
 def _resolve_policy_params(policy_kwargs: dict[str, Any]) -> dict[str, Any]:
@@ -341,8 +478,16 @@ def _write_config_summary(
     sched_name = (
         SchedulerClass.__name__ if SchedulerClass is not None else "None (constant LR)"
     )
-    reward_cfg_rel = os.path.relpath(REWARD_CONFIG_PATH, ROOT)
-    policy_cfg_rel = os.path.relpath(POLICY_CONFIG_PATH, ROOT)
+    reward_cfg_rel = (
+        "config.json → reward_configuration"
+        if REWARD_CONFIG_DOCUMENT is not None
+        else os.path.relpath(REWARD_CONFIG_PATH, ROOT)
+    )
+    policy_cfg_rel = (
+        "config.json → policy_configuration"
+        if POLICY_CONFIG_DOCUMENT is not None
+        else os.path.relpath(POLICY_CONFIG_PATH, ROOT)
+    )
     lines = [
         f"Run started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "",
@@ -412,8 +557,10 @@ def validate_inputs(sumo_home: str):
     _check_file(CSV_PATH,          "CSV data file")
     _check_file(INTERSECTION_PATH, "intersection.json")
     _check_file(COLUMNS_PATH,      "columns.json")
-    _check_file(REWARD_CONFIG_PATH, "reward_configuration.json")
-    _check_file(POLICY_CONFIG_PATH, "policy_configuration.json")
+    if REWARD_CONFIG_DOCUMENT is None:
+        _check_file(REWARD_CONFIG_PATH, "reward_configuration.json")
+    if POLICY_CONFIG_DOCUMENT is None:
+        _check_file(POLICY_CONFIG_PATH, "policy_configuration.json")
     _check_file(
         os.path.join(ROOT, "preprocessing", "BuildRoute.py"),
         "preprocessing/BuildRoute.py",
@@ -473,7 +620,16 @@ def run_build_route() -> dict:
     df_used   = df[df["sim_day"].isin(used_days)].copy()
 
     br.write_day_csvs(df_used, active, days_dir)
-    br.write_sumo_flows(df_used, active, slot_minutes, flows_dir, int_cfg)
+    br.write_sumo_flows(
+        df_used,
+        active,
+        slot_minutes,
+        flows_dir,
+        int_cfg,
+        subslots_per_slot=FLOW_DEMAND_SUBSLOTS,
+        spread=FLOW_DEMAND_SPREAD,
+        variation_seed=FLOW_DEMAND_VARIATION_SEED,
+    )
 
     split = br.split_days(needed, TEST_SIZE, SEED)
 
@@ -575,6 +731,7 @@ def build_pipeline(
         eval_kw, _ = _load_component_config(
             REWARD_CONFIG_PATH, EvalRewardClass.__name__, "Eval reward"
         )
+        eval_kw = merge_reward_kwargs_from_config(eval_kw)
         eval_reward = EvalRewardClass(**eval_kw)
 
     policy = PolicyClass(
@@ -630,6 +787,7 @@ def build_pipeline(
         max_green_s       = MAX_GREEN_S,
         overshoot_coeff   = OVERSHOOT_COEFF,
         yellow_duration_s = YELLOW_DURATION_S,
+        episode_kpis      = default_episode_kpis(),
     )
 
     split_path = os.path.join(OUT_DIR, "processed", "split.json")
@@ -688,20 +846,63 @@ def main():
     reward_kwargs, _ = _load_component_config(
         REWARD_CONFIG_PATH, RewardClass.__name__, "Reward"
     )
+    reward_kwargs = merge_reward_kwargs_from_config(reward_kwargs)
     policy_kwargs_raw, _ = _load_component_config(
         POLICY_CONFIG_PATH, PolicyClass.__name__, "Policy"
     )
+    policy_kwargs_raw = merge_policy_kwargs_from_config(policy_kwargs_raw)
     policy_kwargs = _resolve_policy_params(policy_kwargs_raw)
 
     run_dir = _create_run_dir()
-    shutil.copy2(REWARD_CONFIG_PATH, os.path.join(run_dir, "reward_configuration.json"))
-    shutil.copy2(POLICY_CONFIG_PATH, os.path.join(run_dir, "policy_configuration.json"))
+    _r_dest = os.path.join(run_dir, "reward_configuration.json")
+    _p_dest = os.path.join(run_dir, "policy_configuration.json")
+    if REWARD_CONFIG_DOCUMENT is not None:
+        with open(_r_dest, "w", encoding="utf-8") as f:
+            json.dump(_snapshot_component_file_body(REWARD_CONFIG_DOCUMENT), f, indent=2)
+            f.write("\n")
+    else:
+        shutil.copy2(REWARD_CONFIG_PATH, _r_dest)
+    if POLICY_CONFIG_DOCUMENT is not None:
+        with open(_p_dest, "w", encoding="utf-8") as f:
+            json.dump(_snapshot_component_file_body(POLICY_CONFIG_DOCUMENT), f, indent=2)
+            f.write("\n")
+    else:
+        shutil.copy2(POLICY_CONFIG_PATH, _p_dest)
     _write_config_summary(run_dir, use_gui, reward_kwargs, policy_kwargs)
 
     trainer = build_pipeline(net_file, use_gui, run_dir, reward_kwargs, policy_kwargs)
 
     _banner("Training")
     results = trainer.run()
+
+    _sim_elapsed = float(SIM_END - SIM_BEGIN)
+    _kpi_agg = aggregate_test_kpis(results["test_log"], _sim_elapsed)
+    _results_row = {
+        "run_name": os.path.basename(run_dir),
+        "reward_class": RewardClass.__name__,
+        "policy_class": PolicyClass.__name__,
+        **_kpi_agg,
+    }
+    _results_fields = [
+        "run_name",
+        "reward_class",
+        "policy_class",
+        "test_crossings_rate_mean",
+        "test_crossings_rate_std",
+        "test_crossings_total_mean",
+        "test_crossings_total_std",
+        "test_throughput_rate_mean",
+        "test_throughput_rate_std",
+        "test_throughput_total_mean",
+        "test_throughput_total_std",
+        "test_neg_lane_waiting_integral_mean",
+        "test_neg_lane_waiting_integral_std",
+    ]
+    write_results_csv(
+        os.path.join(run_dir, "results.csv"),
+        _results_row,
+        fieldnames=_results_fields,
+    )
 
     _banner("Complete")
     print(f"  Train episodes : {len(results['train_log'])}")

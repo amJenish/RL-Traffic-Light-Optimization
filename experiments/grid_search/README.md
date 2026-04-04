@@ -6,23 +6,20 @@ It is **not** sklearn’s `GridSearchCV`; it’s a practical “parameter sweep�
 - iterate over combinations of reward + policy parameters from JSON search spaces
 - run each trial end-to-end on train days
 - evaluate on test days
-- compute a shared KPI (**crossings**) that matches `ThroughputReward` semantics
-- write `results.csv` and `leaderboard.csv` under the dedicated grid-search run folder
+- compute episode KPIs from the repo-root `KPIS/` package: **crossings** and **throughput** (both `ThroughputReward`-style departure counts), plus **negated cumulative lane waiting** (larger is better)
+- write `results.csv` (mean/std over test days per KPI) and `leaderboard.csv` under the run folder; each trial also writes `schedule.json` when `test_sequences/` + processed day CSVs are available (same aggregation as `Trainer`)
 
 ## Files
 
 - `grid_search/gridsearch.py`
-- `reward_search_space.json`
+- `reward_search_space.json` (default: `ThroughputQueueReward` and `WaitTimeReward` with `switch_weight` ∈ {0, 0.5}; `DeltaWaitingTimeReward` and `CompositeReward` without switch terms)
+- `reward_search_space_shortlist.json` (same reward set; use via `--reward_space`)
 - `policy_search_space.json`
 - `runs/<timestamp>/...` (generated)
 
-## How crossings KPI is computed
+## How KPIs are computed
 
-The leaderboard ranks trials using **crossings counts exactly like** `modelling/components/reward/throughput.py`:
-- it counts newly-seen vehicle IDs on the counted departure lanes
-- it follows the same decision-interval timing as your `Agent` (SMDP-style)
-
-So `reward_configuration.json` can be `CompositeReward`, `ThroughputQueueReward`, etc.—the leaderboard metric is still the same crossings KPI.
+Crossings and throughput totals use the same per-SUMO-step departure-lane counting as `modelling/components/reward/throughput.py` (accumulated only when the agent accumulates reward, excluding warmup). The leaderboard still sorts primarily by **mean crossings rate**; extra columns include throughput rate and negated waiting-time integral.
 
 ## Usage
 

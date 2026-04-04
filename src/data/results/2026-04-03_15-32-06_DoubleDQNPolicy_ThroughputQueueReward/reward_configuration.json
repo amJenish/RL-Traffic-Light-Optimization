@@ -13,14 +13,8 @@
     "normalise": true,
     "scale": 1.0,
     "throughput_weight": 0.5,
-    "queue_weight": 0.25,
-    "switch_weight": 0.5
+    "queue_weight": 0.25
   },
-  "DeltaVehicleCountReward": {},
-  "VehicleCountReward": {},
-  "WaitingTimeReward": {
-    "normalise": true,
-    "scale": 1.0,
-    "switch_weight": 0.5
-  }
+  "DeltaWaitTimeReward": {},
+  "WaitTimeReward": {}
 }
