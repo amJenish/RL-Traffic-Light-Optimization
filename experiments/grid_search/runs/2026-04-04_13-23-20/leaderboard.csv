@@ -1,0 +1,2 @@
+config_key,n_seeds,mean_crossings_rate,std_crossings_rate,mean_throughput_rate,std_throughput_rate,mean_neg_lane_waiting_integral,std_neg_lane_waiting_integral
+"ThroughputQueueReward|normalise=True,queue_weight=0.25,scale=1.0,switch_weight=0.0,throughput_weight=0.5||DoubleDQNPolicy|batch_size=256,epsilon_decay=0.9999967366804079,epsilon_end=0.05,epsilon_start=1.0,gamma=0.97,hidden=256,lr=0.001,n_actions=2,target_update=200||EPOCHS=300",1,0.5344444444444444,0.0,0.5344444444444444,0.0,-87211915.8,0.0
