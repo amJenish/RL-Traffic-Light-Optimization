@@ -1,21 +1,36 @@
 {
   "rewards": [
     {
+      "RewardClass": "DeltaWaitingTimeReward",
+      "params": {
+        "normalise": [true],
+        "scale": [1.0]
+      }
+    },
+    {
+      "RewardClass": "WaitTimeReward",
+      "params": {
+        "normalise": [true],
+        "scale": [1.0],
+        "switch_weight": [0.0]
+      }
+    },
+    {
       "RewardClass": "ThroughputQueueReward",
       "params": {
         "normalise": [true],
         "scale": [1.0],
         "throughput_weight": [0.5],
         "queue_weight": [0.25],
-        "switch_weight": [0.0, 0.5]
+        "switch_weight": [0.0]
       }
     },
     {
-      "RewardClass": "WaitingTimeReward",
+      "RewardClass": "CompositeReward",
       "params": {
         "normalise": [true],
         "scale": [1.0],
-        "switch_weight": [0.0, 0.5]
+        "alpha": [0.65]
       }
     }
   ]

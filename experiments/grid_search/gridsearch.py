@@ -44,6 +44,8 @@ from modelling.components.reward.vehicle_count import VehicleCountReward
 from modelling.components.reward.delta_vehicle_count import DeltaVehicleCountReward
 from modelling.components.reward.composite_reward import CompositeReward
 from modelling.components.reward.throughput_queue import ThroughputQueueReward
+from modelling.components.reward.throughput_composite import ThroughputCompositeReward
+from modelling.components.reward.throughput_wait_time import ThroughputWaitTimeReward
 from modelling.components.reward.waiting_time import WaitingTimeReward
 from modelling.components.reward.delta_waiting_time import DeltaWaitingTimeReward
 
@@ -51,6 +53,9 @@ from modelling.components.reward.delta_waiting_time import DeltaWaitingTimeRewar
 REWARD_CLASS_MAP: dict[str, Any] = {
     "ThroughputReward": ThroughputReward,
     "ThroughputQueueReward": ThroughputQueueReward,
+    "ThroughputCompositeReward": ThroughputCompositeReward,
+    "ThroughputWaitTimeReward": ThroughputWaitTimeReward,
+    "ThroughputWaitTime": ThroughputWaitTimeReward,
     "CompositeReward": CompositeReward,
     "DeltaVehicleCountReward": DeltaVehicleCountReward,
     "VehicleCountReward": VehicleCountReward,
@@ -426,8 +431,8 @@ def main() -> None:
     parser.add_argument(
         "--epochs",
         type=int,
-        default=300,
-        help="Training epochs per trial (overrides root config EPOCHS; default 300)",
+        default=600,
+        help="Training epochs per trial (overrides root config EPOCHS; default 600)",
     )
     parser.add_argument("--use_gui", action="store_true", help="Launch sumo-gui")
     parser.add_argument("--max_trials", type=int, default=0, help="0 = no limit")

@@ -1,21 +1,23 @@
 {
   "rewards": [
     {
-      "RewardClass": "ThroughputQueueReward",
+      "RewardClass": "ThroughputCompositeReward",
       "params": {
         "normalise": [true],
         "scale": [1.0],
-        "throughput_weight": [0.5],
-        "queue_weight": [0.25],
-        "switch_weight": [0.0, 0.5]
+        "gamma": [1.0],
+        "alpha": [0.3],
+        "beta": [0.0, 0.1]
       }
     },
     {
-      "RewardClass": "WaitingTimeReward",
+      "RewardClass": "ThroughputWaitTimeReward",
       "params": {
         "normalise": [true],
         "scale": [1.0],
-        "switch_weight": [0.0, 0.5]
+        "gamma": [1.0],
+        "alpha": [0.3],
+        "beta": [0.0, 0.1]
       }
     }
   ]

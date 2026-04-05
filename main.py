@@ -78,6 +78,8 @@ from modelling.components.reward.delta_vehicle_count import DeltaVehicleCountRew
 from modelling.components.reward.composite_reward import CompositeReward
 from modelling.components.reward.throughput import ThroughputReward
 from modelling.components.reward.throughput_queue import ThroughputQueueReward
+from modelling.components.reward.throughput_composite import ThroughputCompositeReward
+from modelling.components.reward.throughput_wait_time import ThroughputWaitTimeReward
 from modelling.components.reward.waiting_time import WaitingTimeReward
 from modelling.components.reward.delta_waiting_time import DeltaWaitingTimeReward
 
@@ -199,6 +201,9 @@ def _apply_config(cfg: dict[str, Any]) -> None:
         "DeltaWaitingTimeReward": DeltaWaitingTimeReward,
         "DeltaWaitTimeReward": DeltaWaitingTimeReward,
         "ThroughputQueueReward": ThroughputQueueReward,
+        "ThroughputCompositeReward": ThroughputCompositeReward,
+        "ThroughputWaitTimeReward": ThroughputWaitTimeReward,
+        "ThroughputWaitTime": ThroughputWaitTimeReward,
         "ThroughputReward": ThroughputReward,
         "VehicleCountReward": VehicleCountReward,
         "WaitingTimeReward": WaitingTimeReward,

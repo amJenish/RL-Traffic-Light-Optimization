@@ -59,6 +59,18 @@ _REWARD_CLASS_MAP = {
         "VehicleCountReward",
     ),
     "ThroughputReward":   ("modelling.components.reward.throughput",       "ThroughputReward"),
+    "ThroughputCompositeReward": (
+        "modelling.components.reward.throughput_composite",
+        "ThroughputCompositeReward",
+    ),
+    "ThroughputWaitTimeReward": (
+        "modelling.components.reward.throughput_wait_time",
+        "ThroughputWaitTimeReward",
+    ),
+    "ThroughputWaitTime": (
+        "modelling.components.reward.throughput_wait_time",
+        "ThroughputWaitTimeReward",
+    ),
 }
 
 
@@ -80,6 +92,10 @@ def _load_reward(rcfg: dict):
     }
     if "alpha" in rcfg:
         kwargs["alpha"] = rcfg["alpha"]
+    if "gamma" in rcfg:
+        kwargs["gamma"] = rcfg["gamma"]
+    if "beta" in rcfg:
+        kwargs["beta"] = rcfg["beta"]
     return cls(**kwargs)
 
 

@@ -1,6 +1,5 @@
 {
   "_comment": "Project defaults for main.py / Streamlit. Reward and policy hyperparameters live in reward_configuration and policy_configuration below. Optional paths.reward_configuration / paths.policy_configuration point to external JSON fallbacks when those embedded objects are omitted or empty. Top-level policy and reward override last. components.* selects Python classes.",
-
   "paths": {
     "_about": "Data locations and SUMO. To load reward/policy from files instead of embedded config, set reward_configuration and policy_configuration to JSON paths.",
     "csv": "src/data/synthetic_toronto_data.csv",
@@ -8,7 +7,6 @@
     "columns": "src/columns.json",
     "sumo_home": ""
   },
-
   "training": {
     "_about": "Trainer loop: epochs, train/test day counts, logging, LR floor, optional cosine scheduler, and divisor for estimated decisions per episode (used for epsilon decay and TOTAL_UPDATES).",
     "n_epochs": 200,
@@ -21,7 +19,6 @@
     "scheduler": "cosine",
     "decisions_per_ep_divisor": 2
   },
-
   "simulation": {
     "_about": "SUMO step length, how often the agent acts (decision_gap in SUMO steps), simulation time window in seconds from midnight, and whether to use GUI.",
     "step_length": 1.0,
@@ -30,14 +27,12 @@
     "end": 36000,
     "gui": false
   },
-
   "flow_demand": {
     "_about": "Before SUMO: split each CSV time slot into sub-intervals with randomized vehsPerHour (renormalized so expected vehicles per slot match the counts). Set subslots_per_slot to 1 or spread to 0 for the old flat rate per slot.",
     "subslots_per_slot": 5,
     "spread": 0.85,
     "seed": null
   },
-
   "phase_timing": {
     "_about": "Traffic-signal timing passed to the agent: minimum green before a switch is allowed, soft maximum green, yellow length, and overshoot_coeff scaling how far past max green is tolerated.",
     "min_green_s": 15,
@@ -45,7 +40,6 @@
     "overshoot_coeff": 1.0,
     "yellow_duration_s": 4.0
   },
-
   "observation": {
     "_about": "Observation vector shapes / caps for QueueObservation (lanes, phases, timers, per-lane vehicle counts).",
     "max_lanes": 16,
@@ -53,7 +47,6 @@
     "max_phase_time": 120.0,
     "max_vehicles": 20
   },
-
   "components": {
     "_about": "Which concrete classes main.py imports. eval_reward_class null means train and eval use the same reward.",
     "reward_class": "CompositeReward",
@@ -63,13 +56,14 @@
     "observation_class": "QueueObservation",
     "replay_buffer_class": "UniformReplayBuffer"
   },
-
   "reward_configuration": {
     "_about": "Merged as {**default, **<components.reward_class>}. Keys starting with _ and parameter_help are ignored when building kwargs. Add or edit a block named exactly like the reward class.",
     "parameter_help": {
       "normalise": "If true, reward modules may scale raw signals to a bounded range (class-specific).",
       "scale": "Global multiplier applied to the (possibly normalised) reward.",
-      "alpha": "CompositeReward: weight on the first sub-reward vs the second (see CompositeReward implementation).",
+      "alpha": "CompositeReward: blend of sub-rewards. ThroughputCompositeReward: mean queue. ThroughputWaitTimeReward: mean vehicle wait Wbar.",
+      "gamma": "ThroughputCompositeReward / ThroughputWaitTimeReward: weight on throughput delta.",
+      "beta": "ThroughputCompositeReward: queue imbalance. ThroughputWaitTimeReward: cross-lane mean-wait imbalance (sigma_W); set 0 for two-term reward.",
       "throughput_weight": "ThroughputQueueReward: relative weight of the throughput term.",
       "queue_weight": "ThroughputQueueReward: relative weight of the queue term.",
       "switch_weight": "Penalty weight for phase switches (ThroughputQueueReward, WaitingTimeReward)."
@@ -91,6 +85,13 @@
       "queue_weight": 0.25,
       "switch_weight": 0.5
     },
+    "ThroughputCompositeReward": {
+      "normalise": true,
+      "scale": 1.0,
+      "gamma": 1.0,
+      "alpha": 0.3,
+      "beta": 0.1
+    },
     "DeltaVehicleCountReward": {},
     "VehicleCountReward": {},
     "WaitingTimeReward": {
@@ -98,9 +99,22 @@
       "scale": 1.0,
       "switch_weight": 0.5
     },
-    "DeltaWaitingTimeReward": {}
+    "DeltaWaitingTimeReward": {},
+    "ThroughputWaitTimeReward": {
+      "normalise": true,
+      "scale": 1.0,
+      "gamma": 1.0,
+      "alpha": 0.3,
+      "beta": 0.1
+    },
+    "ThroughputWaitTime": {
+      "normalise": true,
+      "scale": 1.0,
+      "gamma": 1.0,
+      "alpha": 0.3,
+      "beta": 0.1
+    }
   },
-
   "policy_configuration": {
     "_about": "Merged as {**default, **<components.policy_class>}. Epsilon decay may be the string 'auto' (derived from TOTAL_UPDATES) or a numeric factor per step. learning_rate in top-level policy overrides lr here.",
     "parameter_help": {
@@ -128,20 +142,16 @@
     "DoubleDQNPolicy": {},
     "DQNPolicy": {}
   },
-
   "policy": {
     "_about": "Optional last-chance overrides on merged policy kwargs. learning_rate is mapped to lr. Omit keys you do not want to override."
   },
-
   "reward": {
     "_about": "Optional last-chance overrides on merged reward kwargs (same keys as the selected reward class / default)."
   },
-
   "replay_buffer": {
     "_about": "UniformReplayBuffer capacity (number of transitions stored).",
     "capacity": 8000
   },
-
   "output": {
     "_about": "Directories for processed data, training logs, plots, and saved models.",
     "out_dir": "src/data",
