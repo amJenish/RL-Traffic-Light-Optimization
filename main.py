@@ -549,7 +549,7 @@ def _write_config_summary(
         f"Save every:    {SAVE_EVERY} episodes",
         f"Log every:     {LOG_EVERY} episodes",
     ]
-    with open(os.path.join(run_dir, "config.txt"), "w") as f:
+    with open(os.path.join(run_dir, "config.txt"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
 

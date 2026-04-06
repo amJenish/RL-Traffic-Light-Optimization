@@ -11,13 +11,17 @@ Requires: SUMO installed, SUMO_HOME set (or paste path in the sidebar).
 
 from __future__ import annotations
 
+import importlib
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -38,6 +42,11 @@ if str(ROOT) not in sys.path:
 
 RUNS = ROOT / "streamlit_runs"
 RUNS.mkdir(parents=True, exist_ok=True)
+
+# Example grid-search trial for the "Apply trial hyperparameters" box (report / screenshots).
+_EXAMPLE_GRID_TRIAL = (
+    "experiments/grid_search/runs/2026-04-02_23-58-59/trial_0003_DoubleDQNPolicy_CompositeReward"
+)
 
 # Scratch CSV for the UI only (never `src/data/...`). Removed at the start of each new browser session.
 _STREAMLIT_TRAFFIC_CSV = RUNS / "traffic.csv"
@@ -164,6 +173,79 @@ def _write_eval_config(m, data_out: Path, models_dir: Path, path: Path) -> None:
         json.dump(cfg, f, indent=2)
 
 
+def _reload_main():
+    """Fresh `main` module so RewardClass / PolicyClass match repo defaults + config.json."""
+    import main
+
+    importlib.reload(main)
+    return main
+
+
+def _apply_grid_search_trial(m, trial_dir: Path) -> str:
+    """
+    Point reward/policy JSON and component classes at a grid-search trial folder
+    (same format as experiments/grid_search/runs/.../trial_*/).
+    Matches grid-search training: no LR scheduler (SchedulerClass = None).
+    """
+    trial_dir = trial_dir.expanduser().resolve()
+    if not trial_dir.is_dir():
+        raise FileNotFoundError(f"Not a directory: {trial_dir}")
+    src_r = trial_dir / "reward_configuration.json"
+    src_p = trial_dir / "policy_configuration.json"
+    if not src_r.is_file() or not src_p.is_file():
+        raise FileNotFoundError(
+            f"Trial folder must contain reward_configuration.json and policy_configuration.json: {trial_dir}"
+        )
+
+    dst_r = RUNS / "overlay_reward_configuration.json"
+    dst_p = RUNS / "overlay_policy_configuration.json"
+    shutil.copy2(src_r, dst_r)
+    shutil.copy2(src_p, dst_p)
+
+    with open(dst_r, encoding="utf-8") as f:
+        rj = json.load(f)
+    with open(dst_p, encoding="utf-8") as f:
+        pj = json.load(f)
+
+    reward_name = next(
+        (k for k in rj if k != "default" and isinstance(rj.get(k), dict) and rj[k]),
+        None,
+    )
+    policy_name = next(
+        (k for k in pj if k != "default" and isinstance(pj.get(k), dict) and pj[k]),
+        None,
+    )
+    if not reward_name or not policy_name:
+        raise ValueError("Could not read reward/policy class names from trial JSON files.")
+
+    reward_map = {
+        "CompositeReward": m.CompositeReward,
+        "ThroughputQueueReward": m.ThroughputQueueReward,
+        "ThroughputReward": m.ThroughputReward,
+        "ThroughputCompositeReward": m.ThroughputCompositeReward,
+        "ThroughputWaitTimeReward": m.ThroughputWaitTimeReward,
+        "DeltaVehicleCountReward": m.DeltaVehicleCountReward,
+        "VehicleCountReward": m.VehicleCountReward,
+        "DeltaWaitingTimeReward": m.DeltaWaitingTimeReward,
+        "WaitingTimeReward": m.WaitingTimeReward,
+    }
+    policy_map = {
+        "DoubleDQNPolicy": m.DoubleDQNPolicy,
+        "DQNPolicy": m.DQNPolicy,
+    }
+    if reward_name not in reward_map:
+        raise ValueError(f"Unknown reward class in trial: {reward_name}")
+    if policy_name not in policy_map:
+        raise ValueError(f"Unknown policy class in trial: {policy_name}")
+
+    m.RewardClass = reward_map[reward_name]
+    m.PolicyClass = policy_map[policy_name]
+    m.REWARD_CONFIG_PATH = str(dst_r.resolve())
+    m.POLICY_CONFIG_PATH = str(dst_p.resolve())
+    m.SchedulerClass = None  # align with experiments/grid_search/gridsearch.py
+    return f"{reward_name} + {policy_name} (configs copied to streamlit_runs/overlay_*.json)"
+
+
 def _consistency_errors(intersection: dict, col_map: dict) -> list[str]:
     """Each active approach must appear in column map approaches."""
     err: list[str] = []
@@ -189,14 +271,67 @@ def main() -> None:
         "adjust the column and intersection fields below, and run training (same code paths as `main.py`)."
     )
 
-    import main as m  # noqa: PLC0415 — after sys.path
-
+    m = _reload_main()
     _discard_previous_session_traffic_csv()
+
+    st.session_state.setdefault("grid_search_trial_dir", None)
+    if st.session_state.get("grid_search_trial_dir"):
+        try:
+            _apply_grid_search_trial(m, Path(st.session_state["grid_search_trial_dir"]))
+        except Exception as e:
+            st.warning(f"Could not apply grid-search trial overlay (cleared): {e}")
+            st.session_state["grid_search_trial_dir"] = None
+
+    if "adv_train" not in st.session_state:
+        st.session_state.adv_train = int(m.TRAIN_SIZE)
+    if "adv_test" not in st.session_state:
+        st.session_state.adv_test = int(m.TEST_SIZE)
+    if "adv_epochs" not in st.session_state:
+        st.session_state.adv_epochs = STREAMLIT_DEFAULT_EPOCHS
 
     # Empty until **Generate from CSV** (or paste). Streamlit keeps this across reruns in the same tab.
     st.session_state.setdefault("intersection_text", "")
     st.session_state.setdefault("columns_text", "")
     st.session_state.setdefault("_had_config_once", False)
+
+    with st.expander("Grid-search trial hyperparameters (optional)", expanded=False):
+        st.caption(
+            "Point training at a **trial_* folder** from `experiments/grid_search/runs/...` "
+            "(must contain `reward_configuration.json` and `policy_configuration.json`). "
+            "This matches **gridsearch.py**: same reward/policy classes, JSON kwargs, and **no LR scheduler**. "
+            "**Apply** also sets TRAIN_SIZE, TEST_SIZE, and EPOCHS from the current `config.json` "
+            "(the same source grid search used when you ran the sweep)."
+        )
+        if "trial_dir_text" not in st.session_state:
+            st.session_state.trial_dir_text = _EXAMPLE_GRID_TRIAL
+        st.text_input(
+            "Trial folder (relative to project root or absolute)",
+            key="trial_dir_text",
+        )
+        b1, b2 = st.columns(2)
+        with b1:
+            if st.button("Apply trial hyperparameters", type="primary", key="btn_apply_trial"):
+                raw = (st.session_state.get("trial_dir_text") or "").strip()
+                p = Path(raw)
+                if not p.is_absolute():
+                    p = (ROOT / p).resolve()
+                if not p.is_dir():
+                    st.error(f"Directory not found: {p}")
+                else:
+                    st.session_state["grid_search_trial_dir"] = str(p)
+                    st.session_state.adv_train = int(m.TRAIN_SIZE)
+                    st.session_state.adv_test = int(m.TEST_SIZE)
+                    st.session_state.adv_epochs = int(m.EPOCHS)
+                    st.rerun()
+        with b2:
+            if st.button("Clear trial overlay", key="btn_clear_trial"):
+                st.session_state["grid_search_trial_dir"] = None
+                st.rerun()
+        if st.session_state.get("grid_search_trial_dir"):
+            st.success(
+                f"Trial overlay **active**: `{st.session_state['grid_search_trial_dir']}` — "
+                f"reward/policy JSON copied to `streamlit_runs/overlay_*.json`."
+            )
 
     # --- Sidebar: SUMO ---
     st.sidebar.header("Environment")
@@ -307,14 +442,15 @@ def main() -> None:
     with st.expander("Advanced — training & simulation (matches `main.py` constants)"):
         c1, c2, c3 = st.columns(3)
         with c1:
-            train_size = st.number_input("TRAIN_SIZE (days)", 1, 100, int(m.TRAIN_SIZE))
-            test_size = st.number_input("TEST_SIZE (days)", 1, 100, int(m.TEST_SIZE))
+            train_size = st.number_input("TRAIN_SIZE (days)", 1, 100, key="adv_train")
+            test_size = st.number_input("TEST_SIZE (days)", 1, 100, key="adv_test")
             epochs = st.number_input(
                 "EPOCHS",
                 1,
                 500,
-                STREAMLIT_DEFAULT_EPOCHS,
-                help=f"Default {STREAMLIT_DEFAULT_EPOCHS} for quick tests; main.py uses {m.EPOCHS} if you run CLI.",
+                key="adv_epochs",
+                help=f"Quick tests often use {STREAMLIT_DEFAULT_EPOCHS}; **Apply trial** sets EPOCHS={m.EPOCHS} from config.json. "
+                f"CLI `main.py` currently uses n_epochs={m.EPOCHS}.",
             )
         with c2:
             step_length = st.number_input("STEP_LENGTH (s)", 0.5, 60.0, float(m.STEP_LENGTH))
@@ -323,7 +459,7 @@ def main() -> None:
         with c3:
             min_green = st.number_input("MIN_GREEN_S", 1, 300, int(m.MIN_GREEN_S))
             max_green = st.number_input("MAX_GREEN_S", 1, 600, int(m.MAX_GREEN_S))
-            save_every = st.number_input("SAVE_EVERY", 1, 500, int(m.SAVE_EVERY))
+            save_every = st.number_input("SAVE_EVERY", 1, 10000, int(m.SAVE_EVERY))
             log_every = st.number_input("LOG_EVERY", 1, 100, int(m.LOG_EVERY))
 
     use_gui = st.checkbox("Run SUMO with GUI (`--gui`)", value=False)
@@ -426,8 +562,10 @@ def main() -> None:
             st.caption("Live log")
             log_box = st.empty()
         with col_chart:
-            st.caption("Mean train reward per epoch (updates from log)")
+            st.caption("Mean train reward per epoch")
             chart_box = st.empty()
+            st.caption("Total reward per episode")
+            episode_chart_box = st.empty()
 
         log_lines: list[str] = []
         reward_series: list[dict] = []
@@ -458,6 +596,10 @@ def main() -> None:
                         per_epoch = train_chart.groupby("epoch", sort=True)["reward"].mean()
                         chart_box.line_chart(
                             per_epoch,
+                            use_container_width=True,
+                        )
+                        episode_chart_box.line_chart(
+                            train_chart.set_index("episode")["reward"],
                             use_container_width=True,
                         )
                 except (IndexError, ValueError):
@@ -532,7 +674,12 @@ def main() -> None:
             if "epoch" in train_df.columns:
                 st.write("**Mean total reward per epoch (train)**")
                 st.line_chart(train_df.groupby("epoch", sort=True)["total_reward"].mean())
+                st.write("**Total reward per episode (train)**")
+                ep_rewards = train_df["total_reward"].reset_index(drop=True)
+                ep_rewards.index.name = "episode"
+                st.line_chart(ep_rewards)
             else:
+                st.write("**Total reward per episode (train)**")
                 st.line_chart(train_df.set_index("episode")["total_reward"])
 
         mean_test = (
@@ -549,6 +696,36 @@ def main() -> None:
             st.metric("Mean pre-train test reward", f"{mean_pretest:.2f}")
         if mean_test is not None:
             st.metric("Mean test reward", f"{mean_test:.2f}")
+
+        schedule_path = Path(run_dir) / "schedule.json"
+        if schedule_path.exists():
+            with open(schedule_path, encoding="utf-8") as _sf:
+                schedule_data = json.load(_sf)
+            buckets = schedule_data.get("buckets", [])
+            if buckets:
+                st.write("**Learned Signal Timing Schedule**")
+                st.caption(
+                    "Median phase durations (seconds) per 15-minute time bucket, "
+                    "aggregated from test episodes. This is the RL policy distilled "
+                    "into a deployable fixed-time plan."
+                )
+                sched_df = pd.DataFrame(buckets)
+                sched_df["time"] = sched_df["bucket_start_s"].apply(
+                    lambda s: f"{int(s)//3600:02d}:{(int(s)%3600)//60:02d}"
+                )
+                display_cols = ["tls_id", "phase", "time", "median_s", "std_s", "n"]
+                st.dataframe(
+                    sched_df[[c for c in display_cols if c in sched_df.columns]],
+                    use_container_width=True,
+                )
+                sched_bytes = json.dumps(schedule_data, indent=2).encode("utf-8")
+                st.download_button(
+                    "Download schedule.json",
+                    sched_bytes,
+                    "schedule.json",
+                    "application/json",
+                )
+
         st.info(f"Artifacts: `{run_dir}`")
 
     if run_baseline:
@@ -558,9 +735,7 @@ def main() -> None:
         _sumo_bin_on_path(sumo_home)
 
         m.CSV_PATH = str(csv_path)
-        m.INTERSECTION_PATH = str(int_path)
         m.COLUMNS_PATH = str(col_path)
-        m.OUT_DIR = str(data_dir)
         m.TRAIN_SIZE = int(train_size)
         m.TEST_SIZE = int(test_size)
         m.EPOCHS = int(epochs)
@@ -574,23 +749,47 @@ def main() -> None:
         m.SUMO_HOME = sumo_home
         _recompute_derived(m)
 
-        try:
-            with st.spinner("Building routes & network (if needed)…"):
-                m.validate_inputs(sumo_home)
-                m.run_build_route()
-                m.run_build_network(sumo_home)
-        except Exception as e:
-            st.exception(e)
-            return
-
+        # Determine the data directory and intersection to use.
+        # If a training run exists, reuse its data (split.json, flows, network)
+        # to ensure baselines are evaluated on the SAME test days.
         if "last_run_dir" in st.session_state:
             models_dir = Path(st.session_state["last_run_dir"])
         else:
             models_dir = RUNS / "baseline_models"
             models_dir.mkdir(parents=True, exist_ok=True)
 
+        # Use the main project data dir (src/data) so baselines share the
+        # same split.json, flow files, and network as the DQN training run.
+        # Fall back to streamlit_runs/data only if src/data has no split.
+        main_data_dir = ROOT / "src" / "data"
+        main_split = main_data_dir / "processed" / "split.json"
+        if main_split.exists():
+            eval_data_dir = main_data_dir
+            st.info(f"Using existing split from `{main_split}` for fair comparison.")
+        else:
+            eval_data_dir = data_dir
+            st.warning(
+                "No existing split.json found in src/data. "
+                "Building routes (baselines may use different test days than training)."
+            )
+            m.INTERSECTION_PATH = str(int_path)
+            m.OUT_DIR = str(data_dir)
+            try:
+                with st.spinner("Building routes & network…"):
+                    m.validate_inputs(sumo_home)
+                    m.run_build_route()
+                    m.run_build_network(sumo_home)
+            except Exception as e:
+                st.exception(e)
+                return
+
+        # Use src/intersection.json (same as training) if it exists;
+        # otherwise fall back to the Streamlit-generated one.
+        main_int_path = ROOT / "src" / "intersection.json"
+        baseline_int_path = main_int_path if main_int_path.exists() else int_path
+
         eval_cfg_path = RUNS / "eval_config.json"
-        _write_eval_config(m, data_dir, models_dir, eval_cfg_path)
+        _write_eval_config(m, eval_data_dir, models_dir, eval_cfg_path)
 
         cmd = [
             sys.executable,
@@ -598,7 +797,7 @@ def main() -> None:
             "--config",
             str(eval_cfg_path),
             "--intersection",
-            str(int_path),
+            str(baseline_int_path),
             "--sumo-home",
             sumo_home,
         ]
@@ -623,6 +822,356 @@ def main() -> None:
             if p.exists():
                 st.write(f"**{name}**")
                 st.dataframe(pd.read_json(p), use_container_width=True)
+        st.session_state["last_baseline_dir"] = str(models_dir)
+
+    # ── Evaluate saved checkpoint ─────────────────────────────────────────────
+    st.divider()
+    st.subheader("Evaluate Saved Checkpoint")
+    st.caption(
+        "Load a previously saved checkpoint (.pt) and run the test evaluation "
+        "without retraining. Writes test_log.json and pretest_log.json to the run directory."
+    )
+
+    with st.expander("Evaluate checkpoint", expanded=False):
+        ckpt_path_input = st.text_input(
+            "Checkpoint path (.pt)",
+            value=str(
+                Path(st.session_state.get("last_run_dir", ""))
+                / "checkpoints"
+                / "checkpoint_ep0999.pt"
+            ) if st.session_state.get("last_run_dir") else "",
+            placeholder="e.g. src/data/results/2026-.../checkpoints/checkpoint_ep0999.pt",
+        )
+        ckpt_run_dir = st.text_input(
+            "Run directory (where to save test_log.json)",
+            value=st.session_state.get("last_run_dir", ""),
+            placeholder="e.g. src/data/results/2026-..._DoubleDQNPolicy_ThroughputCompositeReward",
+        )
+
+        if st.button("Run test evaluation from checkpoint"):
+            ckpt_path_input = ckpt_path_input.strip()
+            ckpt_run_dir = ckpt_run_dir.strip()
+
+            if not ckpt_path_input or not os.path.isfile(ckpt_path_input):
+                st.error(f"Checkpoint file not found: {ckpt_path_input}")
+            elif not ckpt_run_dir:
+                st.error("Run directory must be specified.")
+            else:
+                os.makedirs(ckpt_run_dir, exist_ok=True)
+                try:
+                    reward_kwargs, _ = m._load_component_config(
+                        m.REWARD_CONFIG_PATH, m.RewardClass.__name__, "Reward"
+                    )
+                    reward_kwargs = m.merge_reward_kwargs_from_config(reward_kwargs)
+                    policy_kwargs_ckpt, _ = m._load_component_config(
+                        m.POLICY_CONFIG_PATH, m.PolicyClass.__name__, "Policy"
+                    )
+                    policy_kwargs_ckpt = m.merge_policy_kwargs_from_config(policy_kwargs_ckpt)
+
+                    net_file_ckpt = str(
+                        Path(m.SUMO_HOME) / "bin" / ".."
+                        if False
+                        else Path("src/data/sumo/network").glob("*.net.xml")
+                        and next(Path("src/data/sumo/network").glob("*.net.xml"))
+                    )
+                    # Resolve net file properly
+                    net_candidates = list(Path("src/data/sumo/network").glob("*.net.xml"))
+                    if not net_candidates:
+                        st.error("No .net.xml found in src/data/sumo/network — run preprocessing first.")
+                        st.stop()
+                    net_file_ckpt = str(net_candidates[0])
+
+                    with st.spinner("Loading checkpoint and running test evaluation…"):
+                        ckpt_log_lines = []
+                        ckpt_log_box = st.empty()
+
+                        def _ckpt_log(text: str) -> None:
+                            ckpt_log_lines.append(text)
+                            ckpt_log_box.code("\n".join(ckpt_log_lines[-100:]), language=None)
+
+                        trainer_ckpt = m.build_pipeline(
+                            net_file_ckpt, False, ckpt_run_dir,
+                            reward_kwargs, policy_kwargs_ckpt,
+                        )
+                        trainer_ckpt.n_epochs = 0
+                        trainer_ckpt.agent.load(ckpt_path_input)
+                        trainer_ckpt.log_callback = _ckpt_log
+                        ckpt_results = trainer_ckpt.run()
+
+                    test_rewards = [e["total_reward"] for e in ckpt_results["test_log"]]
+                    mean_test_ckpt = sum(test_rewards) / len(test_rewards) if test_rewards else None
+                    pretest_rewards = [e["total_reward"] for e in ckpt_results.get("pretest_log", [])]
+                    mean_pretest_ckpt = sum(pretest_rewards) / len(pretest_rewards) if pretest_rewards else None
+
+                    st.success("Test evaluation complete.")
+                    col1, col2 = st.columns(2)
+                    if mean_pretest_ckpt is not None:
+                        col1.metric("Mean pre-test reward", f"{mean_pretest_ckpt:.2f}")
+                    if mean_test_ckpt is not None:
+                        col2.metric("Mean test reward (checkpoint)", f"{mean_test_ckpt:.2f}")
+                    st.info(f"test_log.json saved to: `{ckpt_run_dir}`")
+                    st.session_state["last_run_dir"] = ckpt_run_dir
+
+                except Exception as e:
+                    st.exception(e)
+
+    # ── Load existing run results ─────────────────────────────────────────────
+    st.divider()
+    st.subheader("Load Existing Run Results")
+    st.caption("Paste a run directory that already has test_log.json and baseline logs to view results and plots without re-running.")
+
+    with st.expander("Load from directory", expanded=False):
+        load_dir_input = st.text_input(
+            "Run directory",
+            placeholder="e.g. src/data/results/2026-04-05_18-06-20_DoubleDQNPolicy_ThroughputCompositeReward",
+        )
+        if st.button("Load results"):
+            load_dir_input = load_dir_input.strip()
+            load_p = Path(load_dir_input)
+            dqn_log_p     = load_p / "test_log.json"
+            fixed_log_p   = load_p / "baseline_fixed_time_log.json"
+            actuated_log_p = load_p / "baseline_actuated_log.json"
+            missing = [str(p) for p in [dqn_log_p, fixed_log_p, actuated_log_p] if not p.exists()]
+            if missing:
+                st.error(f"Missing files:\n" + "\n".join(missing))
+            else:
+                with open(dqn_log_p) as f:
+                    dqn_log = json.load(f)
+                with open(fixed_log_p) as f:
+                    fixed_log = json.load(f)
+                with open(actuated_log_p) as f:
+                    actuated_log = json.load(f)
+
+                # Build comparison table
+                dqn_map    = {e["day_id"]: e["total_reward"] for e in dqn_log}
+                fixed_map  = {e["day_id"]: e["total_reward"] for e in fixed_log}
+                act_map    = {e["day_id"]: e["total_reward"] for e in actuated_log}
+                all_days   = sorted(set(dqn_map) | set(fixed_map) | set(act_map))
+
+                rows = []
+                for d in all_days:
+                    rows.append({
+                        "Day":        d,
+                        "DQN":        round(dqn_map.get(d, float("nan")), 2),
+                        "Fixed-Time": round(fixed_map.get(d, float("nan")), 2),
+                        "Actuated":   round(act_map.get(d, float("nan")), 2),
+                    })
+                cmp_df = pd.DataFrame(rows)
+                means = {
+                    "Day": "Mean",
+                    "DQN":        round(sum(dqn_map.values()) / len(dqn_map), 2),
+                    "Fixed-Time": round(sum(fixed_map.values()) / len(fixed_map), 2),
+                    "Actuated":   round(sum(act_map.values()) / len(act_map), 2),
+                }
+                cmp_df = pd.concat([cmp_df, pd.DataFrame([means])], ignore_index=True)
+
+                st.write("**Results Comparison — ThroughputCompositeReward**")
+                st.dataframe(cmp_df, use_container_width=True, hide_index=True)
+
+                mean_dqn   = means["DQN"]
+                mean_fixed = means["Fixed-Time"]
+                mean_act   = means["Actuated"]
+                pct_fixed = ((mean_dqn - mean_fixed) / abs(mean_fixed)) * 100
+                pct_act   = ((mean_dqn - mean_act)   / abs(mean_act))   * 100
+                c1, c2, c3 = st.columns(3)
+                c1.metric("DQN mean reward",        f"{mean_dqn:.2f}")
+                c2.metric("vs Fixed-Time",          f"{pct_fixed:+.1f}%")
+                c3.metric("vs Actuated",            f"{pct_act:+.1f}%")
+
+                st.session_state["last_run_dir"]      = load_dir_input
+                st.session_state["last_baseline_dir"] = load_dir_input
+                st.success("Results loaded. Scroll down to Generate Plots.")
+
+                # Show schedule.json if it exists in the loaded run
+                sched_p = load_p / "schedule.json"
+                if sched_p.exists():
+                    with open(sched_p, encoding="utf-8") as _sf:
+                        sched_data = json.load(_sf)
+                    buckets = sched_data.get("buckets", [])
+                    if buckets:
+                        st.write("**Learned Signal Timing Schedule**")
+                        st.caption(
+                            "Median phase durations (seconds) per 15-minute time bucket, "
+                            "aggregated from test episodes."
+                        )
+                        sched_df = pd.DataFrame(buckets)
+                        sched_df["time"] = sched_df["bucket_start_s"].apply(
+                            lambda s: f"{int(s)//3600:02d}:{(int(s)%3600)//60:02d}"
+                        )
+                        display_cols = ["tls_id", "phase", "time", "median_s", "std_s", "n"]
+                        st.dataframe(
+                            sched_df[[c for c in display_cols if c in sched_df.columns]],
+                            use_container_width=True,
+                        )
+                        sched_bytes = json.dumps(sched_data, indent=2).encode("utf-8")
+                        st.download_button(
+                            "Download schedule.json",
+                            sched_bytes,
+                            "schedule.json",
+                            "application/json",
+                        )
+
+    # ── Comparison plots ──────────────────────────────────────────────────────
+    st.divider()
+    st.subheader("Comparison Plots")
+
+    run_dir_for_plots = st.session_state.get("last_run_dir")
+    baseline_dir_for_plots = st.session_state.get("last_baseline_dir")
+
+    plots_ready = run_dir_for_plots and baseline_dir_for_plots
+    if not plots_ready:
+        st.info("Run training and baseline evaluation first, then generate plots here.")
+
+    if st.button("Generate comparison plots", disabled=not plots_ready, type="primary"):
+        run_dir_p   = Path(run_dir_for_plots)
+        base_dir_p  = Path(baseline_dir_for_plots)
+
+        needed = {
+            "test_log.json":                 run_dir_p  / "test_log.json",
+            "baseline_fixed_time_log.json":  base_dir_p / "baseline_fixed_time_log.json",
+            "baseline_actuated_log.json":    base_dir_p / "baseline_actuated_log.json",
+        }
+        train_log_path = run_dir_p / "train_log.json"
+        missing = [k for k, v in needed.items() if not v.exists()]
+        if missing:
+            st.error(f"Missing log files: {', '.join(missing)}")
+        else:
+            def _load(p): 
+                with open(p) as f: 
+                    return json.load(f)
+
+            if train_log_path.exists():
+                train_log = _load(train_log_path)
+                if not isinstance(train_log, list):
+                    train_log = []
+            else:
+                train_log = []
+            dqn_log     = _load(needed["test_log.json"])
+            fixed_log   = _load(needed["baseline_fixed_time_log.json"])
+            actuated_log = _load(needed["baseline_actuated_log.json"])
+
+            MODELS = ["Fixed-Time", "Actuated", "DQN"]
+            COLORS = ["#4C72B0", "#DD8452", "#55A868"]
+            LOGS   = [fixed_log, actuated_log, dqn_log]
+
+            def rewards(log):
+                return [e["total_reward"] for e in log]
+
+            def day_ids(log):
+                return [e["day_id"] for e in log]
+
+            STYLE = {
+                "axes.spines.top": False, "axes.spines.right": False,
+                "axes.grid": True, "grid.alpha": 0.35, "figure.dpi": 130,
+            }
+            plt.rcParams.update(STYLE)
+
+            col_a, col_b = st.columns(2)
+
+            # 1. Bar chart
+            with col_a:
+                fig, ax = plt.subplots(figsize=(5, 3.5))
+                means = [np.mean(rewards(log)) for log in LOGS]
+                bars = ax.bar(MODELS, means, color=COLORS, width=0.5, zorder=3)
+                ax.bar_label(bars, fmt="%.2f", padding=4, fontsize=9)
+                ax.set_ylabel("Mean Total Reward")
+                ax.set_title("Mean Test Reward by Policy")
+                ax.set_ylim(min(means) * 1.15, max(0, max(means) * 1.1))
+                fig.tight_layout()
+                st.pyplot(fig)
+                buf = _fig_to_bytes(fig)
+                st.download_button("Download bar chart", buf, "bar_mean_reward.png", "image/png")
+                plt.close(fig)
+
+            # 2. Box plot
+            with col_b:
+                fig, ax = plt.subplots(figsize=(5, 3.5))
+                bp = ax.boxplot(
+                    [rewards(log) for log in LOGS],
+                    tick_labels=MODELS,
+                    patch_artist=True,
+                    medianprops=dict(color="black", linewidth=2),
+                    zorder=3,
+                )
+                for patch, color in zip(bp["boxes"], COLORS):
+                    patch.set_facecolor(color)
+                    patch.set_alpha(0.75)
+                ax.set_ylabel("Total Reward")
+                ax.set_title("Reward Distribution Across Test Days")
+                fig.tight_layout()
+                st.pyplot(fig)
+                buf = _fig_to_bytes(fig)
+                st.download_button("Download box plot", buf, "box_reward_dist.png", "image/png")
+                plt.close(fig)
+
+            col_c, col_d = st.columns(2)
+
+            # 3. Per-day line chart
+            with col_c:
+                shared_ids = sorted(
+                    set(day_ids(fixed_log)) & set(day_ids(actuated_log)) & set(day_ids(dqn_log))
+                )
+                def aligned(log, ids):
+                    lookup = {e["day_id"]: e["total_reward"] for e in log}
+                    return [lookup[d] for d in ids]
+
+                fig, ax = plt.subplots(figsize=(5, 3.5))
+                for label, log, color in zip(MODELS, LOGS, COLORS):
+                    ax.plot(shared_ids, aligned(log, shared_ids), marker="o",
+                            label=label, color=color, linewidth=2, markersize=6)
+                ax.set_xlabel("Test Day ID")
+                ax.set_ylabel("Total Reward")
+                ax.set_title("Per-Day Reward: All Policies")
+                ax.legend(framealpha=0.8)
+                fig.tight_layout()
+                st.pyplot(fig)
+                buf = _fig_to_bytes(fig)
+                st.download_button("Download per-day chart", buf, "line_reward_per_day.png", "image/png")
+                plt.close(fig)
+
+            # 4. Learning curve (optional — train_log may be missing if run crashed)
+            with col_d:
+                tr_reward = [e["total_reward"] for e in train_log if "total_reward" in e]
+                episodes = [e.get("episode", i + 1) for i, e in enumerate(train_log)]
+                if len(tr_reward) < 2:
+                    st.info(
+                        "No training log (or too few episodes). "
+                        "Learning curve skipped — complete a full training run to generate "
+                        "`train_log.json`."
+                    )
+                else:
+                    window = min(10, len(tr_reward))
+                    if window < 1:
+                        window = 1
+                    kernel = np.ones(window) / window
+                    smoothed = np.convolve(tr_reward, kernel, mode="valid")
+                    smoothed_x = episodes[window - 1 :]
+
+                    fig, ax = plt.subplots(figsize=(5, 3.5))
+                    ax.plot(episodes, tr_reward, color="#bbbbbb", linewidth=0.8,
+                            label="Raw reward", zorder=2)
+                    if len(smoothed) > 0:
+                        ax.plot(smoothed_x, smoothed, color=COLORS[2], linewidth=2,
+                                label=f"{window}-ep rolling mean", zorder=3)
+                    ax.set_xlabel("Training Episode")
+                    ax.set_ylabel("Total Reward")
+                    ax.set_title("DQN Learning Curve (Training)")
+                    ax.legend(framealpha=0.8)
+                    fig.tight_layout()
+                    st.pyplot(fig)
+                    buf = _fig_to_bytes(fig)
+                    st.download_button("Download learning curve", buf, "learning_curve.png", "image/png")
+                    plt.close(fig)
+
+            st.success("Plots generated. Use the download buttons above to save each chart.")
+
+
+def _fig_to_bytes(fig) -> bytes:
+    import io
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150)
+    buf.seek(0)
+    return buf.read()
 
 
 if __name__ == "__main__":

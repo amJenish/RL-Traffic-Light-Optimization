@@ -49,7 +49,7 @@ def _banner(text: str):
 # ---------------------------------------------------------------------------
 
 _REWARD_CLASS_MAP = {
-    "CompositeReward":    ("modelling.components.reward.composite_reward", "CompositeReward"),
+    "CompositeReward": ("modelling.components.reward.composite_reward", "CompositeReward"),
     "DeltaVehicleCountReward": (
         "modelling.components.reward.delta_vehicle_count",
         "DeltaVehicleCountReward",
@@ -58,7 +58,19 @@ _REWARD_CLASS_MAP = {
         "modelling.components.reward.vehicle_count",
         "VehicleCountReward",
     ),
-    "ThroughputReward":   ("modelling.components.reward.throughput",       "ThroughputReward"),
+    "DeltaWaitingTimeReward": (
+        "modelling.components.reward.delta_waiting_time",
+        "DeltaWaitingTimeReward",
+    ),
+    "WaitingTimeReward": (
+        "modelling.components.reward.waiting_time",
+        "WaitingTimeReward",
+    ),
+    "ThroughputReward": ("modelling.components.reward.throughput", "ThroughputReward"),
+    "ThroughputQueueReward": (
+        "modelling.components.reward.throughput_queue",
+        "ThroughputQueueReward",
+    ),
     "ThroughputCompositeReward": (
         "modelling.components.reward.throughput_composite",
         "ThroughputCompositeReward",
@@ -74,10 +86,34 @@ _REWARD_CLASS_MAP = {
 }
 
 
+def _reward_from_trial_folder(trial_dir: str) -> tuple[str, dict]:
+    """
+    Read experiments/grid_search/.../trial_*/reward_configuration.json and build
+    cfg['reward'] with a 'class' key plus kwargs, matching main.py / gridsearch trials.
+    """
+    path = os.path.join(trial_dir, "reward_configuration.json")
+    _check_file(path, "trial reward_configuration.json")
+    with open(path, encoding="utf-8") as f:
+        blob = json.load(f)
+    class_name = None
+    kwargs: dict = {}
+    for k, v in blob.items():
+        if k == "default":
+            continue
+        if isinstance(v, dict) and v:
+            class_name = k
+            kwargs = dict(v)
+            break
+    if not class_name:
+        _abort(f"No reward class block found in {path}")
+    rcfg = {"class": class_name, **kwargs}
+    return class_name, rcfg
+
+
 def _load_reward(rcfg: dict):
-    """Instantiate the reward class named in cfg['reward']['class'] (default: CompositeReward)."""
+    """Instantiate the reward class named in cfg['reward']['class'] (default: DeltaWaitTimeReward)."""
     import importlib
-    cls_name = rcfg.get("class", "CompositeReward")
+    cls_name = rcfg.get("class", "DeltaWaitTimeReward")
     if cls_name not in _REWARD_CLASS_MAP:
         _abort(
             f"Unknown reward class '{cls_name}'. "
@@ -96,6 +132,12 @@ def _load_reward(rcfg: dict):
         kwargs["gamma"] = rcfg["gamma"]
     if "beta" in rcfg:
         kwargs["beta"] = rcfg["beta"]
+    if "throughput_weight" in rcfg:
+        kwargs["throughput_weight"] = rcfg["throughput_weight"]
+    if "queue_weight" in rcfg:
+        kwargs["queue_weight"] = rcfg["queue_weight"]
+    if "switch_weight" in rcfg:
+        kwargs["switch_weight"] = rcfg["switch_weight"]
     return cls(**kwargs)
 
 
@@ -270,6 +312,20 @@ def main():
         "--gui", action="store_true",
         help="Launch sumo-gui instead of headless sumo",
     )
+    parser.add_argument(
+        "--trial-dir",
+        default=None,
+        help="Grid-search trial folder containing reward_configuration.json (and usually "
+        "test_log.json). Merges that reward into the loaded config so baselines use the same "
+        "reward signal the trial was trained with. If --dqn-test-log is omitted, uses "
+        "trial_dir/test_log.json for the DQN column.",
+    )
+    parser.add_argument(
+        "--dqn-test-log",
+        default=None,
+        help="Path to DQN test_log.json for the comparison table (default: models_dir/test_log.json, "
+        "or trial_dir/test_log.json when --trial-dir is set).",
+    )
     args = parser.parse_args()
 
     # Ensure project root is on sys.path so modelling/* imports resolve
@@ -292,6 +348,26 @@ def main():
         cfg = json.load(f)
     with open(args.intersection) as f:
         int_cfg = json.load(f)
+
+    trial_dir = args.trial_dir
+    if trial_dir:
+        trial_dir = os.path.abspath(trial_dir)
+        if not os.path.isdir(trial_dir):
+            _abort(f"--trial-dir is not a directory: {trial_dir}")
+        _, rcfg_merged = _reward_from_trial_folder(trial_dir)
+        cfg["reward"] = rcfg_merged
+        # Write baseline JSON logs next to the trial's test_log.json
+        out = dict(cfg.get("output", {}))
+        out["models_dir"] = trial_dir.replace("\\", "/")
+        cfg["output"] = out
+        policy_snap = os.path.join(trial_dir, "policy_configuration.json")
+        if os.path.isfile(policy_snap):
+            with open(policy_snap, encoding="utf-8") as pf:
+                _policy_blob = json.load(pf)
+        else:
+            _policy_blob = None
+    else:
+        _policy_blob = None
 
     try:
         from baselines.fixed_time import FixedTimePolicy
@@ -331,9 +407,16 @@ def main():
     print(f"  Config        : {args.config}")
     print(f"  Intersection  : {args.intersection}")
     print(f"  SUMO home     : {args.sumo_home}")
+    if trial_dir:
+        print(f"  Trial dir     : {trial_dir}  (reward aligned with this run)")
     print(f"  Reward class  : {reward_cls_name}  (alpha={reward_alpha})")
     print(f"  Normalise     : {cfg['reward'].get('normalise', True)}  "
           f"scale={cfg['reward'].get('scale', 1.0)}")
+    if _policy_blob:
+        for pk, pv in _policy_blob.items():
+            if pk != "default" and isinstance(pv, dict) and pv:
+                print(f"  Policy (training, info only — baselines do not use NN): {pk} {pv}")
+                break
     print(
         f"  Phase steps   : min={min_green_steps}  max={max_green_steps}  "
         f"fixed={fixed_green_steps}  (step_length={step_length}s, same as Agent)"
@@ -360,10 +443,16 @@ def main():
 
     # Load DQN results for the comparison table
     logs = {}
-    dqn_path = os.path.join(models_dir, "test_log.json")
+    if args.dqn_test_log:
+        dqn_path = os.path.abspath(args.dqn_test_log)
+    elif trial_dir:
+        dqn_path = os.path.join(trial_dir, "test_log.json")
+    else:
+        dqn_path = os.path.join(models_dir, "test_log.json")
     if os.path.exists(dqn_path):
-        with open(dqn_path) as f:
+        with open(dqn_path, encoding="utf-8") as f:
             logs["DQN"] = json.load(f)
+        print(f"\n  DQN test log  : {dqn_path}")
     else:
         print(f"\nNote: {dqn_path} not found — DQN omitted from comparison table.")
 

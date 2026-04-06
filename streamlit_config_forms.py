@@ -238,28 +238,28 @@ def render_column_and_intersection_forms() -> None:
         )
 
         for ddir in DIRS:
-            with st.expander(f"Approach **{ddir}** — through / right / left / pedestrians", expanded=False):
-                a1, a2, a3, a4 = st.columns(4)
-                with a1:
-                    st.text_input(
-                        "Through",
-                        key=f"ui_cm_{ddir}_through",
-                        placeholder=f"{ddir.lower()}_approaching_t",
-                    )
-                with a2:
-                    st.text_input(
-                        "Right turn",
-                        key=f"ui_cm_{ddir}_right",
-                        placeholder=f"{ddir.lower()}_approaching_r",
-                    )
-                with a3:
-                    st.text_input(
-                        "Left turn",
-                        key=f"ui_cm_{ddir}_left",
-                        placeholder=f"{ddir.lower()}_approaching_l",
-                    )
-                with a4:
-                    st.text_input("Pedestrians (optional)", key=f"ui_cm_{ddir}_peds", placeholder="optional")
+            st.markdown(f"**Approach {ddir}** — through / right / left / pedestrians")
+            a1, a2, a3, a4 = st.columns(4)
+            with a1:
+                st.text_input(
+                    "Through",
+                    key=f"ui_cm_{ddir}_through",
+                    placeholder=f"{ddir.lower()}_approaching_t",
+                )
+            with a2:
+                st.text_input(
+                    "Right turn",
+                    key=f"ui_cm_{ddir}_right",
+                    placeholder=f"{ddir.lower()}_approaching_r",
+                )
+            with a3:
+                st.text_input(
+                    "Left turn",
+                    key=f"ui_cm_{ddir}_left",
+                    placeholder=f"{ddir.lower()}_approaching_l",
+                )
+            with a4:
+                st.text_input("Pedestrians (optional)", key=f"ui_cm_{ddir}_peds", placeholder="optional")
 
         _flush_columns_text_from_widgets()
 
@@ -305,17 +305,17 @@ def render_column_and_intersection_forms() -> None:
                     key=f"ui_int_{ddir}_sp",
                 )
 
-        with st.expander("Signal timing (seconds & geometry)", expanded=False):
-            t1, t2, t3 = st.columns(3)
-            with t1:
-                st.text_input("Phases (string, e.g. 4)", key="ui_int_ph")
-                st.number_input("Min red (s)", min_value=1, max_value=120, key="ui_int_mr")
-            with t2:
-                st.number_input("Min green (s)", min_value=1, max_value=300, key="ui_int_mg")
-                st.number_input("Max green (s)", min_value=1, max_value=600, key="ui_int_mx")
-            with t3:
-                st.number_input("Amber (s)", min_value=1, max_value=30, key="ui_int_am")
-                st.number_input("Cycle (s)", min_value=30, max_value=300, key="ui_int_cy")
-                st.number_input("Edge length (m)", min_value=10, max_value=500, key="ui_int_el")
+        st.markdown("**Signal timing (seconds & geometry)**")
+        t1, t2, t3 = st.columns(3)
+        with t1:
+            st.text_input("Phases (string, e.g. 4)", key="ui_int_ph")
+            st.number_input("Min red (s)", min_value=1, max_value=120, key="ui_int_mr")
+        with t2:
+            st.number_input("Min green (s)", min_value=1, max_value=300, key="ui_int_mg")
+            st.number_input("Max green (s)", min_value=1, max_value=600, key="ui_int_mx")
+        with t3:
+            st.number_input("Amber (s)", min_value=1, max_value=30, key="ui_int_am")
+            st.number_input("Cycle (s)", min_value=30, max_value=300, key="ui_int_cy")
+            st.number_input("Edge length (m)", min_value=10, max_value=500, key="ui_int_el")
 
         _flush_intersection_text_from_widgets()

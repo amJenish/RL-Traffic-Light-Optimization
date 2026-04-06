@@ -9,8 +9,8 @@
   },
   "training": {
     "_about": "Trainer loop: epochs, train/test day counts, logging, LR floor, optional cosine scheduler, and divisor for estimated decisions per episode (used for epsilon decay and TOTAL_UPDATES).",
-    "n_epochs": 200,
-    "train_days": 1,
+    "n_epochs": 100,
+    "train_days": 5,
     "test_days": 5,
     "save_every": 999,
     "log_every": 1,
@@ -49,7 +49,7 @@
   },
   "components": {
     "_about": "Which concrete classes main.py imports. eval_reward_class null means train and eval use the same reward.",
-    "reward_class": "CompositeReward",
+    "reward_class": "ThroughputCompositeReward",
     "policy_class": "DoubleDQNPolicy",
     "eval_reward_class": null,
     "environment_class": "SumoEnvironment",
@@ -89,8 +89,8 @@
       "normalise": true,
       "scale": 1.0,
       "gamma": 1.0,
-      "alpha": 0.3,
-      "beta": 0.1
+      "alpha": 0.4,
+      "beta": 0.15
     },
     "DeltaVehicleCountReward": {},
     "VehicleCountReward": {},
@@ -129,13 +129,13 @@
       "n_actions": "Number of discrete actions (typically 2: stay / switch phase)."
     },
     "default": {
-      "lr": 0.01,
-      "gamma": 0.95,
+      "lr": 0.0005,
+      "gamma": 0.97,
       "epsilon_start": 1.0,
       "epsilon_end": 0.05,
       "epsilon_decay": "auto",
-      "target_update": 50,
-      "batch_size": 128,
+      "target_update": 200,
+      "batch_size": 256,
       "hidden": 256,
       "n_actions": 2
     },
@@ -150,7 +150,7 @@
   },
   "replay_buffer": {
     "_about": "UniformReplayBuffer capacity (number of transitions stored).",
-    "capacity": 8000
+    "capacity": 16000
   },
   "output": {
     "_about": "Directories for processed data, training logs, plots, and saved models.",

@@ -102,6 +102,9 @@ class Trainer:
                     self.agent.save(path)
                     self._emit(f"  Checkpoint saved -> {path}")
 
+            # Save logs after every epoch so a late crash doesn't lose data
+            self._save_logs(quiet=True)
+
         self._emit(f"\n--- Evaluating on {len(self._test_days)} test days ---")
         self.agent.set_eval_mode()
         for test_episode, day_id in enumerate(self._test_days, start=1):
@@ -196,19 +199,27 @@ class Trainer:
             f"{loss_str}{eps_str}{lr_str}"
         )
 
-    def _save_logs(self) -> None:
+    def _write_test_sequence_json(
+        self,
+        episode_idx: int,
+        tls_sequences: dict,
+    ) -> None:
+        write_test_sequence_episode_json(self.output_dir, episode_idx, tls_sequences)
+
+    def _save_logs(self, quiet: bool = False) -> None:
         train_path = os.path.join(self.output_dir, "train_log.json")
         pretest_path = os.path.join(self.output_dir, "pretest_log.json")
         test_path  = os.path.join(self.output_dir, "test_log.json")
-        with open(train_path, "w") as f:
+        with open(train_path, "w", encoding="utf-8") as f:
             json.dump(self._train_log, f, indent=2)
-        with open(pretest_path, "w") as f:
+        with open(pretest_path, "w", encoding="utf-8") as f:
             json.dump(self._pretest_log, f, indent=2)
-        with open(test_path, "w") as f:
+        with open(test_path, "w", encoding="utf-8") as f:
             json.dump(self._test_log, f, indent=2)
-        self._emit(f"Logs saved -> {train_path}")
-        self._emit(f"           -> {pretest_path}")
-        self._emit(f"           -> {test_path}")
+        if not quiet:
+            self._emit(f"Logs saved -> {train_path}")
+            self._emit(f"           -> {pretest_path}")
+            self._emit(f"           -> {test_path}")
 
     def _print_summary(self) -> None:
         if self._train_log:
