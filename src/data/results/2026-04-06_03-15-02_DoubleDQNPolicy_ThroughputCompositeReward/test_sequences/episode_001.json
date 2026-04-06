@@ -1,0 +1,39 @@
+{
+  "episode": 1,
+  "tls_sequences": {
+    "J_centre": [
+      {
+        "phase": 0,
+        "phase_name": "NS_service",
+        "phase_state": "gGGgrrrrgGGgrrrr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 28825.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyyrrrryyyyrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 28828.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "EW_service",
+        "phase_state": "rrrrgGGgrrrrgGGg",
+        "duration_s": 705.0,
+        "duration_steps": 705,
+        "sim_time": 29558.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyyrrrryyyy",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 29561.0
+      }
+    ]
+  }
+}

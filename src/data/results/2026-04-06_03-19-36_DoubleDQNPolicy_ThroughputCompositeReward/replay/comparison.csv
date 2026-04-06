@@ -1,0 +1,5 @@
+metric,dqn_mean,dqn_std,webster_mean,webster_std,delta_mean,winner
+Throughput total (veh),1093.0,0.0,1094.0,0.0,-1.0,Webster
+Throughput rate (veh/s),0.15180555555555555,0.0,0.15194444444444444,0.0,-0.00013888888888888284,Webster
+Neg lane wait integral,-6517580.0,0.0,-3507748.0,0.0,-3009832.0,Webster
+Phase switches,34.0,0.0,349.0,0.0,-315.0,—

@@ -1,0 +1,7 @@
+{
+  "label": "Webster",
+  "kpi_throughput_total": 1094.0,
+  "kpi_throughput_rate": 0.15194444444444444,
+  "kpi_neg_lane_waiting_integral": -3507748.0,
+  "phase_switch_count": 349
+}

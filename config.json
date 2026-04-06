@@ -34,11 +34,12 @@
     "seed": null
   },
   "phase_timing": {
-    "_about": "Traffic-signal timing passed to the agent: minimum green before a switch is allowed, soft maximum green, yellow length, and overshoot_coeff scaling how far past max green is tolerated.",
+    "_about": "Min/max green and yellow. main.py overlays min/max green, yellow, and min_red from intersection.json when that file exists (intersection is authoritative). After max_green_s (time-in-phase in primitive steps), holding (action 0) subtracts exp(overshoot_coeff * ratio)-1 with ratio=(steps-max)/max_green (capped); positives are also Gaussian-damped. Applied in train and eval. Does not force a switch.",
     "min_green_s": 15,
     "max_green_s": 90,
     "overshoot_coeff": 1.0,
-    "yellow_duration_s": 4.0
+    "yellow_duration_s": 3.0,
+    "min_red_s": 1
   },
   "observation": {
     "_about": "Observation vector shapes / caps for QueueObservation (lanes, phases, timers, per-lane vehicle counts).",
@@ -49,7 +50,7 @@
   },
   "components": {
     "_about": "Which concrete classes main.py imports. eval_reward_class null means train and eval use the same reward.",
-    "reward_class": "CompositeReward",
+    "reward_class": "ThroughputCompositeReward",
     "policy_class": "DoubleDQNPolicy",
     "eval_reward_class": null,
     "environment_class": "SumoEnvironment",
@@ -66,7 +67,8 @@
       "beta": "ThroughputCompositeReward: queue imbalance. ThroughputWaitTimeReward: cross-lane mean-wait imbalance (sigma_W); set 0 for two-term reward.",
       "throughput_weight": "ThroughputQueueReward: relative weight of the throughput term.",
       "queue_weight": "ThroughputQueueReward: relative weight of the queue term.",
-      "switch_weight": "Penalty weight for phase switches (ThroughputQueueReward, WaitingTimeReward)."
+      "switch_weight": "Penalty weight for phase switches (ThroughputQueueReward, ThroughputCompositeReward, WaitingTimeReward).",
+      "queue_norm_cap": "ThroughputCompositeReward: halting-count scale for tanh when normalise is true (per-term [0,1])."
     },
     "default": {
       "normalise": true,
@@ -90,7 +92,9 @@
       "scale": 1.0,
       "gamma": 1.0,
       "alpha": 0.3,
-      "beta": 0.1
+      "beta": 0.1,
+      "switch_weight": 0.1,
+      "queue_norm_cap": 20.0
     },
     "DeltaVehicleCountReward": {},
     "VehicleCountReward": {},

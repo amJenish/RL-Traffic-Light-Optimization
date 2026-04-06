@@ -1,0 +1,50 @@
+{
+  "default": {
+    "normalise": true,
+    "scale": 1.0
+  },
+  "CompositeReward": {
+    "alpha": 0.65
+  },
+  "ThroughputReward": {
+    "normalise": false
+  },
+  "ThroughputQueueReward": {
+    "normalise": true,
+    "scale": 1.0,
+    "throughput_weight": 0.5,
+    "queue_weight": 0.25,
+    "switch_weight": 0.5
+  },
+  "ThroughputCompositeReward": {
+    "normalise": true,
+    "scale": 1.0,
+    "gamma": 1.0,
+    "alpha": 0.3,
+    "beta": 0.1,
+    "switch_weight": 0.1,
+    "queue_norm_cap": 20.0
+  },
+  "DeltaVehicleCountReward": {},
+  "VehicleCountReward": {},
+  "WaitingTimeReward": {
+    "normalise": true,
+    "scale": 1.0,
+    "switch_weight": 0.5
+  },
+  "DeltaWaitingTimeReward": {},
+  "ThroughputWaitTimeReward": {
+    "normalise": true,
+    "scale": 1.0,
+    "gamma": 1.0,
+    "alpha": 0.3,
+    "beta": 0.1
+  },
+  "ThroughputWaitTime": {
+    "normalise": true,
+    "scale": 1.0,
+    "gamma": 1.0,
+    "alpha": 0.3,
+    "beta": 0.1
+  }
+}

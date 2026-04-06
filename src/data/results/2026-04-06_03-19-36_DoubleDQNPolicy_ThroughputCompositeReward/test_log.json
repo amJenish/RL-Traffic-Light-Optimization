@@ -1,0 +1,13 @@
+[
+  {
+    "total_reward": -65346998.40283722,
+    "steps": 685,
+    "mean_loss": null,
+    "epsilon": 0.4917557300642929,
+    "learning_rate": 0.009041900791124038,
+    "kpi_throughput_total": 0.0,
+    "kpi_throughput_rate": 0.0,
+    "kpi_neg_lane_waiting_integral": -1280311618.0,
+    "day_id": 0
+  }
+]

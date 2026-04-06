@@ -17,6 +17,7 @@ import pandas as pd
 # Defaults aligned with src/intersection.json — adjust in one place.
 DEFAULT_TIMING: dict[str, Any] = {
     "phases": "4",
+    "left_turn_mode": "permissive",
     "min_red_s": 15,
     "min_green_s": 15,
     "max_green_s": 90,
@@ -186,3 +187,98 @@ def suggest_columns_json_from_dataframe(df: pd.DataFrame, active: list[str]) -> 
         "approaches": approaches,
         "slot_minutes": 15,
     }
+
+
+def build_intersection_dict_from_ui(
+    intersection_name: str,
+    active_approaches: list[str],
+    lanes_per_approach: dict[str, dict],
+    speed_kmh: float | dict[str, float],
+    left_turn_mode: str,
+    protected_approaches: list[str] | None,
+    min_green_s: int,
+    max_green_s: int,
+    amber_s: int,
+    min_red_s: int,
+    cycle_s: int,
+    edge_length_m: int,
+) -> dict:
+    """
+    Produce a valid intersection.json dict from Streamlit UI inputs.
+
+    Rules for n_green_phases:
+      permissive: 2 (or 1 for a 2-approach T intersection)
+      protected: number_of_active_axes * 2
+      protected_some: 2 + number of protected approaches with left lanes > 0
+    """
+    active = [d for d in APPROACH_ORDER if d in list(active_approaches or [])]
+    clean_name = _slug_name(intersection_name or "My_Intersection")
+
+    # Build approach block with per-approach lane + speed values.
+    approaches: dict[str, Any] = {}
+    for d in active:
+        lane_cfg = lanes_per_approach.get(d, {})
+        lanes = lane_cfg.get("lanes", lane_cfg)
+        through = int(max(0, lanes.get("through", 2)))
+        right = int(max(0, lanes.get("right", 1)))
+        left = int(max(0, lanes.get("left", 1)))
+        if isinstance(speed_kmh, dict):
+            spd = float(speed_kmh.get(d, 50.0))
+        else:
+            spd = float(speed_kmh)
+        approaches[d] = {
+            "lanes": {
+                "through": through,
+                "right": right,
+                "left": left,
+            },
+            "speed_kmh": spd,
+        }
+
+    # Axis count: NS axis exists if N or S present; EW axis exists if E or W present.
+    axis_count = int(any(d in active for d in ("N", "S"))) + int(
+        any(d in active for d in ("E", "W"))
+    )
+
+    lt_mode = (left_turn_mode or "permissive").strip().lower()
+    if lt_mode not in ("permissive", "protected", "protected_some"):
+        lt_mode = "permissive"
+
+    if lt_mode == "permissive":
+        n_green_phases = 1 if len(active) <= 2 else 2
+    elif lt_mode == "protected":
+        n_green_phases = max(1, axis_count * 2)
+    else:
+        prot = protected_approaches or []
+        prot_with_left = [
+            d
+            for d in prot
+            if d in approaches and int(approaches[d]["lanes"].get("left", 0)) > 0
+        ]
+        n_green_phases = 2 + len(prot_with_left)
+
+    # phase_program_mode follows established convention in this repo.
+    phase_program_mode = "2" if n_green_phases <= 2 else "4"
+
+    out = {
+        "intersection_name": clean_name,
+        "active_approaches": active,
+        "approaches": approaches,
+        "phases": "4",
+        "phase_program_mode": phase_program_mode,
+        "n_green_phases": int(n_green_phases),
+        "left_turn_mode": lt_mode,
+        "min_red_s": int(min_red_s),
+        "min_green_s": int(min_green_s),
+        "max_green_s": int(max_green_s),
+        "amber_s": int(amber_s),
+        "cycle_s": int(cycle_s),
+        "edge_length_m": int(edge_length_m),
+    }
+    if lt_mode == "protected_some":
+        out["protected_approaches"] = [
+            d
+            for d in (protected_approaches or [])
+            if d in active and int(approaches[d]["lanes"].get("left", 0)) > 0
+        ]
+    return out

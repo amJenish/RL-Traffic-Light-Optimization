@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<connections>
+  <connection from="edge_N_in" to="edge_W_out" fromLane="0" toLane="0"/>
+  <connection from="edge_N_in" to="edge_S_out" fromLane="1" toLane="0"/>
+  <connection from="edge_N_in" to="edge_S_out" fromLane="2" toLane="0"/>
+  <connection from="edge_N_in" to="edge_E_out" fromLane="3" toLane="0"/>
+  <connection from="edge_S_in" to="edge_E_out" fromLane="0" toLane="0"/>
+  <connection from="edge_S_in" to="edge_N_out" fromLane="1" toLane="0"/>
+  <connection from="edge_S_in" to="edge_N_out" fromLane="2" toLane="0"/>
+  <connection from="edge_S_in" to="edge_W_out" fromLane="3" toLane="0"/>
+  <connection from="edge_E_in" to="edge_N_out" fromLane="0" toLane="0"/>
+  <connection from="edge_E_in" to="edge_W_out" fromLane="1" toLane="0"/>
+  <connection from="edge_E_in" to="edge_W_out" fromLane="2" toLane="0"/>
+  <connection from="edge_E_in" to="edge_S_out" fromLane="3" toLane="0"/>
+  <connection from="edge_W_in" to="edge_S_out" fromLane="0" toLane="0"/>
+  <connection from="edge_W_in" to="edge_E_out" fromLane="1" toLane="0"/>
+  <connection from="edge_W_in" to="edge_E_out" fromLane="2" toLane="0"/>
+  <connection from="edge_W_in" to="edge_N_out" fromLane="3" toLane="0"/>
+</connections>

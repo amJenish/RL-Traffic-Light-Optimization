@@ -34,12 +34,21 @@ def normalize_col(s: str) -> str:
 
 
 def load_intersection(path):
-    """Read intersection config JSON. Requires intersection_name, active_approaches, approaches."""
+    """Read intersection config JSON. Requires active_approaches and approaches.
+
+    intersection_name is optional (used for network file basename and logging);
+    if missing or blank, defaults to ``My_Intersection``.
+    """
     with open(path) as f:
         cfg = json.load(f)
-    for k in ["intersection_name", "active_approaches", "approaches"]:
+    for k in ["active_approaches", "approaches"]:
         if k not in cfg:
             raise ValueError(f"intersection_config.json missing key: '{k}'")
+    raw = cfg.get("intersection_name")
+    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+        cfg["intersection_name"] = "My_Intersection"
+    else:
+        cfg["intersection_name"] = str(raw).strip()
     return cfg
 
 
@@ -239,6 +248,152 @@ def _variation_rng(seed: int, day_id: int, row_index: int, tag: str) -> random.R
     return random.Random(s)
 
 
+def _bounded_weights(k: int, spread: float, rng: random.Random) -> list[float]:
+    """Return ``k`` weights with mean 1.0 for use as sub-slot demand multipliers.
+
+    Weights are drawn as independent bounded-uniform perturbations around 1.0,
+    renormalised to preserve expected vehicle count, with a ratio cap of
+    ``(1 + 2 * spread)``.
+
+    Raw samples ``u_i`` are i.i.d. After clipping to ``[clip_low, clip_high]``, if
+    ``max(u)/min(u)`` exceeds the cap, the vector is **range-compressed** in a
+    single affine pass (map ``[u_min, u_max]`` to ``[u_min, u_min * max_ratio]``),
+    which preserves ordering and enforces ``max/min <= max_ratio`` before the final
+    mean renormalisation (which does not change max/min ratio).
+
+    Weights may be lifted to respect a 0.5 veh/h multiplier floor when paired with
+    low ``base_vph``; if the ratio cap or floor cannot both be satisfied, uniform
+    weights are used. Finally, weights are shuffled so sub-interval order does not
+    follow the compression ordering (rigid steps, no temporal ramp).
+    """
+    if k < 1:
+        return []
+    low = 1.0 - float(spread)
+    high = 1.0 + float(spread)
+    clip_low = max(0.1, 1.0 - float(spread))
+    clip_high = 1.0 + float(spread)
+    max_ratio = 1.0 + 2.0 * float(spread)
+
+    u: list[float] = []
+    for _ in range(k):
+        x = rng.uniform(low, high)
+        x = min(max(x, clip_low), clip_high)
+        u.append(x)
+
+    u_min = min(u)
+    u_max = max(u)
+    if u_min <= 0.0:
+        return [1.0] * k
+    if (u_max / u_min) <= max_ratio + 1e-15:
+        mean_u = sum(u) / k
+        if mean_u <= 0.0:
+            return [1.0] * k
+        w = [ui / mean_u for ui in u]
+    else:
+        span = u_max - u_min
+        hi_target = u_min * max_ratio
+        new_span = hi_target - u_min
+        if span <= 0.0 or new_span <= 0.0:
+            return [1.0] * k
+        scale = new_span / span
+        u2 = [u_min + (ui - u_min) * scale for ui in u]
+        mean2 = sum(u2) / k
+        if mean2 <= 0.0:
+            return [1.0] * k
+        w = [x / mean2 for x in u2]
+
+    # SUMO emission floor: sub-rates use base_vph * w_i; need multipliers >= 0.5 when base is 1.
+    if min(w) < 0.5 - 1e-12:
+        w = [max(xi, 0.5) for xi in w]
+        mw = sum(w) / k
+        if mw <= 0.0:
+            return [1.0] * k
+        w = [xi / mw for xi in w]
+        if min(w) < 0.5 - 1e-12 or (max(w) / min(w)) > max_ratio + 1e-9:
+            return [1.0] * k
+
+    if (max(w) / min(w)) > max_ratio + 1e-9:
+        return [1.0] * k
+
+    order = list(range(k))
+    rng.shuffle(order)
+    return [w[i] for i in order]
+
+
+def verify_bounded_subslot_weights() -> None:
+    """Print V1–V6 diagnostics for :func:`_bounded_weights` (standalone QA)."""
+
+    def _pearson(a: list[float], b: list[float]) -> float:
+        n = len(a)
+        if n < 2:
+            return 0.0
+        ma = sum(a) / n
+        mb = sum(b) / n
+        num = sum((x - ma) * (y - mb) for x, y in zip(a, b))
+        dxa = math.sqrt(sum((x - ma) ** 2 for x in a))
+        dxb = math.sqrt(sum((y - mb) ** 2 for y in b))
+        if dxa * dxb < 1e-18:
+            return 0.0
+        return num / (dxa * dxb)
+
+    k = 5
+    spread = 0.85
+    max_r = 1.0 + 2.0 * spread
+    n_sets = 1000
+    rng = random.Random(12345)
+
+    low, high = 1.0 - spread, 1.0 + spread
+    clip_lo, clip_hi = max(0.1, 1.0 - spread), 1.0 + spread
+    raw0, raw1 = [], []
+    rng_v1 = random.Random(12345)
+    for _ in range(n_sets):
+        x0 = min(max(rng_v1.uniform(low, high), clip_lo), clip_hi)
+        x1 = min(max(rng_v1.uniform(low, high), clip_lo), clip_hi)
+        raw0.append(x0)
+        raw1.append(x1)
+    r01 = abs(_pearson(raw0, raw1))
+    print(f"V1 independence: r={r01:.4f} — {'PASS' if r01 < 0.05 else 'FAIL'}")
+
+    max_dev_mean = 0.0
+    max_ratio_obs = 0.0
+    cvs: list[float] = []
+    for _ in range(n_sets):
+        w = _bounded_weights(k, spread, rng)
+        m = sum(w) / k
+        max_dev_mean = max(max_dev_mean, abs(m - 1.0))
+        max_ratio_obs = max(max_ratio_obs, max(w) / min(w))
+        mu = sum(w) / k
+        var = sum((x - mu) ** 2 for x in w) / k
+        cvs.append(math.sqrt(var) / mu if mu else 0.0)
+
+    print(f"V2 mean=1.0: max_deviation={max_dev_mean:.2e} — {'PASS' if max_dev_mean < 1e-9 else 'FAIL'}")
+    print(
+        f"V3 ratio cap: max_observed={max_ratio_obs:.4f} — "
+        f"{'PASS' if max_ratio_obs <= max_r + 1e-9 else 'FAIL'}"
+    )
+    mean_cv = sum(cvs) / len(cvs)
+    print(f"V4 spread CV: mean_cv={mean_cv:.4f} — {'PASS' if mean_cv >= 0.10 else 'FAIL'}")
+
+    rng2 = random.Random(999)
+    seq: list[float] = []
+    for _ in range(20):
+        seq.extend(_bounded_weights(5, spread, rng2))
+    r_lag1 = abs(_pearson(seq[:-1], seq[1:]))
+    print(f"V5 autocorrelation lag-1: r={r_lag1:.4f} — {'PASS' if r_lag1 < 0.10 else 'FAIL'}")
+
+    rng3 = random.Random(42)
+    triggered = False
+    for _ in range(20000):
+        w = _bounded_weights(5, spread, rng3)
+        if min(w) < 0.5 - 1e-12:
+            triggered = True
+            break
+    print(
+        f"V6 floor at base_vph=1.0: triggered={triggered} — "
+        f"{'PASS' if not triggered else 'FAIL'} (expected: False)"
+    )
+
+
 def _emit_subslot_flows(
     add_flow,
     slot_begin: float,
@@ -254,9 +409,11 @@ def _emit_subslot_flows(
 ) -> None:
     """Split one CSV slot into shorter SUMO flows with fluctuating vehsPerHour.
 
-    Rates are renormalized so expected vehicles in the interval match a single
-    constant base_vph over the same duration. Falls back to one flow if variation
-    is off or any sub-rate would drop below SUMO's practical emission threshold.
+    Weights are drawn as independent bounded-uniform perturbations around 1.0,
+    renormalised to preserve expected vehicle count, with a ratio cap of
+    ``(1 + 2 * spread)``. Sub-rates are ``base_vph * weight_i``. Falls back to
+    one flat flow if variation is off or any sub-rate would drop below SUMO's
+    practical emission threshold (0.5 vehs/hour).
     """
     duration = slot_end - slot_begin
     if duration <= 0:
@@ -271,9 +428,8 @@ def _emit_subslot_flows(
         add_flow(slot_begin, slot_end, from_approach, to_approach, base_vph)
         return
 
-    weights = [math.exp(spread * rng.gauss(0.0, 1.0)) for _ in range(k)]
-    wsum = sum(weights)
-    vph_list = [base_vph * k * w / wsum for w in weights]
+    weights = _bounded_weights(k, spread, rng)
+    vph_list = [base_vph * wi for wi in weights]
     if min(vph_list) < 0.5:
         add_flow(slot_begin, slot_end, from_approach, to_approach, base_vph)
         return
@@ -299,8 +455,8 @@ def write_sumo_flows(
     """Generate one .rou.xml flow file per sim_day with overnight fill and taper.
 
     When ``subslots_per_slot`` > 1 and ``spread`` > 0, each full-width CSV slot
-    is emitted as several consecutive flows with randomized ``vehsPerHour`` (same
-    expected vehicle count as one flat rate).
+    is emitted as several consecutive flows with bounded-uniform sub-slot weights
+    (same expected vehicle count as one flat rate; see :func:`_bounded_weights`).
     """
     os.makedirs(out_dir, exist_ok=True)
     slots_sorted = sorted(df["start_time"].unique())
@@ -428,9 +584,10 @@ def write_sumo_flows(
             fh.write("\n".join(lines))
 
     if use_variation:
+        _mr = 1.0 + 2.0 * float(spread)
         print(
-            f"  Demand variation: {int(subslots_per_slot)} sub-slots/slot, spread={float(spread):.3g} "
-            f"(seed={variation_seed})"
+            f"  Demand variation: {int(subslots_per_slot)} sub-slots/slot, spread={float(spread):.3g}, "
+            f"max_ratio={_mr:.4g} (seed={variation_seed})"
         )
     print(f"  Written {n_days} SUMO flow files -> {out_dir}")
 
@@ -598,4 +755,9 @@ def main():
 
 
 if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--verify-bounded-weights":
+        verify_bounded_subslot_weights()
+        raise SystemExit(0)
     main()

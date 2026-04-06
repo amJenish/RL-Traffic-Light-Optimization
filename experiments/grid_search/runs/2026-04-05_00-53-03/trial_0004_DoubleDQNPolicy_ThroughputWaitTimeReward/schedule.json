@@ -1,4 +1,77 @@
 {
+  "_about": {
+    "buckets": "Per 15-minute simulation-time window: how long (median_s) the controller stayed in that SUMO phase while the vehicle-demand window (day CSV) covered sim_time. n = number of segment samples.",
+    "phase_legend": "Each phase index is the order of <phase> elements in SUMO tlLogic program 0. sumo_state: one character per traffic-light link in SUMO internal link order (G=major green, g=minor green, y=yellow, r=red)."
+  },
+  "tll_source": "src\\data\\sumo\\network\\McCowan_Finch.tll.xml",
+  "phase_legend": {
+    "J_centre": [
+      {
+        "index": 0,
+        "name": "NS_thru",
+        "title": "NS thru",
+        "meaning": "main green band for through (and usually right-turn) lanes on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+        "sumo_state": "gGGrgGGrrrrrrrrr",
+        "program_duration_s_in_file": 27.0
+      },
+      {
+        "index": 1,
+        "name": "NS_amber1",
+        "title": "NS amber1",
+        "meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 8 yellow (y), 8 red (r).",
+        "sumo_state": "yyyyyyyyrrrrrrrr",
+        "program_duration_s_in_file": 3.0
+      },
+      {
+        "index": 2,
+        "name": "NS_left",
+        "title": "NS left",
+        "meaning": "protected left-turn green on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+        "sumo_state": "rrrgrrrgrrrrrrrr",
+        "program_duration_s_in_file": 27.0
+      },
+      {
+        "index": 3,
+        "name": "NS_amber2",
+        "title": "NS amber2",
+        "meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+        "sumo_state": "rrryrrryrrrrrrrr",
+        "program_duration_s_in_file": 3.0
+      },
+      {
+        "index": 4,
+        "name": "EW_thru",
+        "title": "EW thru",
+        "meaning": "main green band for through (and usually right-turn) lanes on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+        "sumo_state": "rrrrrrrrgGGrgGGr",
+        "program_duration_s_in_file": 27.0
+      },
+      {
+        "index": 5,
+        "name": "EW_amber1",
+        "title": "EW amber1",
+        "meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 8 yellow (y), 8 red (r).",
+        "sumo_state": "rrrrrrrryyyyyyyy",
+        "program_duration_s_in_file": 3.0
+      },
+      {
+        "index": 6,
+        "name": "EW_left",
+        "title": "EW left",
+        "meaning": "protected left-turn green on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+        "sumo_state": "rrrrrrrrrrrgrrrg",
+        "program_duration_s_in_file": 27.0
+      },
+      {
+        "index": 7,
+        "name": "EW_amber2",
+        "title": "EW amber2",
+        "meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+        "sumo_state": "rrrrrrrrrrryrrry",
+        "program_duration_s_in_file": 3.0
+      }
+    ]
+  },
   "buckets": [
     {
       "tls_id": "J_centre",
@@ -6,7 +79,10 @@
       "bucket_start_s": 28800,
       "median_s": 15.0,
       "std_s": 11.353165858032728,
-      "n": 40
+      "n": 40,
+      "phase_title": "NS thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "gGGrgGGrrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -14,7 +90,10 @@
       "bucket_start_s": 28800,
       "median_s": 50.0,
       "std_s": 0.0,
-      "n": 2
+      "n": 2,
+      "phase_title": "NS amber1",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 8 yellow (y), 8 red (r).",
+      "sumo_state": "yyyyyyyyrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -22,7 +101,10 @@
       "bucket_start_s": 28800,
       "median_s": 15.0,
       "std_s": 0.0,
-      "n": 39
+      "n": 39,
+      "phase_title": "NS left",
+      "phase_meaning": "protected left-turn green on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrgrrrgrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -30,7 +112,10 @@
       "bucket_start_s": 28800,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 41
+      "n": 41,
+      "phase_title": "NS amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrryrrryrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -38,7 +123,10 @@
       "bucket_start_s": 28800,
       "median_s": 43.0,
       "std_s": 12.325152128878573,
-      "n": 40
+      "n": 40,
+      "phase_title": "EW thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "rrrrrrrrgGGrgGGr"
     },
     {
       "tls_id": "J_centre",
@@ -46,7 +134,10 @@
       "bucket_start_s": 28800,
       "median_s": 15.0,
       "std_s": 0.0,
-      "n": 11
+      "n": 11,
+      "phase_title": "EW left",
+      "phase_meaning": "protected left-turn green on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrrgrrrg"
     },
     {
       "tls_id": "J_centre",
@@ -54,15 +145,21 @@
       "bucket_start_s": 28800,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 43
+      "n": 43,
+      "phase_title": "EW amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrryrrry"
     },
     {
       "tls_id": "J_centre",
       "phase": 0,
       "bucket_start_s": 29700,
       "median_s": 15.0,
-      "std_s": 5.032754025171926,
-      "n": 49
+      "std_s": 5.032754025171925,
+      "n": 49,
+      "phase_title": "NS thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "gGGrgGGrrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -70,7 +167,10 @@
       "bucket_start_s": 29700,
       "median_s": 15.0,
       "std_s": 0.29481109247603554,
-      "n": 45
+      "n": 45,
+      "phase_title": "NS left",
+      "phase_meaning": "protected left-turn green on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrgrrrgrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -78,7 +178,10 @@
       "bucket_start_s": 29700,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 50
+      "n": 50,
+      "phase_title": "NS amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrryrrryrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -86,7 +189,10 @@
       "bucket_start_s": 29700,
       "median_s": 15.0,
       "std_s": 9.012184385668414,
-      "n": 33
+      "n": 33,
+      "phase_title": "EW thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "rrrrrrrrgGGrgGGr"
     },
     {
       "tls_id": "J_centre",
@@ -94,7 +200,10 @@
       "bucket_start_s": 29700,
       "median_s": 15.0,
       "std_s": 9.267220594710174,
-      "n": 28
+      "n": 28,
+      "phase_title": "EW left",
+      "phase_meaning": "protected left-turn green on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrrgrrrg"
     },
     {
       "tls_id": "J_centre",
@@ -102,7 +211,10 @@
       "bucket_start_s": 29700,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 49
+      "n": 49,
+      "phase_title": "EW amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrryrrry"
     },
     {
       "tls_id": "J_centre",
@@ -110,7 +222,10 @@
       "bucket_start_s": 30600,
       "median_s": 15.0,
       "std_s": 3.098363697271448,
-      "n": 53
+      "n": 53,
+      "phase_title": "NS thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "gGGrgGGrrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -118,7 +233,10 @@
       "bucket_start_s": 30600,
       "median_s": 15.0,
       "std_s": 0.0,
-      "n": 41
+      "n": 41,
+      "phase_title": "NS left",
+      "phase_meaning": "protected left-turn green on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrgrrrgrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -126,7 +244,10 @@
       "bucket_start_s": 30600,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 50
+      "n": 50,
+      "phase_title": "NS amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrryrrryrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -134,7 +255,10 @@
       "bucket_start_s": 30600,
       "median_s": 15.0,
       "std_s": 3.442707837278906,
-      "n": 31
+      "n": 31,
+      "phase_title": "EW thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "rrrrrrrrgGGrgGGr"
     },
     {
       "tls_id": "J_centre",
@@ -142,7 +266,10 @@
       "bucket_start_s": 30600,
       "median_s": 15.0,
       "std_s": 0.0,
-      "n": 34
+      "n": 34,
+      "phase_title": "EW left",
+      "phase_meaning": "protected left-turn green on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrrgrrrg"
     },
     {
       "tls_id": "J_centre",
@@ -150,7 +277,10 @@
       "bucket_start_s": 30600,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 52
+      "n": 52,
+      "phase_title": "EW amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrryrrry"
     },
     {
       "tls_id": "J_centre",
@@ -158,15 +288,21 @@
       "bucket_start_s": 31500,
       "median_s": 15.0,
       "std_s": 4.044638133768718,
-      "n": 52
+      "n": 52,
+      "phase_title": "NS thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "gGGrgGGrrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
       "phase": 2,
       "bucket_start_s": 31500,
       "median_s": 15.0,
-      "std_s": 0.14,
-      "n": 50
+      "std_s": 0.13999999999999999,
+      "n": 50,
+      "phase_title": "NS left",
+      "phase_meaning": "protected left-turn green on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrgrrrgrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -174,7 +310,10 @@
       "bucket_start_s": 31500,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 52
+      "n": 52,
+      "phase_title": "NS amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrryrrryrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -182,7 +321,10 @@
       "bucket_start_s": 31500,
       "median_s": 15.0,
       "std_s": 1.5456030825826172,
-      "n": 36
+      "n": 36,
+      "phase_title": "EW thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "rrrrrrrrgGGrgGGr"
     },
     {
       "tls_id": "J_centre",
@@ -190,7 +332,10 @@
       "bucket_start_s": 31500,
       "median_s": 15.0,
       "std_s": 6.8108108108108105,
-      "n": 37
+      "n": 37,
+      "phase_title": "EW left",
+      "phase_meaning": "protected left-turn green on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrrgrrrg"
     },
     {
       "tls_id": "J_centre",
@@ -198,15 +343,21 @@
       "bucket_start_s": 31500,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 53
+      "n": 53,
+      "phase_title": "EW amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrryrrry"
     },
     {
       "tls_id": "J_centre",
       "phase": 0,
       "bucket_start_s": 32400,
       "median_s": 15.0,
-      "std_s": 5.179649088977096,
-      "n": 53
+      "std_s": 5.179649088977095,
+      "n": 53,
+      "phase_title": "NS thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "gGGrgGGrrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -214,7 +365,10 @@
       "bucket_start_s": 32400,
       "median_s": 15.0,
       "std_s": 0.0,
-      "n": 45
+      "n": 45,
+      "phase_title": "NS left",
+      "phase_meaning": "protected left-turn green on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrgrrrgrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -222,7 +376,10 @@
       "bucket_start_s": 32400,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 53
+      "n": 53,
+      "phase_title": "NS amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrryrrryrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -230,7 +387,10 @@
       "bucket_start_s": 32400,
       "median_s": 15.0,
       "std_s": 1.259587048403356,
-      "n": 37
+      "n": 37,
+      "phase_title": "EW thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "rrrrrrrrgGGrgGGr"
     },
     {
       "tls_id": "J_centre",
@@ -238,7 +398,10 @@
       "bucket_start_s": 32400,
       "median_s": 48.0,
       "std_s": 0.0,
-      "n": 1
+      "n": 1,
+      "phase_title": "EW amber1",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 8 yellow (y), 8 red (r).",
+      "sumo_state": "rrrrrrrryyyyyyyy"
     },
     {
       "tls_id": "J_centre",
@@ -246,7 +409,10 @@
       "bucket_start_s": 32400,
       "median_s": 15.0,
       "std_s": 6.4973463971133345,
-      "n": 35
+      "n": 35,
+      "phase_title": "EW left",
+      "phase_meaning": "protected left-turn green on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrrgrrrg"
     },
     {
       "tls_id": "J_centre",
@@ -254,7 +420,10 @@
       "bucket_start_s": 32400,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 53
+      "n": 53,
+      "phase_title": "EW amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrryrrry"
     },
     {
       "tls_id": "J_centre",
@@ -262,7 +431,10 @@
       "bucket_start_s": 33300,
       "median_s": 15.0,
       "std_s": 6.956336607201747,
-      "n": 51
+      "n": 51,
+      "phase_title": "NS thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "gGGrgGGrrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -270,7 +442,10 @@
       "bucket_start_s": 33300,
       "median_s": 15.0,
       "std_s": 0.5809300463626417,
-      "n": 43
+      "n": 43,
+      "phase_title": "NS left",
+      "phase_meaning": "protected left-turn green on North-South approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrgrrrgrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -278,7 +453,10 @@
       "bucket_start_s": 33300,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 54
+      "n": 54,
+      "phase_title": "NS amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrryrrryrrrrrrrr"
     },
     {
       "tls_id": "J_centre",
@@ -286,7 +464,10 @@
       "bucket_start_s": 33300,
       "median_s": 15.0,
       "std_s": 4.616615886019557,
-      "n": 43
+      "n": 43,
+      "phase_title": "EW thru",
+      "phase_meaning": "main green band for through (and usually right-turn) lanes on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 4 link(s) major green (G), 2 link(s) minor green (g), 10 red (r).",
+      "sumo_state": "rrrrrrrrgGGrgGGr"
     },
     {
       "tls_id": "J_centre",
@@ -294,7 +475,10 @@
       "bucket_start_s": 33300,
       "median_s": 50.0,
       "std_s": 0.9428090415820634,
-      "n": 3
+      "n": 3,
+      "phase_title": "EW amber1",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 8 yellow (y), 8 red (r).",
+      "sumo_state": "rrrrrrrryyyyyyyy"
     },
     {
       "tls_id": "J_centre",
@@ -302,7 +486,10 @@
       "bucket_start_s": 33300,
       "median_s": 15.0,
       "std_s": 0.0,
-      "n": 37
+      "n": 37,
+      "phase_title": "EW left",
+      "phase_meaning": "protected left-turn green on East-West approaches (as wired in your SUMO network); other legs follow red/yellow per the state string. Signal links in SUMO order: 2 link(s) minor green (g), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrrgrrrg"
     },
     {
       "tls_id": "J_centre",
@@ -310,7 +497,10 @@
       "bucket_start_s": 33300,
       "median_s": 4.0,
       "std_s": 0.0,
-      "n": 51
+      "n": 51,
+      "phase_title": "EW amber2",
+      "phase_meaning": "Yellow / clearance between greens: vehicles facing yellow should stop; typically short. Signal links in SUMO order: 2 yellow (y), 14 red (r).",
+      "sumo_state": "rrrrrrrrrrryrrry"
     }
   ]
 }

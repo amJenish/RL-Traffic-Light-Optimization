@@ -7,17 +7,35 @@ from pathlib import Path
 from typing import Any, Callable
 
 from modelling.agent import Agent
-from modelling.schedule_export import (
-    aggregate_schedule,
-    collect_schedule_entries_from_run,
-    write_schedule_json,
-    write_test_sequence_episode_json,
-)
+from modelling.schedule_export import write_test_sequence_episode_json
 
 # Project root
 _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
+
+
+def _green_phase_records_from_export(
+    export: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Green phase ends only (for ScheduleBuilder), from Agent.take_phase_sequence_export."""
+    out: list[dict[str, Any]] = []
+    for tls_id, events in export.items():
+        for ev in events:
+            if ev.get("phase_name") == "yellow_clearance":
+                continue
+            state = ev.get("phase_state") or ""
+            if "G" not in state and "g" not in state:
+                continue
+            out.append(
+                {
+                    "tls_id": tls_id,
+                    "phase": int(ev["phase"]),
+                    "end_s": float(ev["sim_time"]),
+                    "duration_s": float(ev["duration_s"]),
+                }
+            )
+    return out
 
 
 class Trainer:
@@ -33,6 +51,7 @@ class Trainer:
         log_every:    int                       = 5,
         log_callback: Callable[[str], None] | None = None,
         days_dir:     str | None = None,
+        net_file:     str | None = None,
     ):
         self.agent        = agent
         self.output_dir   = output_dir
@@ -41,6 +60,7 @@ class Trainer:
         self.log_every    = log_every
         self.log_callback = log_callback
         self._days_dir    = days_dir
+        self._net_file    = net_file
 
         os.makedirs(output_dir, exist_ok=True)
         self._checkpoint_dir = os.path.join(output_dir, "checkpoints")
@@ -53,8 +73,8 @@ class Trainer:
         self._test_days  = self._split["test"]
         self._flows_dir  = flows_dir
         self._train_log: list[dict] = []
-        self._pretest_log: list[dict] = []
         self._test_log:  list[dict] = []
+        self._phase_duration_records: list[dict[str, Any]] = []
 
     def _emit(self, text: str = "") -> None:
         """Print text to stdout and forward to log_callback if set."""
@@ -63,27 +83,18 @@ class Trainer:
             self.log_callback(text)
 
     def run(self) -> dict[str, Any]:
-        """Full training loop + evaluation. Also logs a pre-train test evaluation."""
+        """Full training loop, then post-training evaluation on test days."""
         self._emit(f"\nStarting training")
         self._emit(f"  Train days : {len(self._train_days)}")
         self._emit(f"  Test days  : {len(self._test_days)}")
         self._emit(f"  Epochs     : {self.n_epochs}")
         self._emit(f"  Output     : {self.output_dir}\n")
 
-        # ------------------------------------------------------------------
-        # Pre-train evaluation (fresh policy on held-out test days)
-        # ------------------------------------------------------------------
-        self._emit(f"--- Pre-train evaluation on {len(self._test_days)} test days ---")
-        self.agent.set_eval_mode()
-        for day_id in self._test_days:
-            metrics = self._run_episode(day_id, train=False)
-            metrics["day_id"] = day_id
-            self._pretest_log.append(metrics)
-            self._log(day_id, metrics, prefix="PreT ")
-
         episode = 0
+        self.agent.reset_train_green_phase_stats()
         for epoch in range(1, self.n_epochs + 1):
             self._emit(f"--- Epoch {epoch}/{self.n_epochs} ---")
+            epoch_start = len(self._train_log)
             for day_id in self._train_days:
                 episode += 1
                 metrics = self._run_episode(day_id, train=True)
@@ -102,8 +113,16 @@ class Trainer:
                     self.agent.save(path)
                     self._emit(f"  Checkpoint saved -> {path}")
 
+            chunk = self._train_log[epoch_start:]
+            if chunk:
+                mean_r = sum(m["total_reward"] for m in chunk) / len(chunk)
+                self._emit(
+                    f"  Train epoch={epoch:4d}  mean_reward={mean_r:8.1f}"
+                )
+
         self._emit(f"\n--- Evaluating on {len(self._test_days)} test days ---")
         self.agent.set_eval_mode()
+        self._phase_duration_records.clear()
         for test_episode, day_id in enumerate(self._test_days, start=1):
             metrics = self._run_episode(
                 day_id, train=False, test_sequence_idx=test_episode
@@ -112,27 +131,6 @@ class Trainer:
             self._test_log.append(metrics)
             self._log(test_episode, metrics, prefix="Test ")
 
-        schedule_path: str | None = None
-        if self._days_dir:
-            all_entries = collect_schedule_entries_from_run(
-                self.output_dir,
-                self._test_log,
-                self._days_dir,
-                warn=self._emit,
-            )
-            if all_entries:
-                schedule = aggregate_schedule(all_entries)
-                schedule_path = os.path.join(self.output_dir, "schedule.json")
-                write_schedule_json(schedule_path, schedule)
-                self._emit(f"Schedule saved -> {schedule_path}")
-            else:
-                self._emit(
-                    "  No schedule entries after coverage filter "
-                    "(check days_dir CSVs and test_sequences/episode_*.json)."
-                )
-        else:
-            self._emit("  days_dir not set — skipping schedule.json aggregation")
-
         final_path = os.path.join(self.output_dir, "final_model.pt")
         self.agent.save(final_path)
         self._emit(f"\nFinal model saved -> {final_path}")
@@ -140,14 +138,12 @@ class Trainer:
         self._save_logs()
         self._print_summary()
 
-        out: dict[str, Any] = {
+        return {
             "train_log": self._train_log,
-            "pretest_log": self._pretest_log,
+            "pretest_log": [],
             "test_log": self._test_log,
+            "phase_duration_records": self._phase_duration_records,
         }
-        if schedule_path is not None:
-            out["schedule_path"] = schedule_path
-        return out
 
     def _run_episode(
         self,
@@ -180,7 +176,17 @@ class Trainer:
             export = self.agent.take_phase_sequence_export()
             if test_sequence_idx is not None:
                 self._write_test_sequence_json(test_sequence_idx, export)
+                self._phase_duration_records.extend(
+                    _green_phase_records_from_export(export)
+                )
         return metrics
+
+    def _write_test_sequence_json(
+        self, episode_idx: int, tls_sequences: dict[str, list[dict[str, Any]]]
+    ) -> None:
+        write_test_sequence_episode_json(
+            self.output_dir, episode_idx, tls_sequences
+        )
 
     def _log(self, index: int, metrics: dict, prefix: str = "") -> None:
         eps = metrics.get("epsilon")
@@ -198,25 +204,22 @@ class Trainer:
 
     def _save_logs(self) -> None:
         train_path = os.path.join(self.output_dir, "train_log.json")
-        pretest_path = os.path.join(self.output_dir, "pretest_log.json")
-        test_path  = os.path.join(self.output_dir, "test_log.json")
+        test_path = os.path.join(self.output_dir, "test_log.json")
         with open(train_path, "w") as f:
             json.dump(self._train_log, f, indent=2)
-        with open(pretest_path, "w") as f:
-            json.dump(self._pretest_log, f, indent=2)
         with open(test_path, "w") as f:
             json.dump(self._test_log, f, indent=2)
         self._emit(f"Logs saved -> {train_path}")
-        self._emit(f"           -> {pretest_path}")
         self._emit(f"           -> {test_path}")
 
     def _print_summary(self) -> None:
         if self._train_log:
             mean_reward = sum(m["total_reward"] for m in self._train_log) / len(self._train_log)
             self._emit(f"\nTrain mean reward : {mean_reward:.2f}")
-        if self._pretest_log:
-            mean_reward = sum(m["total_reward"] for m in self._pretest_log) / len(self._pretest_log)
-            self._emit(f"PreT  mean reward : {mean_reward:.2f}")
         if self._test_log:
             mean_reward = sum(m["total_reward"] for m in self._test_log) / len(self._test_log)
             self._emit(f"Test  mean reward : {mean_reward:.2f}")
+        self._emit("")
+        self._emit("--- Training green-phase hold times (sim seconds) ---")
+        for line in self.agent.format_train_green_phase_duration_report():
+            self._emit(line)

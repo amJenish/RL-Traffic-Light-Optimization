@@ -19,18 +19,18 @@ def aggregate_test_kpis(
     test_log: list[dict[str, Any]],
     elapsed_s: float,
 ) -> dict[str, float]:
-    """Mean/std across test episodes for crossings, throughput, neg waiting integral."""
+    """Mean/std across test episodes for throughput, neg waiting integral, total reward."""
     _ = elapsed_s
-    cr = [
-        float(m.get("kpi_crossings_rate", m.get("crossings_rate", 0)))
+    tr = [
+        float(m["kpi_throughput_rate"])
         for m in test_log
+        if "kpi_throughput_rate" in m
     ]
-    ct = [
-        float(m.get("kpi_crossings_total", m.get("crossings_total", 0)))
+    tt = [
+        float(m["kpi_throughput_total"])
         for m in test_log
+        if "kpi_throughput_total" in m
     ]
-    tr = [float(m["kpi_throughput_rate"]) for m in test_log if "kpi_throughput_rate" in m]
-    tt = [float(m["kpi_throughput_total"]) for m in test_log if "kpi_throughput_total" in m]
     nw = [
         float(m["kpi_neg_lane_waiting_integral"])
         for m in test_log
@@ -38,16 +38,15 @@ def aggregate_test_kpis(
     ]
 
     out: dict[str, float] = {}
-    m, s = _mean_std(cr)
-    out["test_crossings_rate_mean"], out["test_crossings_rate_std"] = m, s
-    m, s = _mean_std(ct)
-    out["test_crossings_total_mean"], out["test_crossings_total_std"] = m, s
     m, s = _mean_std(tr)
     out["test_throughput_rate_mean"], out["test_throughput_rate_std"] = m, s
     m, s = _mean_std(tt)
     out["test_throughput_total_mean"], out["test_throughput_total_std"] = m, s
     m, s = _mean_std(nw)
     out["test_neg_lane_waiting_integral_mean"], out["test_neg_lane_waiting_integral_std"] = m, s
+    rew = [float(m.get("total_reward", 0)) for m in test_log]
+    m, s = _mean_std(rew)
+    out["test_total_reward_mean"], out["test_total_reward_std"] = m, s
     return out
 
 

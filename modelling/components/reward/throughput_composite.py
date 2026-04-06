@@ -1,5 +1,6 @@
 """Throughput + mean queue + cross-lane queue imbalance (std)."""
 
+import math
 import statistics
 from typing import Any
 
@@ -31,6 +32,8 @@ class ThroughputCompositeReward(BaseReward):
         beta: float = 0.1,
         normalise: bool = True,
         scale: float = 1.0,
+        switch_weight: float = 0.0,
+        queue_norm_cap: float = 20.0,
         **kwargs: Any,
     ) -> None:
         self._gamma = float(gamma)
@@ -38,6 +41,8 @@ class ThroughputCompositeReward(BaseReward):
         self._beta = float(beta)
         self._normalise = normalise
         self._scale = scale
+        self._switch_weight = float(switch_weight)
+        self._queue_norm_cap = max(float(queue_norm_cap), 1e-6)
 
         self._prev_on_departure: dict[str, frozenset[str]] = {}
         self._accumulated_throughput: dict[str, int] = {}
@@ -103,13 +108,19 @@ class ThroughputCompositeReward(BaseReward):
         dv_term = float(delta_v)
         if self._normalise:
             if dep_lanes:
-                dv_term /= len(dep_lanes)
+                dv_term = math.tanh(dv_term / max(len(dep_lanes), 1))
+            else:
+                dv_term = math.tanh(dv_term)
+            mean_q = math.tanh(mean_q / self._queue_norm_cap)
+            std_q = math.tanh(std_q / self._queue_norm_cap)
 
         reward = (
             self._gamma * dv_term
             - self._alpha * mean_q
             - self._beta * std_q
         )
+        if switched and self._switch_weight > 0.0:
+            reward -= self._switch_weight
         return float(reward * self._scale)
 
     def reset(self) -> None:

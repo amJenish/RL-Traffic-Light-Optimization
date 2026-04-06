@@ -7,11 +7,14 @@
     "E": {"lanes": {"through": 2, "right": 1, "left": 1}, "speed_kmh": 50},
     "W": {"lanes": {"through": 2, "right": 1, "left": 1}, "speed_kmh": 50}
   },
-  "phases":       "4",
-  "min_red_s":    15,
-  "min_green_s":  15,
-  "max_green_s":  90,
-  "amber_s":      3,
-  "cycle_s":      120,
+  "phases": "4",
+  "phase_program_mode": "4",
+  "n_green_phases": 2,
+  "left_turn_mode": "permissive",
+  "min_red_s": 15,
+  "min_green_s": 15,
+  "max_green_s": 90,
+  "amber_s": 3,
+  "cycle_s": 120,
   "edge_length_m": 200
 }

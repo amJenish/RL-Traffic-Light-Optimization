@@ -1,0 +1,167 @@
+{
+  "episode": 1,
+  "tls_sequences": {
+    "J_centre": [
+      {
+        "phase": 0,
+        "phase_name": "NS_service",
+        "phase_state": "gGGgrrrrgGGgrrrr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 28825.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyyrrrryyyyrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 28828.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "EW_service",
+        "phase_state": "rrrrgGGgrrrrgGGg",
+        "duration_s": 735.0,
+        "duration_steps": 735,
+        "sim_time": 29588.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyyrrrryyyy",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 29591.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_service",
+        "phase_state": "gGGgrrrrgGGgrrrr",
+        "duration_s": 335.0,
+        "duration_steps": 335,
+        "sim_time": 29951.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyyrrrryyyyrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 29954.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "EW_service",
+        "phase_state": "rrrrgGGgrrrrgGGg",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 29994.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyyrrrryyyy",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 29997.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_service",
+        "phase_state": "gGGgrrrrgGGgrrrr",
+        "duration_s": 45.0,
+        "duration_steps": 45,
+        "sim_time": 30067.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyyrrrryyyyrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 30070.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "EW_service",
+        "phase_state": "rrrrgGGgrrrrgGGg",
+        "duration_s": 395.0,
+        "duration_steps": 395,
+        "sim_time": 30490.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyyrrrryyyy",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 30493.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_service",
+        "phase_state": "gGGgrrrrgGGgrrrr",
+        "duration_s": 375.0,
+        "duration_steps": 375,
+        "sim_time": 30893.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyyrrrryyyyrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 30896.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "EW_service",
+        "phase_state": "rrrrgGGgrrrrgGGg",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 30936.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyyrrrryyyy",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 30939.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_service",
+        "phase_state": "gGGgrrrrgGGgrrrr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 30979.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyyrrrryyyyrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 30982.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "EW_service",
+        "phase_state": "rrrrgGGgrrrrgGGg",
+        "duration_s": 405.0,
+        "duration_steps": 405,
+        "sim_time": 31412.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyyrrrryyyy",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 31415.0
+      }
+    ]
+  }
+}

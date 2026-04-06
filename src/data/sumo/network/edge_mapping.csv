@@ -1,13 +1,13 @@
 location_slug,approach,movement,edges
-McCowan_Finch,n,r,edge_N_in edge_W_out
-McCowan_Finch,n,t,edge_N_in edge_S_out
-McCowan_Finch,n,l,edge_N_in edge_E_out
-McCowan_Finch,s,r,edge_S_in edge_E_out
-McCowan_Finch,s,t,edge_S_in edge_N_out
-McCowan_Finch,s,l,edge_S_in edge_W_out
-McCowan_Finch,e,r,edge_E_in edge_N_out
-McCowan_Finch,e,t,edge_E_in edge_W_out
-McCowan_Finch,e,l,edge_E_in edge_S_out
-McCowan_Finch,w,r,edge_W_in edge_S_out
-McCowan_Finch,w,t,edge_W_in edge_E_out
-McCowan_Finch,w,l,edge_W_in edge_N_out
+My_Intersection,n,r,edge_N_in edge_W_out
+My_Intersection,n,t,edge_N_in edge_S_out
+My_Intersection,n,l,edge_N_in edge_E_out
+My_Intersection,s,r,edge_S_in edge_E_out
+My_Intersection,s,t,edge_S_in edge_N_out
+My_Intersection,s,l,edge_S_in edge_W_out
+My_Intersection,e,r,edge_E_in edge_N_out
+My_Intersection,e,t,edge_E_in edge_W_out
+My_Intersection,e,l,edge_E_in edge_S_out
+My_Intersection,w,r,edge_W_in edge_S_out
+My_Intersection,w,t,edge_W_in edge_E_out
+My_Intersection,w,l,edge_W_in edge_N_out

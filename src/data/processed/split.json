@@ -9,14 +9,14 @@
     4,
     5
   ],
-  "intersection_name": "McCowan_Finch",
+  "intersection_name": "My_Intersection",
   "active_approaches": [
     "N",
     "S",
     "E",
     "W"
   ],
-  "min_red_seconds": 15,
+  "min_red_seconds": 1,
   "n_days": 6,
   "n_slots": 32,
   "slot_minutes": 15,

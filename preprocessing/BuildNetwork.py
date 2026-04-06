@@ -23,6 +23,10 @@ DIRECTION_VECTORS = {
 
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
 
+# SUMO assigns one signal character per controlled link in junction ``incLanes`` order:
+# N → E → S → W (see ``J_centre`` in the built ``.net.xml``). TLS ``state`` strings must match.
+SUMO_TLS_LINK_APPROACH_ORDER = ("N", "E", "S", "W")
+
 TURN_TARGETS = {
     "N": {"right": "W", "through": "S", "left": "E"},
     "S": {"right": "E", "through": "N", "left": "W"},
@@ -46,6 +50,36 @@ def _has_movement(
     return False
 
 
+# Nominal SUMO duration for green service rows; dwell is TraCI-controlled (setPhase).
+STATIC_GREEN_PHASE_DURATION_S = 999_999
+
+_VALID_TLS_CHARS = frozenset("GgyruoO")
+
+
+def _sanitize_tls_state_string(state: str) -> str:
+    """SUMO TLS state characters only; unknown → 'r' (Section 3.G)."""
+    out: list[str] = []
+    for ch in state:
+        out.append(ch if ch in _VALID_TLS_CHARS else "r")
+    return "".join(out)
+
+
+def _movement_pairs_for_approach(
+    approaches: dict, active: list[str], d: str
+) -> list[tuple[str, str]]:
+    """(approach, movement) pairs that exist for one leg (link order: R,T,L)."""
+    out: list[tuple[str, str]] = []
+    if d not in active:
+        return out
+    app = approaches.get(d)
+    for m in ("right", "through", "left"):
+        if app is None:
+            out.append((d, m))
+        elif app.get("lanes", {}).get(m, 0) > 0:
+            out.append((d, m))
+    return out
+
+
 def build_phases(
     active: list[str],
     mode: str,
@@ -53,117 +87,193 @@ def build_phases(
     min_green_s: int,
     cycle_s: int,
     approaches: dict | None = None,
+    left_turn_mode: str = "permissive",
+    protected_approaches: list[str] | None = None,
 ) -> list[dict]:
-    """Build phase specs (green + amber) driven by intersection config and phase mode."""
+    """
+    Green **service** phases only (no yellow rows in the TLS program).
+
+    Yellow / all-red clearance between greens is applied in TraCI (Agent) using
+    ``setRedYellowGreenState`` for ``yellow_duration_s`` from config.json.
+
+    ``left_turn_mode``:
+      - ``permissive`` (default): lefts with through/right on the same street
+        (permissive / Canadian-style: may enter on green and wait to turn).
+      - ``protected``: lead-lead split — protected left bar, then through+right,
+        per street, when left lanes exist.
+      - ``protected_some``: like protected, but only for directions listed in
+        ``protected_approaches`` (with left ≥ 1); others keep permissive lefts.
+
+    ``phases`` \"2\"`` → NS_service + EW_service.
+    ``phases`` \"4`` + permissive → same two bars (documented in console).
+    ``phases`` \"4`` + protected → NS_left?, NS_through, EW_left?, EW_through.
+    """
+    _ = amber_s, min_green_s, cycle_s  # documented in intersection.json
     if approaches is None:
         approaches = {}
 
     ns_dirs = [d for d in ("N", "S") if d in active]
     ew_dirs = [d for d in ("E", "W") if d in active]
+    lt_raw = (left_turn_mode or "permissive").strip().lower()
+    if lt_raw not in ("permissive", "protected", "protected_some"):
+        lt_raw = "permissive"
 
-    n_green_phases = 0
-    if ns_dirs:
-        n_green_phases += 1
-    if ew_dirs:
-        n_green_phases += 1
-    if mode == "4":
-        if ns_dirs and _has_movement(approaches, active, ns_dirs, "left"):
-            n_green_phases += 1
-        if ew_dirs and _has_movement(approaches, active, ew_dirs, "left"):
-            n_green_phases += 1
+    prot_set = set(protected_approaches or [])
+    if lt_raw != "protected_some":
+        prot_set = set()
 
-    n_green_phases = max(n_green_phases, 1)
-    green_time = (cycle_s - n_green_phases * amber_s) // n_green_phases
-    green_time = max(green_time, min_green_s)
-    green_time = max(green_time, 10)
+    use_permissive_lefts = mode == "2" or lt_raw == "permissive"
+    if mode == "4" and lt_raw == "permissive":
+        print(
+            "  Note: phases=4 with left_turn_mode=permissive uses 2 green bars "
+            "(NS_service, EW_service); lefts are permissive with through/right."
+        )
 
-    phases = []
+    dur = STATIC_GREEN_PHASE_DURATION_S
+    phases: list[dict] = []
 
-    if mode == "2":
+    def _append_green(name: str, pairs: list[tuple[str, str]]) -> None:
+        if pairs:
+            phases.append({"name": name, "green_groups": pairs, "duration": dur})
+
+    def _dirs_protected_left(street_dirs: list[str]) -> list[str]:
+        out: list[str] = []
+        for d in street_dirs:
+            if d not in prot_set:
+                continue
+            if approaches.get(d) is None:
+                out.append(d)
+            elif approaches.get(d, {}).get("lanes", {}).get("left", 0) > 0:
+                out.append(d)
+        return out
+
+    def _street_through_pairs(
+        street_dirs: list[str], skip_left_for: set[str]
+    ) -> list[tuple[str, str]]:
+        pairs: list[tuple[str, str]] = []
+        for d in street_dirs:
+            for m in ("right", "through"):
+                if approaches.get(d) is None:
+                    pairs.append((d, m))
+                elif approaches.get(d, {}).get("lanes", {}).get(m, 0) > 0:
+                    pairs.append((d, m))
+            if d in skip_left_for:
+                continue
+            if approaches.get(d) is None:
+                pairs.append((d, "left"))
+            elif approaches.get(d, {}).get("lanes", {}).get("left", 0) > 0:
+                pairs.append((d, "left"))
+        return pairs
+
+    if lt_raw == "protected_some":
         if ns_dirs:
-            grp = []
-            for d in ns_dirs:
-                for m in ("through", "right", "left"):
-                    grp.append((d, m))
-            phases.append(
-                {"name": "NS_green", "green_groups": grp, "duration": green_time}
-            )
-            phases.append({
-                "name": "NS_amber",
-                "green_groups": [],
-                "amber_groups": [(d, "all") for d in ns_dirs],
-                "duration": amber_s,
-            })
-
+            pl_ns = _dirs_protected_left(ns_dirs)
+            if pl_ns:
+                _append_green("NS_left_prot", [(d, "left") for d in pl_ns])
+            skip = set(pl_ns)
+            thru_ns = _street_through_pairs(ns_dirs, skip)
+            _append_green("NS_service", thru_ns)
         if ew_dirs:
-            grp = []
+            pl_ew = _dirs_protected_left(ew_dirs)
+            if pl_ew:
+                _append_green("EW_left_prot", [(d, "left") for d in pl_ew])
+            skip_e = set(pl_ew)
+            thru_ew = _street_through_pairs(ew_dirs, skip_e)
+            _append_green("EW_service", thru_ew)
+    elif use_permissive_lefts:
+        if ns_dirs:
+            grp_ns: list[tuple[str, str]] = []
+            for d in ns_dirs:
+                grp_ns.extend(_movement_pairs_for_approach(approaches, active, d))
+            _append_green("NS_service", grp_ns)
+        if ew_dirs:
+            grp_ew: list[tuple[str, str]] = []
             for d in ew_dirs:
-                for m in ("through", "right", "left"):
-                    grp.append((d, m))
-            phases.append(
-                {"name": "EW_green", "green_groups": grp, "duration": green_time}
-            )
-            phases.append({
-                "name": "EW_amber",
-                "green_groups": [],
-                "amber_groups": [(d, "all") for d in ew_dirs],
-                "duration": amber_s,
-            })
-
+                grp_ew.extend(_movement_pairs_for_approach(approaches, active, d))
+            _append_green("EW_service", grp_ew)
     else:
         if ns_dirs:
-            thru_grp = []
-            for d in ns_dirs:
-                thru_grp.extend([(d, "through"), (d, "right")])
-            phases.append(
-                {"name": "NS_thru", "green_groups": thru_grp, "duration": green_time}
-            )
-            phases.append({
-                "name": "NS_amber1",
-                "green_groups": [],
-                "amber_groups": [(d, "all") for d in ns_dirs],
-                "duration": amber_s,
-            })
-
             if _has_movement(approaches, active, ns_dirs, "left"):
-                left_grp = [(d, "left") for d in ns_dirs]
-                phases.append(
-                    {"name": "NS_left", "green_groups": left_grp, "duration": green_time}
+                _append_green(
+                    "NS_left",
+                    [
+                        (d, "left")
+                        for d in ns_dirs
+                        if approaches.get(d) is None
+                        or approaches.get(d, {}).get("lanes", {}).get("left", 0) > 0
+                    ],
                 )
-                phases.append({
-                    "name": "NS_amber2",
-                    "green_groups": [],
-                    "amber_groups": [(d, "left") for d in ns_dirs],
-                    "duration": amber_s,
-                })
+            thru_ns: list[tuple[str, str]] = []
+            for d in ns_dirs:
+                for m in ("right", "through"):
+                    if approaches.get(d) is None:
+                        thru_ns.append((d, m))
+                    elif approaches.get(d, {}).get("lanes", {}).get(m, 0) > 0:
+                        thru_ns.append((d, m))
+            _append_green("NS_through", thru_ns)
 
         if ew_dirs:
-            thru_grp = []
-            for d in ew_dirs:
-                thru_grp.extend([(d, "through"), (d, "right")])
-            phases.append(
-                {"name": "EW_thru", "green_groups": thru_grp, "duration": green_time}
-            )
-            phases.append({
-                "name": "EW_amber1",
-                "green_groups": [],
-                "amber_groups": [(d, "all") for d in ew_dirs],
-                "duration": amber_s,
-            })
-
             if _has_movement(approaches, active, ew_dirs, "left"):
-                left_grp = [(d, "left") for d in ew_dirs]
-                phases.append(
-                    {"name": "EW_left", "green_groups": left_grp, "duration": green_time}
+                _append_green(
+                    "EW_left",
+                    [
+                        (d, "left")
+                        for d in ew_dirs
+                        if approaches.get(d) is None
+                        or approaches.get(d, {}).get("lanes", {}).get("left", 0) > 0
+                    ],
                 )
-                phases.append({
-                    "name": "EW_amber2",
-                    "green_groups": [],
-                    "amber_groups": [(d, "left") for d in ew_dirs],
-                    "duration": amber_s,
-                })
+            thru_ew: list[tuple[str, str]] = []
+            for d in ew_dirs:
+                for m in ("right", "through"):
+                    if approaches.get(d) is None:
+                        thru_ew.append((d, m))
+                    elif approaches.get(d, {}).get("lanes", {}).get(m, 0) > 0:
+                        thru_ew.append((d, m))
+            _append_green("EW_through", thru_ew)
 
+    phases = [p for p in phases if p.get("green_groups")]
+    if not phases:
+        raise ValueError("build_phases produced no green phases — check active_approaches")
     return phases
+
+
+def inject_tll_into_net(net_path: str, tll_path: str, tls_id: str = "J_centre") -> None:
+    """Replace ``tlLogic`` in ``net.xml`` with the program from ``*.tll.xml``."""
+    tll_tree = ET.parse(tll_path)
+    tll_root = tll_tree.getroot()
+    source_tl = None
+    for tl in tll_root.findall("tlLogic"):
+        if tl.get("id") == tls_id:
+            source_tl = tl
+            break
+    if source_tl is None:
+        all_tl = tll_root.findall("tlLogic")
+        if not all_tl:
+            raise ValueError(f"No tlLogic in {tll_path}")
+        source_tl = all_tl[0]
+
+    new_tl = ET.fromstring(ET.tostring(source_tl, encoding="unicode"))
+
+    net_tree = ET.parse(net_path)
+    net_root = net_tree.getroot()
+    for child in list(net_root):
+        if child.tag == "tlLogic" and child.get("id") == tls_id:
+            net_root.remove(child)
+
+    # SUMO parses net.xml in order: <connection tl="…"> requires tlLogic to appear first.
+    insert_idx = None
+    for i, child in enumerate(net_root):
+        if child.tag == "connection":
+            insert_idx = i
+            break
+    if insert_idx is not None:
+        net_root.insert(insert_idx, new_tl)
+    else:
+        net_root.append(new_tl)
+
+    net_tree.write(net_path, encoding="unicode", xml_declaration=True)
+    print(f"  Injected tlLogic '{tls_id}' from {os.path.basename(tll_path)} into net.xml")
 
 
 def write_nodes(cfg: dict, out_dir: str) -> str:
@@ -296,13 +406,26 @@ def write_tll(cfg: dict, out_dir: str) -> str:
     amber_s = cfg.get("amber_s", 3)
     min_green = cfg.get("min_green_s", 15)
     cycle_s = cfg.get("cycle_s", 120)
+    lt_mode = cfg.get("left_turn_mode", "permissive")
+    prot = cfg.get("protected_approaches")
+    if not isinstance(prot, list):
+        prot = None
 
     phases = build_phases(
-        active, mode, amber_s, min_green, cycle_s, approaches=cfg.get("approaches", {})
+        active,
+        mode,
+        amber_s,
+        min_green,
+        cycle_s,
+        approaches=cfg.get("approaches", {}),
+        left_turn_mode=str(lt_mode),
+        protected_approaches=prot,
     )
 
     links = []
-    for d in active:
+    for d in SUMO_TLS_LINK_APPROACH_ORDER:
+        if d not in active:
+            continue
         lanes_cfg = cfg["approaches"][d]["lanes"]
         lane_idx = 0
         for movement in ["right", "through", "left"]:
@@ -325,7 +448,6 @@ def write_tll(cfg: dict, out_dir: str) -> str:
 
     def state_for_phase(phase: dict) -> str:
         green_set = set()
-        amber_set = set()
         for grp in phase.get("green_groups", []):
             app, mov = grp
             if mov == "all":
@@ -333,13 +455,6 @@ def write_tll(cfg: dict, out_dir: str) -> str:
                     green_set.add((app, m))
             else:
                 green_set.add((app, mov))
-        for grp in phase.get("amber_groups", []):
-            app, mov = grp
-            if mov in ("all", "thru"):
-                for m in ["through", "right", "left"]:
-                    amber_set.add((app, m))
-            else:
-                amber_set.add((app, mov))
 
         state = []
         for lnk in links:
@@ -349,11 +464,10 @@ def write_tll(cfg: dict, out_dir: str) -> str:
                     state.append("G")
                 else:
                     state.append("g")
-            elif key in amber_set:
-                state.append("y")
             else:
                 state.append("r")
-        return "".join(state)
+        raw = "".join(state)
+        return _sanitize_tls_state_string(raw)
 
     root = ET.Element("tlLogics")
     tl = ET.SubElement(root, "tlLogic")
@@ -441,6 +555,7 @@ def run_netconvert(
         print("netconvert stderr:", result.stderr[-800:])
         raise RuntimeError("netconvert failed — see above")
 
+    inject_tll_into_net(out_net, tll, tls_id="J_centre")
     _apply_timing_constraints(out_net, min_green, max_green, amber_s, mode)
     write_edge_mapping(cfg, out_dir)
 
@@ -451,7 +566,9 @@ def run_netconvert(
 def _apply_timing_constraints(
     net_path: str, min_green: int, max_green: int, amber_s: int, mode: str
 ):
-    """Clamp phase durations in the auto-generated .net.xml to min/max green."""
+    """Set long nominal durations for green-only tlLogic; yellow-only rows stay short."""
+    _ = min_green, max_green, mode
+    long_dur = str(STATIC_GREEN_PHASE_DURATION_S)
     tree = ET.parse(net_path)
     root = tree.getroot()
 
@@ -462,16 +579,15 @@ def _apply_timing_constraints(
 
         for phase in phases:
             state = phase.get("state", "")
-            duration = int(phase.get("duration", 30))
-
             greens = state.count("G") + state.count("g")
             yellows = state.count("y") + state.count("Y")
 
-            if yellows > greens:
+            if yellows > 0 and greens == 0:
                 phase.set("duration", str(amber_s))
             elif greens > 0:
-                new_dur = max(min_green, min(max_green, duration))
-                phase.set("duration", str(new_dur))
+                phase.set("duration", long_dur)
+            else:
+                phase.set("duration", str(amber_s))
 
         print(f"  TLS '{tl.get('id')}': {len(phases)} phases adjusted")
         for p in phases:
@@ -500,10 +616,18 @@ def main():
     with open(args.config) as fh:
         cfg = json.load(fh)
 
+    _root_bn = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _root_bn not in sys.path:
+        sys.path.insert(0, _root_bn)
+    from preprocessing.validate_intersection import validate_and_fix_intersection
+
+    cfg, _warns = validate_and_fix_intersection(cfg, fix=True, log=print)
+
     name = cfg["intersection_name"]
     print(f"\nBuilding network: {name}")
     print(f"  Approaches : {cfg['active_approaches']}")
     print(f"  Phases     : {cfg.get('phases','2')}-phase")
+    print(f"  Left turns : {cfg.get('left_turn_mode', 'permissive')}")
     print(f"  Min green  : {cfg.get('min_green_s',15)}s")
     print(f"  Max green  : {cfg.get('max_green_s',90)}s")
     print(f"  Amber      : {cfg.get('amber_s',3)}s")

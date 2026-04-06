@@ -152,65 +152,90 @@ class TestConfigLoads(unittest.TestCase):
 
 
 class TestBuildPhases(unittest.TestCase):
-    """build_phases() returns correct phase structure for 2-phase and 4-phase."""
+    """build_phases() returns green-only service rows (no amber in TLS)."""
 
-    def test_2phase_returns_4_phases(self):
-        phases = bn.build_phases(["N","S","E","W"], "2", 3, 15, 120)
+    def test_2phase_returns_two_green_bars(self):
+        phases = bn.build_phases(["N", "S", "E", "W"], "2", 3, 15, 120)
+        self.assertEqual(len(phases), 2)
+        names = [p["name"] for p in phases]
+        self.assertIn("NS_service", names)
+        self.assertIn("EW_service", names)
+
+    def test_4phase_permissive_returns_two_bars(self):
+        phases = bn.build_phases(
+            ["N", "S", "E", "W"], "4", 3, 15, 120, left_turn_mode="permissive"
+        )
+        self.assertEqual(len(phases), 2)
+
+    def test_4phase_protected_returns_four_bars_with_lefts(self):
+        approaches = {d: {"lanes": {"through": 2, "right": 1, "left": 1}} for d in "NSEW"}
+        phases = bn.build_phases(
+            ["N", "S", "E", "W"],
+            "4",
+            3,
+            15,
+            120,
+            approaches,
+            left_turn_mode="protected",
+        )
         self.assertEqual(len(phases), 4)
-
-    def test_4phase_returns_8_phases(self):
-        phases = bn.build_phases(["N","S","E","W"], "4", 3, 15, 120)
-        self.assertEqual(len(phases), 8)
+        names = [p["name"] for p in phases]
+        self.assertIn("NS_left", names)
+        self.assertIn("NS_through", names)
+        self.assertIn("EW_left", names)
+        self.assertIn("EW_through", names)
 
     def test_all_phases_have_required_keys(self):
         for mode in ["2", "4"]:
-            phases = bn.build_phases(["N","S","E","W"], mode, 3, 15, 120)
+            phases = bn.build_phases(
+                ["N", "S", "E", "W"], mode, 3, 15, 120, left_turn_mode="permissive"
+            )
             for ph in phases:
-                self.assertIn("name",         ph)
-                self.assertIn("duration",     ph)
+                self.assertIn("name", ph)
+                self.assertIn("duration", ph)
                 self.assertIn("green_groups", ph)
 
     def test_all_durations_positive(self):
         for mode in ["2", "4"]:
-            phases = bn.build_phases(["N","S","E","W"], mode, 3, 15, 120)
+            phases = bn.build_phases(
+                ["N", "S", "E", "W"], mode, 3, 15, 120, left_turn_mode="permissive"
+            )
             for ph in phases:
                 self.assertGreater(ph["duration"], 0,
                                    f"Phase '{ph['name']}' has zero duration")
 
-    def test_2phase_has_ns_and_ew_green(self):
-        phases = bn.build_phases(["N","S","E","W"], "2", 3, 15, 120)
-        names  = [p["name"] for p in phases]
-        self.assertIn("NS_green", names)
-        self.assertIn("EW_green", names)
+    def test_no_amber_rows_in_program(self):
+        phases = bn.build_phases(
+            ["N", "S", "E", "W"], "2", 3, 15, 120, left_turn_mode="permissive"
+        )
+        for ph in phases:
+            self.assertNotIn("amber", ph["name"].lower())
+            self.assertGreater(len(ph["green_groups"]), 0)
 
-    def test_4phase_has_left_turn_phases(self):
-        approaches = {d: {"lanes": {"through": 2, "right": 1, "left": 1}} for d in "NSEW"}
-        phases = bn.build_phases(["N","S","E","W"], "4", 3, 15, 120, approaches)
-        names  = [p["name"] for p in phases]
-        self.assertIn("NS_left", names)
-        self.assertIn("EW_left", names)
-
-    def test_4phase_no_left_lanes_skips_left_phases(self):
+    def test_4phase_protected_no_left_lanes_skips_left_bars(self):
         approaches = {d: {"lanes": {"through": 2, "right": 1, "left": 0}} for d in "NSEW"}
-        phases = bn.build_phases(["N","S","E","W"], "4", 3, 15, 120, approaches)
-        names  = [p["name"] for p in phases]
+        phases = bn.build_phases(
+            ["N", "S", "E", "W"],
+            "4",
+            3,
+            15,
+            120,
+            approaches,
+            left_turn_mode="protected",
+        )
+        names = [p["name"] for p in phases]
         self.assertNotIn("NS_left", names)
         self.assertNotIn("EW_left", names)
-        self.assertEqual(len(phases), 4)
+        self.assertEqual(len(phases), 2)
+        self.assertIn("NS_through", names)
+        self.assertIn("EW_through", names)
 
-    def test_amber_phases_have_no_green_groups(self):
-        phases = bn.build_phases(["N","S","E","W"], "2", 3, 15, 120)
-        amber  = [p for p in phases if "amber" in p["name"].lower()]
-        for ph in amber:
-            self.assertEqual(ph["green_groups"], [],
-                             f"Amber phase '{ph['name']}' has green groups")
-
-    def test_green_time_minimum_enforced(self):
-        # Very short cycle — green time should be clamped to minimum 10s
-        phases = bn.build_phases(["N","S","E","W"], "2", 3, 15, 30)
-        green  = [p for p in phases if "green" in p["name"].lower()]
-        for ph in green:
-            self.assertGreaterEqual(ph["duration"], 10)
+    def test_static_green_duration_large(self):
+        phases = bn.build_phases(
+            ["N", "S", "E", "W"], "2", 3, 15, 30, left_turn_mode="permissive"
+        )
+        for ph in phases:
+            self.assertGreaterEqual(ph["duration"], bn.STATIC_GREEN_PHASE_DURATION_S)
 
     def test_real_config_produces_valid_phases(self):
         phases = bn.build_phases(
@@ -219,6 +244,7 @@ class TestBuildPhases(unittest.TestCase):
             REAL_CFG.get("amber_s", 3),
             REAL_CFG.get("min_red_s", 15),
             REAL_CFG.get("cycle_s", 120),
+            left_turn_mode=str(REAL_CFG.get("left_turn_mode", "permissive")),
         )
         self.assertGreater(len(phases), 0)
         for ph in phases:
@@ -468,8 +494,12 @@ class TestWriteTll(unittest.TestCase):
         self.assertEqual(self.tl.get("type"), "static")
 
     def test_correct_number_of_phases(self):
-        phases   = self.tl.findall("phase")
-        expected = 4 if self.mode == "2" else 8
+        phases = self.tl.findall("phase")
+        lt = str(REAL_CFG.get("left_turn_mode", "permissive")).lower()
+        if self.mode == "2" or lt == "permissive":
+            expected = 2
+        else:
+            expected = 4
         self.assertEqual(len(phases), expected)
 
     def test_all_phases_have_duration(self):
@@ -491,10 +521,10 @@ class TestWriteTll(unittest.TestCase):
                          f"State strings have inconsistent lengths: {lengths}")
 
     def test_state_strings_only_contain_valid_chars(self):
-        valid = set("GgyrR")
+        valid = set("GgrR")
         for ph in self.tl.findall("phase"):
             state = ph.get("state", "")
-            bad   = set(state) - valid
+            bad = set(state) - valid
             self.assertEqual(bad, set(),
                              f"Invalid chars in state '{state}': {bad}")
 
@@ -503,16 +533,45 @@ class TestWriteTll(unittest.TestCase):
         has_green = any("G" in ph.get("state", "") for ph in phases)
         self.assertTrue(has_green, "No phase has any green signal")
 
-    def test_amber_phases_have_y_in_state(self):
-        phases = self.tl.findall("phase")
-        amber  = [ph for ph in phases if "amber" in ph.get("name", "").lower()]
-        for ph in amber:
-            self.assertIn("y", ph.get("state", ""),
-                         f"Amber phase '{ph.get('name')}' has no 'y' in state")
+    def test_no_yellow_in_tls_program_states(self):
+        for ph in self.tl.findall("phase"):
+            state = ph.get("state", "")
+            self.assertTrue(
+                "y" not in state and "Y" not in state,
+                f"Phase '{ph.get('name')}' must be green-only in TLS",
+            )
 
     def test_phase_names_present(self):
         for ph in self.tl.findall("phase"):
             self.assertIsNotNone(ph.get("name"))
+
+    def test_ns_ew_states_match_sumo_nesw_link_order(self):
+        """SUMO incLanes order is N(0-3), E(4-7), S(8-11), W(12-15)."""
+        phases = self.tl.findall("phase")
+        if len(phases) != 2:
+            self.skipTest("NESW slot test applies to 2-bar permissive configs")
+        ns = next(p for p in phases if p.get("name") == "NS_service")
+        ew = next(p for p in phases if p.get("name") == "EW_service")
+        st_ns = ns.get("state", "")
+        st_ew = ew.get("state", "")
+        self.assertEqual(len(st_ns), 16)
+        self.assertEqual(len(st_ew), 16)
+        for i in range(4):
+            self.assertIn(st_ns[i], "Gg")
+        for i in range(4, 8):
+            self.assertEqual(st_ns[i], "r")
+        for i in range(8, 12):
+            self.assertIn(st_ns[i], "Gg")
+        for i in range(12, 16):
+            self.assertEqual(st_ns[i], "r")
+        for i in range(4):
+            self.assertEqual(st_ew[i], "r")
+        for i in range(4, 8):
+            self.assertIn(st_ew[i], "Gg")
+        for i in range(8, 12):
+            self.assertEqual(st_ew[i], "r")
+        for i in range(12, 16):
+            self.assertIn(st_ew[i], "Gg")
 
     def test_valid_xml(self):
         try:
@@ -613,12 +672,12 @@ class TestEdgeCases(unittest.TestCase):
             self.assertNotIn("node_W_in",  xml_str)
 
     def test_4_phase_mode(self):
-        cfg    = _make_cfg(phases="4")
-        tmp    = tempfile.mkdtemp()
-        path   = bn.write_tll(cfg, tmp)
-        root   = ET.parse(path).getroot()
+        cfg = _make_cfg(phases="4")
+        tmp = tempfile.mkdtemp()
+        path = bn.write_tll(cfg, tmp)
+        root = ET.parse(path).getroot()
         phases = root.find("tlLogic").findall("phase")
-        self.assertEqual(len(phases), 8)
+        self.assertEqual(len(phases), 2)
 
     def test_through_only_lanes(self):
         cfg = _make_cfg(through=2, right=0, left=0)
@@ -662,6 +721,42 @@ class TestEdgeCases(unittest.TestCase):
                         side_effect=FileNotFoundError("netconvert not found")):
             with self.assertRaises(FileNotFoundError):
                 bn.run_netconvert(cfg, tmp, nod, edg, con, tll)
+
+
+class TestInjectTllIntoNet(unittest.TestCase):
+    """inject_tll_into_net must place tlLogic before <connection> (SUMO load order)."""
+
+    def test_tl_logic_before_connections(self):
+        net_xml = """<?xml version='1.0' encoding='UTF-8'?>
+<net version="1.20">
+  <location netOffset="0,0" convBoundary="0,0,1,1" origBoundary="0,0,1,1" projParameter="!"/>
+  <junction id="J_centre" type="traffic_light" x="0" y="0" incLanes="" intLanes="" shape="0,0"/>
+  <connection from="e1" to="e2" fromLane="0" toLane="0" tl="J_centre" linkIndex="0" dir="s" state="M"/>
+  <tlLogic id="J_centre" type="static" programID="0" offset="0">
+    <phase duration="30" state="G"/>
+  </tlLogic>
+</net>
+"""
+        tll_xml = """<?xml version='1.0' encoding='UTF-8'?>
+<tlLogics>
+  <tlLogic id="J_centre" type="static" programID="0" offset="0">
+    <phase duration="999" state="r"/>
+  </tlLogic>
+</tlLogics>
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            net_path = os.path.join(tmp, "test.net.xml")
+            tll_path = os.path.join(tmp, "test.tll.xml")
+            with open(net_path, "w", encoding="utf-8") as f:
+                f.write(net_xml)
+            with open(tll_path, "w", encoding="utf-8") as f:
+                f.write(tll_xml)
+            bn.inject_tll_into_net(net_path, tll_path, tls_id="J_centre")
+            root = ET.parse(net_path).getroot()
+            tags = [c.tag for c in root]
+            self.assertLess(tags.index("tlLogic"), tags.index("connection"))
+            phase = root.find("tlLogic").find("phase")
+            self.assertEqual(phase.get("duration"), "999")
 
 
 # ---------------------------------------------------------------------------

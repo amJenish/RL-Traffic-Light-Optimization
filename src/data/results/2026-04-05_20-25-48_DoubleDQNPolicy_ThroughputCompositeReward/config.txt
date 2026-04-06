@@ -1,0 +1,55 @@
+Run started: 2026-04-05 20:25:48
+
+--- Components ---
+Policy:        DoubleDQNPolicy
+Reward:        ThroughputCompositeReward (train) / same (eval)
+Observation:   QueueObservation
+Environment:   SumoEnvironment
+Replay Buffer: UniformReplayBuffer
+Scheduler:     CosineScheduler
+
+--- Data ---
+CSV:           C:\Users\Straw\Desktop\RL_Traffic\RL-Traffic-Light-Optimization\src\data\synthetic_toronto_data.csv
+Train days:    1
+Test days:     5
+Epochs:        200
+Seed:          42
+
+--- Simulation ---
+Step length:   1.0s
+Decision gap:  10 (SUMO steps)
+Sim window:    28800s - 36000s
+Min green:     15s
+Max green:     90s (soft — overshoot_coeff=1.0)
+Min red (TLS): 15s (TraCI all-red after yellow)
+GUI:           True
+
+--- Observation ---
+Max lanes:     16
+Max phase:     7
+Max phase time:120.0
+Max green feat:90s (elapsed/max_green in obs)
+Max vehicles:  20
+
+--- Reward ---
+Config file:   config.json → reward_configuration
+Resolved args: {"alpha": 0.3, "beta": 0.1, "gamma": 1.0, "normalise": true, "queue_norm_cap": 20.0, "scale": 1.0, "switch_weight": 0.1}
+
+--- Policy ---
+Config file:   config.json → policy_configuration
+Learning rate: 0.01 -> 0.0001 (CosineScheduler)
+Total updates: ~144,000 (estimated; decision_gap=10 SUMO steps)
+Gamma:         0.95
+Epsilon:       1.0 -> 0.05 (decay 0.9999755253626333)
+Target update: 50
+Batch size:    128
+Hidden size:   256
+N actions:     2
+Resolved args: {"batch_size": 128, "epsilon_decay": 0.9999755253626333, "epsilon_end": 0.05, "epsilon_start": 1.0, "gamma": 0.95, "hidden": 256, "lr": 0.01, "n_actions": 2, "target_update": 50}
+
+--- Replay Buffer ---
+Capacity:      8000
+
+--- Output ---
+Save every:    999 episodes
+Log every:     1 episodes

@@ -1,0 +1,7 @@
+{
+  "label": "DQN",
+  "kpi_throughput_total": 601.0,
+  "kpi_throughput_rate": 0.08347222222222223,
+  "kpi_neg_lane_waiting_integral": -318513532.0,
+  "phase_switch_count": 19
+}

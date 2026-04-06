@@ -1,8 +1,8 @@
 """
 evaluate_baseline.py
 --------------------
-Runs FixedTimePolicy and ActuatedPolicy through the same test-day evaluation
-loop used for the DQN agent, then prints a three-way comparison table.
+Runs FixedTimePolicy, ActuatedPolicy, and WebsterPolicy through the same test-day evaluation
+loop used for the DQN agent, then prints KPI comparisons (throughput, neg lane wait, reward).
 
 Uses the n_epochs=0 trick: passing n_epochs=0 to Trainer skips the training
 loop entirely and runs only the held-out test-day evaluation.  No new
@@ -21,6 +21,7 @@ import argparse
 import json
 import math
 import os
+import statistics
 import sys
 
 
@@ -105,6 +106,7 @@ def _build_agent(cfg: dict, int_cfg: dict, policy, sumo_home: str, gui: bool):
     from modelling.components.observation.queue_observation import QueueObservation
     from modelling.components.replay_buffer.uniform         import UniformReplayBuffer
     from modelling.agent                                     import Agent
+    from KPIS import default_episode_kpis
 
     ocfg = cfg["observation"]
     rcfg = cfg["reward"]
@@ -146,7 +148,9 @@ def _build_agent(cfg: dict, int_cfg: dict, policy, sumo_home: str, gui: bool):
     max_green_s = float(int_cfg.get("max_green_s", 90))
     step_length = float(scfg["step_length"])
     ptc = cfg.get("phase_timing", {})
-    yellow_duration_s = float(ptc.get("yellow_duration_s", 4.0))
+    yellow_duration_s = float(int_cfg.get("amber_s", ptc.get("yellow_duration_s", 4.0)))
+    min_red_s = float(int_cfg.get("min_red_s", 1))
+    decision_gap = int(scfg.get("decision_gap", 1))
 
     return Agent(
         environment = environment,
@@ -158,6 +162,9 @@ def _build_agent(cfg: dict, int_cfg: dict, policy, sumo_home: str, gui: bool):
         min_green_s = min_green_s,
         max_green_s = max_green_s,
         yellow_duration_s = yellow_duration_s,
+        min_red_s = min_red_s,
+        decision_gap = decision_gap,
+        episode_kpis = default_episode_kpis(),
     )
 
 
@@ -194,6 +201,11 @@ def _run_baseline(
         f"_tmp_{name.lower().replace(' ', '_').replace('-', '_')}",
     )
 
+    net_file = os.path.join(
+        cfg["output"]["out_dir"], "sumo", "network",
+        f"{int_cfg['intersection_name']}.net.xml",
+    )
+
     trainer = Trainer(
         agent = agent,
         split_path = split_path,
@@ -201,6 +213,7 @@ def _run_baseline(
         output_dir = tmp_dir,
         n_epochs = 0,
         days_dir = days_dir,
+        net_file = net_file,
     )
 
     results = trainer.run()
@@ -211,38 +224,62 @@ def _run_baseline(
 # COMPARISON TABLE
 # ---------------------------------------------------------------------------
 
-def _print_table(logs: dict, reward_cls_name: str = "CompositeReward") -> None:
-    """Print a formatted side-by-side reward table across all test days."""
-    _banner(f"Results Comparison  [{reward_cls_name}]")
 
-    day_ids = sorted({m["day_id"] for entries in logs.values() for m in entries})
-    col_w = 16
+def _metric_val(m: dict, key: str) -> float:
+    return float(m.get(key, 0.0))
 
-    # Header
-    header = f"{'Day':<6}" + "".join(f"{name:>{col_w}}" for name in logs)
-    sep = "-" * len(header)
-    print(header)
-    print(sep)
 
-    # Per-day rows
-    reward_map = {
-        model: {m["day_id"]: m["total_reward"] for m in entries}
-        for model, entries in logs.items()
-    }
-    for day_id in day_ids:
-        row = f"{day_id:<6}"
-        for model, day_rewards in reward_map.items():
-            val = day_rewards.get(day_id)
-            row += f"{val:>{col_w}.2f}" if val is not None else f"{'N/A':>{col_w}}"
-        print(row)
-
-    # Mean row
-    print(sep)
-    mean_row = f"{'Mean':<6}"
-    for entries in logs.values():
-        mean = sum(m["total_reward"] for m in entries) / len(entries)
-        mean_row += f"{mean:>{col_w}.2f}"
-    print(mean_row)
+def _print_kpi_table(logs: dict) -> None:
+    COL_W = 18
+    policies = []
+    if "DQN" in logs:
+        policies.append("DQN")
+    for name in ("Fixed-Time", "Actuated", "Webster"):
+        if name in logs:
+            policies.append(name)
+    if not policies:
+        return
+    day_ids = sorted({
+        m["day_id"]
+        for entries in logs.values()
+        for m in entries
+    })
+    kpi_specs = [
+        ("kpi_throughput_total", "Throughput total (vehicles)"),
+        ("kpi_throughput_rate", "Throughput rate (veh/s)"),
+        ("kpi_neg_lane_waiting_integral", "Neg lane wait integral (higher = better)"),
+        ("total_reward", "Total reward (reference)"),
+    ]
+    for key, title in kpi_specs:
+        width = 6 + COL_W * len(policies)
+        pad = max(0, width - len(title) - 6)
+        print(f"--- {title} " + "-" * pad)
+        header = f"{'Day':<6}"
+        for pol in policies:
+            header += f"{pol:>{COL_W}}"
+        print(header)
+        sep = "-" * len(header)
+        print(sep)
+        by_pol = {p: {m["day_id"]: _metric_val(m, key) for m in logs[p]} for p in policies}
+        for did in day_ids:
+            row = f"{did:<6}"
+            for pol in policies:
+                row += f"{by_pol[pol].get(did, 0.0):>{COL_W}.2f}"
+            print(row)
+        print(sep)
+        mean_row = f"{'Mean':<6}"
+        std_row = f"{'Std':<6}"
+        for pol in policies:
+            vals = [by_pol[pol][d] for d in day_ids if d in by_pol[pol]]
+            if not vals:
+                vals = [0.0]
+            mu = float(statistics.mean(vals))
+            sd = float(statistics.pstdev(vals)) if len(vals) > 1 else 0.0
+            mean_row += f"{mu:>{COL_W}.2f}"
+            std_row += f"{sd:>{COL_W}.2f}"
+        print(mean_row)
+        print(std_row)
+        print()
 
 
 # ---------------------------------------------------------------------------
@@ -251,7 +288,7 @@ def _print_table(logs: dict, reward_cls_name: str = "CompositeReward") -> None:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Evaluate Fixed-Time and Actuated baselines, then compare against DQN"
+        description="Evaluate Fixed-Time, Actuated, and Webster baselines, then compare against DQN"
     )
     parser.add_argument(
         "--config", default="config.json",
@@ -296,6 +333,7 @@ def main():
     try:
         from baselines.fixed_time import FixedTimePolicy
         from baselines.actuated   import ActuatedPolicy
+        from baselines.webster    import WebsterPolicy
     except ImportError as e:
         _abort(f"Baseline import failed: {e}")
 
@@ -323,6 +361,14 @@ def main():
         max_green_steps = max_green_steps,
         queue_threshold = 0.1,               # ~2 vehicles per lane (max_vehicles=20)
     )
+    ocfg = cfg["observation"]
+    webster_policy = WebsterPolicy(
+        cfg            = int_cfg,
+        max_lanes      = ocfg["max_lanes"],
+        max_phase      = ocfg["max_phase"],
+        max_phase_time = ocfg["max_phase_time"],
+        step_duration  = float(cfg["simulation"]["step_length"]),
+    )
 
     reward_cls_name = cfg["reward"].get("class", "CompositeReward")
     reward_alpha    = cfg["reward"].get("alpha", "N/A")
@@ -342,21 +388,26 @@ def main():
     # Run evaluations
     fixed_log = _run_baseline("Fixed-Time", fixed_policy,    cfg, int_cfg, args.sumo_home, args.gui)
     actuated_log = _run_baseline("Actuated",   actuated_policy, cfg, int_cfg, args.sumo_home, args.gui)
+    webster_log = _run_baseline("Webster", webster_policy, cfg, int_cfg, args.sumo_home, args.gui)
 
     # Persist results
     models_dir = cfg["output"]["models_dir"]
     os.makedirs(models_dir, exist_ok=True)
     fixed_path = os.path.join(models_dir, "baseline_fixed_time_log.json")
     actuated_path = os.path.join(models_dir, "baseline_actuated_log.json")
+    webster_path = os.path.join(models_dir, "baseline_webster_log.json")
 
     with open(fixed_path, "w") as f:
         json.dump(fixed_log, f, indent=2)
     with open(actuated_path, "w") as f:
         json.dump(actuated_log, f, indent=2)
+    with open(webster_path, "w") as f:
+        json.dump(webster_log, f, indent=2)
 
     _banner("Logs Saved")
     print(f"  {fixed_path}")
     print(f"  {actuated_path}")
+    print(f"  {webster_path}")
 
     # Load DQN results for the comparison table
     logs = {}
@@ -369,8 +420,20 @@ def main():
 
     logs["Fixed-Time"] = fixed_log
     logs["Actuated"] = actuated_log
+    logs["Webster"] = webster_log
 
-    _print_table(logs, reward_cls_name=reward_cls_name)
+    from KPIS.aggregate import aggregate_test_kpis
+
+    sim = cfg["simulation"]
+    elapsed_s = float(sim.get("end", 64800) - sim.get("begin", 28800))
+    for policy_name, log in logs.items():
+        agg = aggregate_test_kpis(log, elapsed_s=elapsed_s)
+        print(f"\n  {policy_name} — aggregate KPIs:")
+        for k in sorted(agg.keys()):
+            print(f"    {k:<45} {agg[k]:.4f}")
+
+    _banner(f"Results Comparison KPIs [{reward_cls_name}]")
+    _print_kpi_table(logs)
 
 
 if __name__ == "__main__":

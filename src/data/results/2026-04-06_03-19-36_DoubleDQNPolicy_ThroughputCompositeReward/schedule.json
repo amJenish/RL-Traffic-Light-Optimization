@@ -1,0 +1,52 @@
+{
+  "buckets": [
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 28800.0,
+      "median_s": 15.0,
+      "std_s": 0.0,
+      "n": 1
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 29700.0,
+      "median_s": 190.0,
+      "std_s": 145.0,
+      "n": 2
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 0,
+      "bucket_start_s": 30600.0,
+      "median_s": 195.0,
+      "std_s": 180.0,
+      "n": 2
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 1,
+      "bucket_start_s": 28800.0,
+      "median_s": 735.0,
+      "std_s": 0.0,
+      "n": 1
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 1,
+      "bucket_start_s": 29700.0,
+      "median_s": 205.0,
+      "std_s": 190.0,
+      "n": 2
+    },
+    {
+      "tls_id": "J_centre",
+      "phase": 1,
+      "bucket_start_s": 30600.0,
+      "median_s": 210.0,
+      "std_s": 195.0,
+      "n": 2
+    }
+  ]
+}

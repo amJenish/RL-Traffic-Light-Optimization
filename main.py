@@ -71,7 +71,10 @@ from modelling.components.policy.double_dqn             import DoubleDQNPolicy
 from modelling.components.replay_buffer.uniform         import UniformReplayBuffer
 from modelling.components.scheduler.cosine              import CosineScheduler
 from modelling.agent   import Agent
+from modelling.schedule_builder import ScheduleBuilder
 from modelling.trainer import Trainer
+from modelling.webster_schedule_builder import WebsterScheduleBuilder
+from eval_system.run_replay import run_replay_pipeline
 from KPIS import aggregate_test_kpis, default_episode_kpis, write_results_csv
 from visualization.visualize_results import render_run_graphs
 from modelling.components.reward.delta_vehicle_count import DeltaVehicleCountReward
@@ -127,6 +130,7 @@ MIN_GREEN_S = 0
 MAX_GREEN_S = 0
 OVERSHOOT_COEFF = 0.0
 YELLOW_DURATION_S = 0.0
+MIN_RED_S = 1
 MAX_LANES = 0
 MAX_PHASE = 0
 MAX_PHASE_TIME = 0.0
@@ -186,7 +190,7 @@ def _apply_config(cfg: dict[str, Any]) -> None:
     global CSV_PATH, INTERSECTION_PATH, COLUMNS_PATH, REWARD_CONFIG_PATH, POLICY_CONFIG_PATH
     global REWARD_CONFIG_DOCUMENT, POLICY_CONFIG_DOCUMENT
     global SUMO_HOME, TRAIN_SIZE, TEST_SIZE, EPOCHS, STEP_LENGTH, DECISION_GAP
-    global SIM_BEGIN, SIM_END, SIMULATION_GUI, MIN_GREEN_S, MAX_GREEN_S, OVERSHOOT_COEFF, YELLOW_DURATION_S
+    global SIM_BEGIN, SIM_END, SIMULATION_GUI, MIN_GREEN_S, MAX_GREEN_S, OVERSHOOT_COEFF, YELLOW_DURATION_S, MIN_RED_S
     global MAX_LANES, MAX_PHASE, MAX_PHASE_TIME, MAX_VEHICLES, LR_MIN, BUFFER_CAPACITY
     global SEED, SAVE_EVERY, LOG_EVERY, OUT_DIR, RESULTS_DIR, TOTAL_UPDATES, SchedulerClass
     global DECISIONS_PER_EP_DIVISOR
@@ -346,12 +350,33 @@ def _apply_config(cfg: dict[str, Any]) -> None:
     MAX_GREEN_S = int(phase.get("max_green_s", 90))
     OVERSHOOT_COEFF = float(phase.get("overshoot_coeff", 1.0))
     YELLOW_DURATION_S = float(phase.get("yellow_duration_s", 4.0))
+    MIN_RED_S = int(phase.get("min_red_s", 1))
 
     obs = cfg.get("observation", {})
     MAX_LANES = int(obs.get("max_lanes", 16))
     MAX_PHASE = int(obs.get("max_phase", 7))
     MAX_PHASE_TIME = float(obs.get("max_phase_time", 120.0))
     MAX_VEHICLES = int(obs.get("max_vehicles", 20))
+
+    # intersection.json overrides phase timing and min_red (Ontario / project source of truth)
+    if os.path.isfile(INTERSECTION_PATH):
+        with open(INTERSECTION_PATH, encoding="utf-8") as _ijf:
+            _ij = json.load(_ijf)
+        _prev_y = YELLOW_DURATION_S
+        MIN_GREEN_S = int(_ij.get("min_green_s", MIN_GREEN_S))
+        MAX_GREEN_S = int(_ij.get("max_green_s", MAX_GREEN_S))
+        YELLOW_DURATION_S = float(_ij.get("amber_s", YELLOW_DURATION_S))
+        MIN_RED_S = int(_ij.get("min_red_s", MIN_RED_S))
+        if math.isclose(YELLOW_DURATION_S, _prev_y):
+            pass
+        else:
+            print(
+                f"  phase_timing.yellow_duration_s overridden by intersection.amber_s "
+                f"({_prev_y} -> {YELLOW_DURATION_S})"
+            )
+        _ng = _ij.get("n_green_phases")
+        if isinstance(_ng, int) and _ng > 0:
+            MAX_PHASE = max(MAX_PHASE, _ng - 1)
 
     replay = cfg.get("replay_buffer", {})
     BUFFER_CAPACITY = int(replay.get("capacity", 32768))
@@ -363,7 +388,7 @@ def _apply_config(cfg: dict[str, Any]) -> None:
 
     _sim_seconds = SIM_END - SIM_BEGIN
     _steps_per_ep = _sim_seconds / STEP_LENGTH
-    _decisions_per_ep = _steps_per_ep / DECISIONS_PER_EP_DIVISOR
+    _decisions_per_ep = _steps_per_ep / max(float(DECISION_GAP), 1.0)
     TOTAL_UPDATES = int(EPOCHS * TRAIN_SIZE * _decisions_per_ep)
     if TOTAL_UPDATES < 1:
         TOTAL_UPDATES = 1
@@ -517,6 +542,7 @@ def _write_config_summary(
         f"Sim window:    {SIM_BEGIN}s - {SIM_END}s",
         f"Min green:     {MIN_GREEN_S}s",
         f"Max green:     {MAX_GREEN_S}s (soft — overshoot_coeff={OVERSHOOT_COEFF})",
+        f"Min red (TLS): {MIN_RED_S}s (TraCI all-red after yellow)",
         f"GUI:           {use_gui}",
         "",
         "--- Observation ---",
@@ -533,7 +559,7 @@ def _write_config_summary(
         "--- Policy ---",
         f"Config file:   {policy_cfg_rel}",
         f"Learning rate: {policy_kwargs['lr']} -> {LR_MIN} ({sched_name})",
-        f"Total updates: ~{TOTAL_UPDATES:,} (estimated; divisor={DECISIONS_PER_EP_DIVISOR})",
+        f"Total updates: ~{TOTAL_UPDATES:,} (estimated; decision_gap={DECISION_GAP} SUMO steps)",
         f"Gamma:         {policy_kwargs['gamma']}",
         f"Epsilon:       {policy_kwargs['epsilon_start']} -> {policy_kwargs['epsilon_end']} (decay {policy_kwargs['epsilon_decay']})",
         f"Target update: {policy_kwargs['target_update']}",
@@ -549,13 +575,70 @@ def _write_config_summary(
         f"Save every:    {SAVE_EVERY} episodes",
         f"Log every:     {LOG_EVERY} episodes",
     ]
-    with open(os.path.join(run_dir, "config.txt"), "w") as f:
+    with open(
+        os.path.join(run_dir, "config.txt"), "w", encoding="utf-8", newline="\n"
+    ) as f:
         f.write("\n".join(lines) + "\n")
 
 
 # ==========================================================================
 #  PIPELINE STEPS
 # ==========================================================================
+
+def _validate_columns_vs_intersection(col_map: dict, active: list[str]) -> None:
+    approach_cfg = col_map.get("approaches", {})
+    for d in active:
+        if d not in approach_cfg:
+            print(
+                f"  Warning: approach '{d}' active in intersection but missing "
+                f"from columns.json approaches — BuildRoute will use 0 for movements."
+            )
+            continue
+        for movement in ("through", "right", "left"):
+            src = approach_cfg[d].get(movement)
+            if not src:
+                print(
+                    f"  Warning: no column mapped for {d}/{movement} in columns.json."
+                )
+
+
+def _validate_day_slot_coverage(df_used, slot_minutes: int, active: list[str]) -> None:
+    """Warn if rows_per_day * slot_minutes is far from a full day."""
+    minutes_per_day = 24 * 60
+    for day_id in sorted(df_used["sim_day"].unique()):
+        sub = df_used[df_used["sim_day"] == day_id]
+        n_rows = len(sub)
+        covered = n_rows * int(slot_minutes)
+        if covered < minutes_per_day * 0.5 or covered > minutes_per_day * 1.25:
+            print(
+                f"  Warning: sim_day {day_id} has {n_rows} rows × {slot_minutes} min "
+                f"= {covered} min of demand coverage (expected ~{minutes_per_day} min/day)."
+            )
+
+
+def _validate_network_phases(net_path: str, int_cfg: dict) -> None:
+    if not os.path.isfile(net_path) or os.path.getsize(net_path) < 500:
+        print(f"  Warning: net.xml missing or very small at {net_path!r}.")
+        return
+    try:
+        import xml.etree.ElementTree as ET
+
+        tree = ET.parse(net_path)
+        root = tree.getroot()
+        n_expect = int(int_cfg.get("n_green_phases", 0) or 0)
+        for tl in root.iter("tlLogic"):
+            if tl.get("id") != "J_centre":
+                continue
+            n_ph = sum(1 for _ in tl.iter("phase"))
+            if n_expect > 0 and n_ph != n_expect:
+                print(
+                    f"  Warning: tlLogic J_centre has {n_ph} phase row(s) in net.xml "
+                    f"but intersection.json n_green_phases={n_expect}."
+                )
+            break
+    except Exception as e:
+        print(f"  Warning: could not validate net.xml phases: {e}")
+
 
 def validate_inputs(sumo_home: str):
     """Make sure all required files and SUMO are present."""
@@ -605,6 +688,7 @@ def run_build_route() -> dict:
 
     df = br.load_csv(CSV_PATH, col_map, active)
     df = br.assign_sim_days(df, date_mode="concat")
+    _validate_columns_vs_intersection(col_map, active)
 
     n_days_available = df["sim_day"].nunique()
     needed = TRAIN_SIZE + TEST_SIZE
@@ -623,6 +707,7 @@ def run_build_route() -> dict:
 
     used_days = list(range(needed))
     df_used   = df[df["sim_day"].isin(used_days)].copy()
+    _validate_day_slot_coverage(df_used, int(slot_minutes), active)
 
     br.write_day_csvs(df_used, active, days_dir)
     br.write_sumo_flows(
@@ -675,6 +760,12 @@ def run_build_network(sumo_home: str) -> str:
     with open(INTERSECTION_PATH) as f:
         int_cfg = json.load(f)
 
+    if ROOT not in sys.path:
+        sys.path.insert(0, ROOT)
+    from preprocessing.validate_intersection import validate_and_fix_intersection
+
+    int_cfg, _iw = validate_and_fix_intersection(int_cfg, fix=True, log=print)
+
     os.makedirs(net_out_dir, exist_ok=True)
 
     nod = bn.write_nodes(int_cfg,       net_out_dir)
@@ -696,6 +787,7 @@ def run_build_network(sumo_home: str) -> str:
 
     _check_file(net_file, f"{name}.net.xml (BuildNetwork output)")
     print(f"Network built -> {net_file}")
+    _validate_network_phases(net_file, int_cfg)
     return net_file
 
 
@@ -792,6 +884,8 @@ def build_pipeline(
         max_green_s       = MAX_GREEN_S,
         overshoot_coeff   = OVERSHOOT_COEFF,
         yellow_duration_s = YELLOW_DURATION_S,
+        min_red_s         = float(MIN_RED_S),
+        decision_gap      = DECISION_GAP,
         episode_kpis      = default_episode_kpis(),
     )
 
@@ -808,6 +902,7 @@ def build_pipeline(
         save_every = SAVE_EVERY,
         log_every  = LOG_EVERY,
         days_dir   = days_dir,
+        net_file   = net_file,
     )
 
     return trainer
@@ -892,21 +987,64 @@ def main():
         "run_name",
         "reward_class",
         "policy_class",
-        "test_crossings_rate_mean",
-        "test_crossings_rate_std",
-        "test_crossings_total_mean",
-        "test_crossings_total_std",
         "test_throughput_rate_mean",
         "test_throughput_rate_std",
         "test_throughput_total_mean",
         "test_throughput_total_std",
         "test_neg_lane_waiting_integral_mean",
         "test_neg_lane_waiting_integral_std",
+        "test_total_reward_mean",
+        "test_total_reward_std",
     ]
     write_results_csv(
         os.path.join(run_dir, "results.csv"),
         _results_row,
         fieldnames=_results_fields,
+    )
+
+    cfg_dict = _load_config_data(args.config if args.config else DEFAULT_CONFIG_PATH)
+    with open(INTERSECTION_PATH, encoding="utf-8") as f:
+        int_for_sched = json.load(f)
+
+    records = results.get("phase_duration_records") or []
+    sb = ScheduleBuilder()
+    sched_dqn = sb.build(
+        records,
+        "J_centre",
+        min_green_s=float(int_for_sched.get("min_green_s", 15)),
+    )
+    sched_path = os.path.join(run_dir, "schedule.json")
+    sb.write(sched_dqn, sched_path)
+    print(f"  schedule.json (DQN) -> {sched_path}")
+
+    days_dir = os.path.join(OUT_DIR, "processed", "days")
+    test_csvs = [
+        os.path.join(days_dir, f"day_{int(d):02d}.csv")
+        for d in split["test"]
+    ]
+    test_csvs = [p for p in test_csvs if os.path.isfile(p)]
+    wb = WebsterScheduleBuilder(int_for_sched)
+    sched_w = wb.build_from_day_csvs(
+        test_csvs,
+        "J_centre",
+        slot_minutes=int(split.get("slot_minutes", 15)),
+    )
+    w_path = os.path.join(run_dir, "schedule_webster.json")
+    wb.write(sched_w, w_path)
+    print(f"  schedule_webster.json -> {w_path}")
+
+    _banner("Pipeline 2 — Replay & KPI comparison")
+    run_replay_pipeline(
+        schedule_path=sched_path,
+        schedule_webster_path=w_path,
+        split_path=os.path.join(OUT_DIR, "processed", "split.json"),
+        flows_dir=os.path.join(OUT_DIR, "sumo", "flows"),
+        net_file=net_file,
+        config=cfg_dict,
+        intersection_path=INTERSECTION_PATH,
+        out_dir=os.path.join(run_dir, "replay"),
+        sumo_home=SUMO_HOME,
+        gui=False,
     )
 
     _banner("Complete")

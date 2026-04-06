@@ -166,6 +166,7 @@ def _build_agent(
     environment = SumoEnvironment(
         net_file=net_file,
         step_length=main_mod.STEP_LENGTH,
+        decision_gap=main_mod.DECISION_GAP,
         gui=use_gui,
         sumo_home=main_mod.SUMO_HOME,
         begin=main_mod.SIM_BEGIN,
@@ -204,6 +205,8 @@ def _build_agent(
         max_green_s=main_mod.MAX_GREEN_S,
         overshoot_coeff=main_mod.OVERSHOOT_COEFF,
         yellow_duration_s=main_mod.YELLOW_DURATION_S,
+        min_red_s=float(main_mod.MIN_RED_S),
+        decision_gap=main_mod.DECISION_GAP,
         episode_kpis=default_episode_kpis(),
     )
     return agent
@@ -533,6 +536,7 @@ def main() -> None:
             episode_counter = 0
             checkpoints_dir = os.path.join(trial_dir, "checkpoints")
             _ensure_dir(checkpoints_dir)
+            agent.reset_train_green_phase_stats()
             for epoch in range(1, main_mod.EPOCHS + 1):
                 for day_id in split["train"]:
                     episode_counter += 1
@@ -565,6 +569,10 @@ def main() -> None:
                             f"checkpoint_ep{episode_counter:04d}.pt",
                         )
                         agent.save(ck_path)
+
+            print("\n[gridsearch] Training green-phase duration statistics (sim seconds):")
+            for line in agent.format_train_green_phase_duration_report():
+                print(line)
 
             # Test
             agent.set_eval_mode()
@@ -599,7 +607,9 @@ def main() -> None:
             _sim_elapsed = float(main_mod.SIM_END - main_mod.SIM_BEGIN)
             kpi_agg = aggregate_test_kpis(test_log, _sim_elapsed)
             days_dir = os.path.join(main_mod.OUT_DIR, "processed", "days")
-            _sched = write_schedule_for_run(trial_dir, test_log, days_dir, warn=print)
+            _sched = write_schedule_for_run(
+                trial_dir, test_log, days_dir, warn=print, net_file=net_file
+            )
             if _sched:
                 print(f"[gridsearch] schedule.json -> {_sched}")
 

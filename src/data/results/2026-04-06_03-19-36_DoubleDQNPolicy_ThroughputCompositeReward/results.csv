@@ -1,0 +1,2 @@
+run_name,reward_class,policy_class,test_throughput_rate_mean,test_throughput_rate_std,test_throughput_total_mean,test_throughput_total_std,test_neg_lane_waiting_integral_mean,test_neg_lane_waiting_integral_std,test_total_reward_mean,test_total_reward_std
+2026-04-06_03-19-36_DoubleDQNPolicy_ThroughputCompositeReward,ThroughputCompositeReward,DoubleDQNPolicy,0.0,0.0,0.0,0.0,-1280311618.0,0.0,-65346998.40283722,0.0

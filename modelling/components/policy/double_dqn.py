@@ -76,6 +76,10 @@ class DoubleDQNPolicy(BasePolicy):
             t = torch.tensor(obs, dtype=torch.float32,
                              device=self._device).unsqueeze(0)
             q_values = self._online(t).squeeze(0)
+            qv = q_values.cpu().numpy()
+            # argmax breaks ties as index 0 → "never switch" with symmetric untrained Q.
+            if np.allclose(qv, qv[0], atol=1e-5, rtol=0):
+                return int(np.random.randint(self._n_actions))
             return int(q_values.argmax().item())
 
     def update(self, replay_buffer: BaseReplayBuffer) -> float | None:
