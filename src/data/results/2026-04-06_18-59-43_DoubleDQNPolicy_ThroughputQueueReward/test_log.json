@@ -1,0 +1,57 @@
+[
+  {
+    "total_reward": -15.899058866293858,
+    "steps": 562,
+    "mean_loss": null,
+    "epsilon": 0.09813941791445897,
+    "learning_rate": 0.0026836364413017197,
+    "kpi_throughput_total": 0.0,
+    "kpi_throughput_rate": 0.0,
+    "kpi_neg_lane_waiting_integral": -919303.0,
+    "day_id": 0
+  },
+  {
+    "total_reward": -19.002292970955537,
+    "steps": 564,
+    "mean_loss": null,
+    "epsilon": 0.09813941791445897,
+    "learning_rate": 0.0026836364413017197,
+    "kpi_throughput_total": 0.0,
+    "kpi_throughput_rate": 0.0,
+    "kpi_neg_lane_waiting_integral": -1212823.0,
+    "day_id": 1
+  },
+  {
+    "total_reward": -20.349996929118312,
+    "steps": 556,
+    "mean_loss": null,
+    "epsilon": 0.09813941791445897,
+    "learning_rate": 0.0026836364413017197,
+    "kpi_throughput_total": 0.0,
+    "kpi_throughput_rate": 0.0,
+    "kpi_neg_lane_waiting_integral": -1173013.0,
+    "day_id": 2
+  },
+  {
+    "total_reward": -17.58520494827348,
+    "steps": 568,
+    "mean_loss": null,
+    "epsilon": 0.09813941791445897,
+    "learning_rate": 0.0026836364413017197,
+    "kpi_throughput_total": 0.0,
+    "kpi_throughput_rate": 0.0,
+    "kpi_neg_lane_waiting_integral": -1770632.0,
+    "day_id": 4
+  },
+  {
+    "total_reward": -26.20845176438472,
+    "steps": 560,
+    "mean_loss": null,
+    "epsilon": 0.09813941791445897,
+    "learning_rate": 0.0026836364413017197,
+    "kpi_throughput_total": 0.0,
+    "kpi_throughput_rate": 0.0,
+    "kpi_neg_lane_waiting_integral": -871587.0,
+    "day_id": 5
+  }
+]

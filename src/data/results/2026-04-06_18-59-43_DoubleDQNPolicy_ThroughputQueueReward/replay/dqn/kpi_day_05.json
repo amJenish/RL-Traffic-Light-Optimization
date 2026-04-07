@@ -1,0 +1,7 @@
+{
+  "label": "Trained model",
+  "kpi_throughput_total": 275.0,
+  "kpi_throughput_rate": 0.03819444444444445,
+  "kpi_neg_lane_waiting_integral": -1420845.0,
+  "phase_switch_count": 90
+}

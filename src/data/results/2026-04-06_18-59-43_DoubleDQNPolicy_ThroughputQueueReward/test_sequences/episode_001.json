@@ -1,0 +1,1319 @@
+{
+  "episode": 1,
+  "tls_sequences": {
+    "J_centre": [
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 105.0,
+        "duration_steps": 105,
+        "sim_time": 50515.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 50518.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 85.0,
+        "duration_steps": 85,
+        "sim_time": 50614.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 50617.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 50723.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 50726.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 50832.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 50835.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 50941.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 50944.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 85.0,
+        "duration_steps": 85,
+        "sim_time": 51040.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51043.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 85.0,
+        "duration_steps": 85,
+        "sim_time": 51139.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51142.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 25.0,
+        "duration_steps": 25,
+        "sim_time": 51178.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51181.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 51207.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51210.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 85.0,
+        "duration_steps": 85,
+        "sim_time": 51306.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51309.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 51335.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51338.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 51444.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51447.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 51553.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51556.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 51582.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51585.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 51691.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51694.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 51800.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51803.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 51909.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 51912.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 75.0,
+        "duration_steps": 75,
+        "sim_time": 51998.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52001.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 35.0,
+        "duration_steps": 35,
+        "sim_time": 52047.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52050.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 52076.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52079.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 52105.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52108.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 52214.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52217.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 52243.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52246.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 35.0,
+        "duration_steps": 35,
+        "sim_time": 52292.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52295.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 52401.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52404.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 85.0,
+        "duration_steps": 85,
+        "sim_time": 52500.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52503.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 52609.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52612.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 52718.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52721.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 52827.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52830.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 45.0,
+        "duration_steps": 45,
+        "sim_time": 52886.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52889.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 45.0,
+        "duration_steps": 45,
+        "sim_time": 52945.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52948.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 52974.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 52977.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 53003.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53006.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 55.0,
+        "duration_steps": 55,
+        "sim_time": 53072.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53075.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 53101.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53104.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 55.0,
+        "duration_steps": 55,
+        "sim_time": 53170.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53173.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 53199.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53202.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 75.0,
+        "duration_steps": 75,
+        "sim_time": 53288.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53291.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 53397.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53400.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 53506.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53509.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 53615.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53618.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 75.0,
+        "duration_steps": 75,
+        "sim_time": 53704.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53707.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 53813.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53816.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 25.0,
+        "duration_steps": 25,
+        "sim_time": 53852.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53855.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 53881.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53884.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 45.0,
+        "duration_steps": 45,
+        "sim_time": 53940.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53943.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 53969.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 53972.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 25.0,
+        "duration_steps": 25,
+        "sim_time": 54008.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54011.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 54037.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54040.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 54146.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54149.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 15.0,
+        "duration_steps": 15,
+        "sim_time": 54175.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54178.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 54284.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54287.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 54393.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54396.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 54502.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54505.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 54611.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54614.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 54720.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54723.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 54829.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54832.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 54938.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 54941.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 55047.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 55050.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 55156.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 55159.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 55265.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 55268.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 55374.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 55377.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 55483.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 55486.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 55592.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 55595.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 55701.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 55704.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 55810.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 55813.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 55919.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 55922.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 56028.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 56031.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 56137.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 56140.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 56246.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 56249.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 56355.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 56358.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 56464.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 56467.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 56573.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 56576.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 56682.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 56685.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 56791.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 56794.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 56900.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 56903.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 57009.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 57012.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 57118.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 57121.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "EW_left",
+        "phase_state": "rrrrrrrgrrrrrrrg",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 57227.0
+      },
+      {
+        "phase": 2,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrrrrryrrrrrrry",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 57230.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "EW_through",
+        "phase_state": "rrrrgGGrrrrrgGGr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 57336.0
+      },
+      {
+        "phase": 3,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrrryyyrrrrryyyr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 57339.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "NS_left",
+        "phase_state": "rrrgrrrrrrrgrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 57445.0
+      },
+      {
+        "phase": 0,
+        "phase_name": "yellow_clearance",
+        "phase_state": "rrryrrrrrrryrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 57448.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "NS_through",
+        "phase_state": "gGGrrrrrgGGrrrrr",
+        "duration_s": 95.0,
+        "duration_steps": 95,
+        "sim_time": 57554.0
+      },
+      {
+        "phase": 1,
+        "phase_name": "yellow_clearance",
+        "phase_state": "yyyrrrrryyyrrrrr",
+        "duration_s": 3.0,
+        "duration_steps": 3,
+        "sim_time": 57557.0
+      }
+    ]
+  }
+}

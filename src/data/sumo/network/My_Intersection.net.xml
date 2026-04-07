@@ -130,10 +130,8 @@
     <junction id=":J_centre_19_0" type="internal" x="202.03" y="203.28" incLanes=":J_centre_15_0 edge_E_in_0 edge_E_in_1 edge_E_in_2" intLanes=":J_centre_1_0 :J_centre_1_1 :J_centre_3_0 :J_centre_4_0 :J_centre_5_0 :J_centre_5_1 :J_centre_9_0 :J_centre_9_1 :J_centre_11_0" />
 
     <tlLogic id="J_centre" type="static" programID="0" offset="0">
-    <phase duration="999999" state="rrrgrrrrrrrgrrrr" name="NS_left" />
-    <phase duration="999999" state="gGGrrrrrgGGrrrrr" name="NS_through" />
-    <phase duration="999999" state="rrrrrrrgrrrrrrrg" name="EW_left" />
-    <phase duration="999999" state="rrrrgGGrrrrrgGGr" name="EW_through" />
+    <phase duration="999999" state="gGGgrrrrgGGgrrrr" name="NS_service" />
+    <phase duration="999999" state="rrrrgGGgrrrrgGGg" name="EW_service" />
   </tlLogic><connection from="edge_E_in" to="edge_N_out" fromLane="0" toLane="0" via=":J_centre_4_0" tl="J_centre" linkIndex="4" dir="r" state="o" />
     <connection from="edge_E_in" to="edge_W_out" fromLane="1" toLane="0" via=":J_centre_5_0" tl="J_centre" linkIndex="5" dir="s" state="o" />
     <connection from="edge_E_in" to="edge_W_out" fromLane="2" toLane="0" via=":J_centre_5_1" tl="J_centre" linkIndex="6" dir="s" state="o" />

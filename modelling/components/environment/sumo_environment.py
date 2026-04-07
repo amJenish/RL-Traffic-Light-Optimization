@@ -2,6 +2,7 @@
 
 import os
 import sys
+import uuid
 from typing import Any
 
 from .base import BaseEnvironment
@@ -28,7 +29,9 @@ class SumoEnvironment(BaseEnvironment):
         self._begin        = begin
         self._end          = end
         self._traci        = None
+        self._traci_view   = None
         self._traci_module = None
+        self._label        = None
         self._running      = False
 
         self._validate_sumo_home()
@@ -55,36 +58,46 @@ class SumoEnvironment(BaseEnvironment):
             "--time-to-teleport",  "-1",
         ]
 
-        self._traci_module.start(cmd)
+        self._label = f"sumo_{uuid.uuid4().hex[:8]}"
+        self._traci_module.start(cmd, label=self._label)
+        self._traci = self._traci_module.getConnection(self._label)
+        self._traci_view = _TraCIConnectionView(self._traci, self._traci_module)
         self._running = True
 
     def step(self, n_steps: int = 1) -> None:
         for _ in range(n_steps):
             if not self.is_done():
-                self._traci_module.simulationStep()
+                self._traci.simulationStep()
 
     def is_done(self) -> bool:
         if not self._running:
             return True
-        return self._traci_module.simulation.getTime() >= self._end
+        return self._traci.simulation.getTime() >= self._end
 
     def close(self) -> None:
-        if self._running and self._traci_module:
+        if self._running and self._traci is not None:
             try:
-                self._traci_module.close()
+                self._traci.close()
             except Exception:
-                pass
+                # Best-effort fallback: close default module connection too.
+                try:
+                    self._traci_module.close()
+                except Exception:
+                    pass
+        self._traci = None
+        self._traci_view = None
+        self._label = None
         self._running = False
 
     def get_tls_ids(self) -> list[str]:
-        return list(self._traci_module.trafficlight.getIDList())
+        return list(self._traci.trafficlight.getIDList())
 
     def get_sim_time(self) -> float:
-        return self._traci_module.simulation.getTime()
+        return self._traci.simulation.getTime()
 
     @property
     def traci(self) -> Any:
-        return self._traci_module
+        return self._traci_view
 
     def step_decision(self) -> None:
         """Advance by one full decision interval (legacy, used before adaptive timing)."""
@@ -114,3 +127,14 @@ class SumoEnvironment(BaseEnvironment):
                 "or set the SUMO_HOME environment variable to SUMO installation path.\n"
                 "Example: C:\\Program Files (x86)\\Eclipse\\Sumo"
             )
+
+
+class _TraCIConnectionView:
+    """Connection facade that preserves module-level helpers like `.exceptions`."""
+
+    def __init__(self, conn: Any, module: Any) -> None:
+        self._conn = conn
+        self.exceptions = module.exceptions
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._conn, name)

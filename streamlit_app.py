@@ -23,6 +23,7 @@ if str(ROOT) not in sys.path:
 
 from eval_system.replay_comparator import ReplayComparator
 from eval_system.replay_runner import ReplayRunner
+from eval_system.run_replay import run_replay_pipeline
 from eval_system.schedule_controller import ScheduleController
 from modelling.schedule_builder import ScheduleBuilder
 from modelling.webster_schedule_builder import WebsterScheduleBuilder
@@ -34,6 +35,10 @@ from streamlit_intersection_helpers import (
 
 RUNS = ROOT / "streamlit_runs"
 RUNS.mkdir(parents=True, exist_ok=True)
+COMPARE_STANDALONE = RUNS / "compare_standalone"
+
+TAB5_LABEL_TRAINING = "View results from my current training run"
+TAB5_LABEL_UPLOAD = "Upload a timing plan for comparison"
 
 DIRECTIONS = ["N", "S", "E", "W"]
 DIR_LABEL = {"N": "North", "S": "South", "E": "East", "W": "West"}
@@ -76,6 +81,20 @@ def _init_session_state() -> None:
         "stage_statuses": ["waiting"] * 8,
         "eval_progress_rows": [],
         "pipeline_error_detail": "",
+        "upload_schedule_dict": None,
+        "upload_compare_csv_df": None,
+        "upload_compare_intersection": None,
+        "upload_compare_columns": None,
+        "upload_compare_run_dir": "",
+        "upload_compare_in_progress": False,
+        "upload_compare_complete": False,
+        "upload_compare_results": None,
+        "tab5_mode": "auto",
+        "upload_compare_stage_statuses": ["waiting", "waiting", "waiting", "waiting"],
+        "upload_compare_log_lines": [],
+        "upload_compare_error": "",
+        "upload_compare_requested": False,
+        "show_compare_wizard": False,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -262,6 +281,7 @@ def _build_config_from_ui(base_cfg: dict[str, Any], ui: dict[str, Any]) -> dict[
     cfg["simulation"]["step_length"] = float(ui["step_length"])
     cfg["simulation"]["begin"] = int(ui["sim_begin"])
     cfg["simulation"]["end"] = int(ui["sim_end"])
+    cfg["simulation"]["gui"] = bool(ui.get("simulation_gui", False))
     cfg["flow_demand"]["subslots_per_slot"] = int(ui["subslots_per_slot"])
     cfg["flow_demand"]["spread"] = float(ui["spread"])
     cfg["components"]["reward_class"] = str(ui["reward_class"])
@@ -269,6 +289,282 @@ def _build_config_from_ui(base_cfg: dict[str, Any], ui: dict[str, Any]) -> dict[
     cfg.setdefault("policy", {})
     cfg["policy"]["learning_rate"] = float(ui["learning_rate"])
     return cfg
+
+
+def _valid_upload_schedule_dict(d: Any) -> bool:
+    if not isinstance(d, dict) or "buckets" not in d:
+        return False
+    b = d["buckets"]
+    if not isinstance(b, list) or not b:
+        return False
+    for row in b:
+        if not isinstance(row, dict):
+            return False
+        for k in ("tls_id", "phase", "bucket_start_s", "median_s", "std_s", "n"):
+            if k not in row:
+                return False
+    return True
+
+
+def _valid_intersection_dict_upload(d: Any) -> bool:
+    return isinstance(d, dict) and "intersection_name" in d and "active_approaches" in d
+
+
+def _valid_columns_dict_upload(d: Any) -> bool:
+    return isinstance(d, dict) and isinstance(d.get("time"), dict) and isinstance(d.get("approaches"), dict)
+
+
+def _validate_prev_run_dir(path_str: str, intersection_name: str) -> tuple[bool, str, int]:
+    if not path_str or not str(path_str).strip():
+        return False, "⚠ Folder not found at that path.", 0
+    p = Path(str(path_str).strip())
+    if not p.is_dir():
+        return False, "⚠ Folder not found at that path.", 0
+    split_path = p / "processed" / "split.json"
+    if not split_path.is_file():
+        return False, "⚠ Folder found but missing required files. Try re-generating instead.", 0
+    try:
+        split = json.loads(split_path.read_text(encoding="utf-8"))
+        test_days = [int(x) for x in split.get("test", [])]
+    except Exception:
+        return False, "⚠ Folder found but missing required files. Try re-generating instead.", 0
+    net = p / "sumo" / "network" / f"{intersection_name}.net.xml"
+    if not net.is_file():
+        return False, "⚠ Folder found but missing required files. Try re-generating instead.", 0
+    flow_dir = p / "sumo" / "flows"
+    if not flow_dir.is_dir() or not list(flow_dir.glob("flows_day_*.rou.xml")):
+        return False, "⚠ Folder found but missing required files. Try re-generating instead.", 0
+    missing = [d for d in test_days if not (flow_dir / f"flows_day_{int(d):02d}.rou.xml").is_file()]
+    if missing:
+        return (
+            False,
+            "⚠ This folder has split.json but is missing flow files for test days "
+            f"{missing}. Use the **output directory from Build route/network** (with sumo/flows/), "
+            "not a slim results folder that only contains schedules.",
+            0,
+        )
+    return True, f"✓ Run folder found — {len(test_days)} test days available.", len(test_days)
+
+
+def _full_config_for_replay(base_cfg: dict[str, Any], ui: dict[str, Any]) -> dict[str, Any]:
+    cfg = json.loads(json.dumps(base_cfg))
+    cfg.setdefault("simulation", {})
+    cfg["simulation"]["decision_gap"] = int(ui["decision_gap"])
+    cfg["simulation"]["step_length"] = float(ui["step_length"])
+    cfg["simulation"]["begin"] = int(ui["sim_begin"])
+    cfg["simulation"]["end"] = int(ui["sim_end"])
+    cfg["simulation"]["gui"] = bool(ui.get("simulation_gui", False))
+    cfg.setdefault("flow_demand", {})
+    cfg["flow_demand"]["subslots_per_slot"] = int(ui["subslots_per_slot"])
+    cfg["flow_demand"]["spread"] = float(ui["spread"])
+    return cfg
+
+
+def _build_config_compare_standalone(base_cfg: dict[str, Any], ui: dict[str, Any], train_days: int, test_days: int) -> dict[str, Any]:
+    uix = {**ui, "train_days": int(train_days), "test_days": int(test_days)}
+    cfg = _build_config_from_ui(base_cfg, uix)
+    cfg["paths"]["csv"] = "streamlit_runs/compare_standalone/traffic.csv"
+    cfg["paths"]["intersection"] = "streamlit_runs/compare_standalone/intersection.json"
+    cfg["paths"]["columns"] = "streamlit_runs/compare_standalone/columns.json"
+    cfg.setdefault("output", {})
+    cfg["output"]["out_dir"] = "streamlit_runs/compare_standalone"
+    return cfg
+
+
+def _reward_defaults_for_class(base_cfg: dict[str, Any], reward_class: str) -> dict[str, Any]:
+    rcfg = base_cfg.get("reward_configuration", {}) or {}
+    default_block = rcfg.get("default", {}) if isinstance(rcfg, dict) else {}
+    class_block = rcfg.get(reward_class, {}) if isinstance(rcfg, dict) else {}
+    out: dict[str, Any] = {}
+    if isinstance(default_block, dict):
+        out.update({k: v for k, v in default_block.items() if not str(k).startswith("_")})
+    if isinstance(class_block, dict):
+        out.update({k: v for k, v in class_block.items() if not str(k).startswith("_")})
+    return out
+
+
+def _run_upload_compare_pipeline(
+    progress_cb: Callable[[str], None],
+    set_stage: Callable[[int, str], None],
+    *,
+    base_cfg: dict[str, Any],
+    ui: dict[str, Any],
+    compare_root: Path,
+    schedule_dict: dict[str, Any],
+    traffic_df: pd.DataFrame,
+    intersection_dict: dict[str, Any],
+    columns_dict: dict[str, Any],
+    regenerate_network: bool,
+    prev_run_dir: str,
+    sumo_home: str,
+    train_days: int,
+    test_days: int,
+) -> dict[str, Any]:
+    import main as m
+
+    def skip_rest(start: int) -> None:
+        for j in range(start, 4):
+            set_stage(j, "skipped")
+
+    compare_root.mkdir(parents=True, exist_ok=True)
+    sched_path = str(compare_root / "schedule.json")
+    web_path = str(compare_root / "schedule_webster.json")
+    inter_path = str(compare_root / "intersection.json")
+    replay_out = str(compare_root / "replay")
+
+    try:
+        Path(sched_path).write_text(json.dumps(schedule_dict, indent=2), encoding="utf-8")
+        traffic_df.to_csv(compare_root / "traffic.csv", index=False)
+        Path(inter_path).write_text(json.dumps(intersection_dict, indent=2), encoding="utf-8")
+        Path(compare_root / "columns.json").write_text(json.dumps(columns_dict, indent=2), encoding="utf-8")
+    except Exception as ex:
+        progress_cb(f"Failed to write compare_standalone inputs: {ex}")
+        for j in range(4):
+            set_stage(j, "failed")
+        return {"ok": False, "error": str(ex), "n_test_days": 0, "paths": {}}
+
+    split_path: str | None = None
+    flows_dir: str | None = None
+    net_file: str | None = None
+    split: dict[str, Any] | None = None
+    inter_name = str(intersection_dict.get("intersection_name", ""))
+
+    if regenerate_network:
+        set_stage(0, "active")
+        progress_cb("Stage ① — building demand and network files")
+        try:
+            cfg_bs = _build_config_compare_standalone(base_cfg, ui, train_days, test_days)
+            m._apply_config(cfg_bs)
+            m.validate_inputs(sumo_home)
+            split = m.run_build_route()
+            net_file = m.run_build_network(sumo_home)
+            split_path = os.path.join(m.OUT_DIR, "processed", "split.json")
+            flows_dir = os.path.join(m.OUT_DIR, "sumo", "flows")
+            set_stage(0, "done")
+            progress_cb("Stage ① complete.")
+            fd = os.path.join(m.OUT_DIR, "sumo", "flows")
+            td_list = [int(x) for x in split.get("test", [])]
+            bad_td = [d for d in td_list if not os.path.isfile(os.path.join(fd, f"flows_day_{d:02d}.rou.xml"))]
+            if bad_td:
+                msg = (
+                    f"Build finished but flow files for test days {bad_td} are missing under {fd}. "
+                    "Check train+test day counts vs CSV coverage."
+                )
+                progress_cb(msg)
+                set_stage(0, "failed")
+                skip_rest(1)
+                return {"ok": False, "error": msg, "n_test_days": 0, "paths": {}}
+        except Exception as ex:
+            progress_cb(f"Stage ① failed: {ex}")
+            set_stage(0, "failed")
+            skip_rest(1)
+            return {"ok": False, "error": str(ex), "n_test_days": 0, "paths": {}}
+    else:
+        ok, msg, _n = _validate_prev_run_dir(prev_run_dir, inter_name)
+        progress_cb(msg)
+        if not ok:
+            set_stage(0, "failed")
+            skip_rest(1)
+            return {"ok": False, "error": msg, "n_test_days": 0, "paths": {}}
+        base = Path(str(prev_run_dir).strip())
+        split_path = str(base / "processed" / "split.json")
+        flows_dir = str(base / "sumo" / "flows")
+        net_file = str(base / "sumo" / "network" / f"{inter_name}.net.xml")
+        try:
+            split = json.loads(Path(split_path).read_text(encoding="utf-8"))
+        except Exception as ex:
+            set_stage(0, "failed")
+            skip_rest(1)
+            return {"ok": False, "error": str(ex), "n_test_days": 0, "paths": {}}
+        set_stage(0, "done")
+        progress_cb("Stage ① skipped — using network and flows from previous run directory.")
+
+    set_stage(1, "active")
+    progress_cb("Stage ② — computing mathematical baseline timing plan")
+    try:
+        assert split_path and split is not None
+        days_dir = str(Path(split_path).parent / "days")
+        test_csvs = [
+            os.path.join(days_dir, f"day_{int(d):02d}.csv")
+            for d in split.get("test", [])
+        ]
+        test_csvs = [p for p in test_csvs if os.path.isfile(p)]
+        if not test_csvs:
+            raise RuntimeError("No test-day CSV files found under processed/days.")
+        wb = WebsterScheduleBuilder(intersection_dict)
+        slot_minutes = int(split.get("slot_minutes", 15))
+        sched_w = wb.build_from_day_csvs(test_csvs, "J_centre", slot_minutes=slot_minutes)
+        wb.write(sched_w, web_path)
+        set_stage(1, "done")
+        progress_cb("Stage ② complete.")
+    except Exception as ex:
+        progress_cb(f"Stage ② failed: {ex}")
+        set_stage(1, "failed")
+        skip_rest(2)
+        return {"ok": False, "error": str(ex), "n_test_days": 0, "paths": {}}
+
+    cfg_replay = _full_config_for_replay(base_cfg, ui)
+
+    def _before_compare() -> None:
+        set_stage(2, "done")
+        set_stage(3, "active")
+        progress_cb("Stage ④ — comparing results")
+
+    set_stage(2, "active")
+    progress_cb("Stage ③ — running both timing plans through simulation")
+    try:
+        assert net_file is not None and split_path is not None and flows_dir is not None
+        if not (sumo_home or "").strip():
+            raise RuntimeError(
+                "SUMO_HOME is not set. Open **Advanced** and set the SUMO installation path, "
+                "or set the SUMO_HOME environment variable before running the comparison."
+            )
+        tls_check = "J_centre"
+        n_u = sum(1 for b in (schedule_dict.get("buckets") or []) if b.get("tls_id") == tls_check)
+        if n_u == 0:
+            raise RuntimeError(
+                f'Uploaded schedule.json has no buckets with tls_id "{tls_check}". '
+                "Replay expects that TLS id; fix the JSON or export a plan from this project."
+            )
+        run_replay_pipeline(
+            schedule_path=sched_path,
+            schedule_webster_path=web_path,
+            split_path=split_path,
+            flows_dir=flows_dir,
+            net_file=net_file,
+            config=cfg_replay,
+            intersection_path=inter_path,
+            out_dir=replay_out,
+            sumo_home=sumo_home,
+            gui=bool(cfg_replay.get("simulation", {}).get("gui", False)),
+            tls_id="J_centre",
+            log=progress_cb,
+            before_compare=_before_compare,
+        )
+        comp_csv = os.path.join(replay_out, "comparison.csv")
+        if not os.path.isfile(comp_csv):
+            raise RuntimeError(
+                "comparison.csv was not written after replay (unexpected). See the detailed log above."
+            )
+        set_stage(3, "done")
+        progress_cb("Stage ④ complete.")
+        return {
+            "ok": True,
+            "error": None,
+            "n_test_days": len(split.get("test", [])),
+            "paths": {
+                "compare_root": str(compare_root),
+                "schedule_uploaded": sched_path,
+                "schedule_webster": web_path,
+                "comparison_csv": comp_csv,
+                "replay_dir": replay_out,
+            },
+        }
+    except Exception as ex:
+        progress_cb(f"Replay or compare failed: {ex}")
+        set_stage(2, "failed")
+        set_stage(3, "skipped")
+        return {"ok": False, "error": str(ex), "n_test_days": 0, "paths": {}}
 
 
 def _run_full_pipeline(progress_cb: Callable[[str], None], ui: dict[str, Any]) -> None:
@@ -574,6 +870,301 @@ def _download_file(path: str | None, label: str, key: str, mime: str) -> None:
     st.download_button(label=label, data=Path(path).read_bytes(), file_name=os.path.basename(path), mime=mime, key=key)
 
 
+def _upload_stage_icon(status: str) -> str:
+    return {"waiting": "○", "active": "⏳", "done": "✓", "failed": "✗", "skipped": "–"}.get(status, "○")
+
+
+def _render_upload_compare_result_section(paths: dict[str, str], n_test_days: int) -> None:
+    comp_path = paths.get("comparison_csv")
+    replay_dir = paths.get("replay_dir")
+    sp = paths.get("schedule_uploaded")
+    wp = paths.get("schedule_webster")
+    if not comp_path or not replay_dir or not os.path.isfile(comp_path):
+        st.warning("Comparison results file missing.")
+        return
+    comp = pd.read_csv(comp_path)
+    by = {r["metric"]: r for _, r in comp.iterrows()}
+
+    st.subheader("Comparison results — uploaded timing plan vs mathematical baseline")
+    td = int(n_test_days) if n_test_days else int(st.session_state.get("ui_test_days", 5))
+    st.caption(f"Results measured on {td} evaluation days (uploaded timing plan vs mathematical baseline).")
+
+    c1, c2, c3, c4 = st.columns(4)
+    m1 = by.get("Throughput total (veh)", {})
+    m2 = by.get("Throughput rate (veh/s)", {})
+    m3 = by.get("Neg lane wait integral", {})
+    m4 = by.get("Phase switches", {})
+    c1.metric("Vehicles cleared per day", f"{float(m1.get('dqn_mean',0)):,.0f}", f"{float(m1.get('delta_mean',0)):+,.0f}")
+    c2.metric("Clearance rate (vehicles/second)", f"{float(m2.get('dqn_mean',0)):.3f}", f"{float(m2.get('delta_mean',0)):+.3f}")
+    c3.metric("Wait time score (higher = less waiting)", f"{float(m3.get('dqn_mean',0)):,.0f}", f"{float(m3.get('delta_mean',0)):+,.0f}")
+    c4.metric("Signal phase changes per day", f"{float(m4.get('dqn_mean',0)):.0f}", f"{float(m4.get('delta_mean',0)):+.0f}")
+    c4.caption("Informational - neither fewer nor more is necessarily better.")
+
+    wins = int(float(m1.get("delta_mean", 0)) > 0) + int(float(m2.get("delta_mean", 0)) > 0) + int(float(m3.get("delta_mean", 0)) > 0)
+    if wins >= 2:
+        st.success(f"Your uploaded plan outperformed the mathematical baseline on {wins} out of 3 performance metrics across {td} evaluation days.")
+    else:
+        st.info("The mathematical baseline matched or outperformed the uploaded plan on some metrics.")
+
+    st.markdown("---")
+    st.subheader("Performance across evaluation days")
+    dqn_dir = Path(replay_dir) / "dqn"
+    web_dir = Path(replay_dir) / "webster"
+    drows = []
+    wrows = []
+    for p in sorted(dqn_dir.glob("kpi_day_*.json")):
+        obj = json.loads(p.read_text(encoding="utf-8"))
+        drows.append({"Day": int(p.stem.split("_")[-1]), **obj})
+    for p in sorted(web_dir.glob("kpi_day_*.json")):
+        obj = json.loads(p.read_text(encoding="utf-8"))
+        wrows.append({"Day": int(p.stem.split("_")[-1]), **obj})
+    ddf = pd.DataFrame(drows).sort_values("Day") if drows else pd.DataFrame()
+    wdf = pd.DataFrame(wrows).sort_values("Day") if wrows else pd.DataFrame()
+    t1, t2 = st.tabs(["Uploaded timing plan", "Mathematical baseline"])
+    with t1:
+        if not ddf.empty:
+            st.line_chart(ddf.set_index("Day")["kpi_throughput_total"])
+            st.line_chart(ddf.set_index("Day")["kpi_neg_lane_waiting_integral"])
+            st.dataframe(
+                ddf.rename(
+                    columns={
+                        "kpi_throughput_total": "Vehicles cleared",
+                        "kpi_throughput_rate": "Clearance rate (vehicles/second)",
+                        "kpi_neg_lane_waiting_integral": "Wait time score (higher = less waiting)",
+                        "phase_switch_count": "Signal phase changes",
+                    }
+                ),
+                use_container_width=True,
+            )
+    with t2:
+        if not wdf.empty:
+            st.line_chart(wdf.set_index("Day")["kpi_throughput_total"])
+            st.line_chart(wdf.set_index("Day")["kpi_neg_lane_waiting_integral"])
+            st.dataframe(
+                wdf.rename(
+                    columns={
+                        "kpi_throughput_total": "Vehicles cleared",
+                        "kpi_throughput_rate": "Clearance rate (vehicles/second)",
+                        "kpi_neg_lane_waiting_integral": "Wait time score (higher = less waiting)",
+                        "phase_switch_count": "Signal phase changes",
+                    }
+                ),
+                use_container_width=True,
+            )
+
+    with st.expander("View signal timing plans", expanded=False):
+        if sp and wp and os.path.isfile(sp) and os.path.isfile(wp):
+            d_sched = json.loads(Path(sp).read_text(encoding="utf-8")).get("buckets", [])
+            w_sched = json.loads(Path(wp).read_text(encoding="utf-8")).get("buckets", [])
+            phases = sorted(set(int(r["phase"]) for r in d_sched) | set(int(r["phase"]) for r in w_sched))
+            ptabs = st.tabs([f"Phase {p+1}" for p in phases])
+            for i, ph in enumerate(phases):
+                with ptabs[i]:
+                    dph = [r for r in d_sched if int(r["phase"]) == ph]
+                    wph = [r for r in w_sched if int(r["phase"]) == ph]
+                    dfp = pd.DataFrame({"Time of day": [_seconds_to_hhmm(int(r["bucket_start_s"])) for r in dph], "Uploaded plan (s)": [float(r["median_s"]) for r in dph], "Uploaded variation": [float(r.get("std_s", 0)) for r in dph]}) if dph else pd.DataFrame()
+                    if wph:
+                        wf = pd.DataFrame({"Time of day": [_seconds_to_hhmm(int(r["bucket_start_s"])) for r in wph], "Mathematical baseline (s)": [float(r["median_s"]) for r in wph], "Mathematical baseline variation": [float(r.get("std_s", 0)) for r in wph]})
+                        dfp = wf if dfp.empty else dfp.merge(wf, on="Time of day", how="outer")
+                    if not dfp.empty:
+                        cols = [c for c in ["Uploaded plan (s)", "Mathematical baseline (s)"] if c in dfp.columns]
+                        st.line_chart(dfp.set_index("Time of day")[cols])
+                        st.dataframe(dfp, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("Download your timing plans")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("**Uploaded timing plan**")
+        _download_file(sp, "Download uploaded timing plan", "dl_upload_sched", "application/json")
+    with c2:
+        st.markdown("**Mathematical baseline**")
+        _download_file(wp, "Download mathematical baseline", "dl_upload_webster", "application/json")
+    with c3:
+        st.markdown("**Comparison report**")
+        _download_file(comp_path, "Download comparison report", "dl_upload_comparison", "text/csv")
+
+
+def _render_tab5_training_results() -> None:
+    if not st.session_state.run_complete:
+        st.info("Run training from the **Run** tab first to unlock results.")
+        return
+    run_dir = st.session_state.last_run_dir
+    sched_path = st.session_state.last_schedule_path
+    had_baseline = bool(st.session_state.get("last_run_baseline_comparison"))
+    comp_path = st.session_state.last_comparison_csv_path
+
+    if not run_dir or not sched_path or not os.path.isfile(sched_path):
+        st.warning("Results are not available yet.")
+    elif had_baseline and comp_path and os.path.isfile(comp_path):
+        comp = pd.read_csv(comp_path)
+        by = {r["metric"]: r for _, r in comp.iterrows()}
+
+        st.subheader("How did your trained model compare to the mathematical baseline?")
+        td = int(st.session_state.get("ui_test_days", 5))
+        st.caption(f"Results measured on {td} evaluation days - data the model never saw during training.")
+
+        c1, c2, c3, c4 = st.columns(4)
+        m1 = by.get("Throughput total (veh)", {})
+        m2 = by.get("Throughput rate (veh/s)", {})
+        m3 = by.get("Neg lane wait integral", {})
+        m4 = by.get("Phase switches", {})
+        c1.metric("Vehicles cleared per day", f"{float(m1.get('dqn_mean',0)):,.0f}", f"{float(m1.get('delta_mean',0)):+,.0f}")
+        c2.metric("Clearance rate (vehicles/second)", f"{float(m2.get('dqn_mean',0)):.3f}", f"{float(m2.get('delta_mean',0)):+.3f}")
+        c3.metric("Wait time score (higher = less waiting)", f"{float(m3.get('dqn_mean',0)):,.0f}", f"{float(m3.get('delta_mean',0)):+,.0f}")
+        c4.metric("Signal phase changes per day", f"{float(m4.get('dqn_mean',0)):.0f}", f"{float(m4.get('delta_mean',0)):+.0f}")
+        c4.caption("Informational - neither fewer nor more is necessarily better.")
+
+        wins = int(float(m1.get("delta_mean", 0)) > 0) + int(float(m2.get("delta_mean", 0)) > 0) + int(float(m3.get("delta_mean", 0)) > 0)
+        if wins >= 2:
+            st.success(f"Your trained model outperformed the mathematical baseline on {wins} out of 3 performance metrics across {td} evaluation days.")
+        else:
+            st.info("The mathematical baseline matched or outperformed your model on some metrics. Consider more training rounds or a different reward class in **Advanced**.")
+
+        st.markdown("---")
+        st.subheader("Performance across evaluation days")
+        dqn_dir = Path(run_dir) / "replay" / "dqn"
+        web_dir = Path(run_dir) / "replay" / "webster"
+        drows = []
+        wrows = []
+        for p in sorted(dqn_dir.glob("kpi_day_*.json")):
+            obj = json.loads(p.read_text(encoding="utf-8"))
+            drows.append({"Day": int(p.stem.split("_")[-1]), **obj})
+        for p in sorted(web_dir.glob("kpi_day_*.json")):
+            obj = json.loads(p.read_text(encoding="utf-8"))
+            wrows.append({"Day": int(p.stem.split("_")[-1]), **obj})
+        ddf = pd.DataFrame(drows).sort_values("Day") if drows else pd.DataFrame()
+        wdf = pd.DataFrame(wrows).sort_values("Day") if wrows else pd.DataFrame()
+        t1, t2 = st.tabs(["Trained model", "Mathematical baseline"])
+        with t1:
+            if not ddf.empty:
+                st.line_chart(ddf.set_index("Day")["kpi_throughput_total"])
+                st.line_chart(ddf.set_index("Day")["kpi_neg_lane_waiting_integral"])
+                st.dataframe(
+                    ddf.rename(
+                        columns={
+                            "kpi_throughput_total": "Vehicles cleared",
+                            "kpi_throughput_rate": "Clearance rate (vehicles/second)",
+                            "kpi_neg_lane_waiting_integral": "Wait time score (higher = less waiting)",
+                            "phase_switch_count": "Signal phase changes",
+                        }
+                    ),
+                    use_container_width=True,
+                )
+        with t2:
+            if not wdf.empty:
+                st.line_chart(wdf.set_index("Day")["kpi_throughput_total"])
+                st.line_chart(wdf.set_index("Day")["kpi_neg_lane_waiting_integral"])
+                st.dataframe(
+                    wdf.rename(
+                        columns={
+                            "kpi_throughput_total": "Vehicles cleared",
+                            "kpi_throughput_rate": "Clearance rate (vehicles/second)",
+                            "kpi_neg_lane_waiting_integral": "Wait time score (higher = less waiting)",
+                            "phase_switch_count": "Signal phase changes",
+                        }
+                    ),
+                    use_container_width=True,
+                )
+
+        with st.expander("View signal timing plans", expanded=False):
+            sp = st.session_state.last_schedule_path
+            wp = st.session_state.last_schedule_webster_path
+            if sp and wp and os.path.isfile(sp) and os.path.isfile(wp):
+                d_sched = json.loads(Path(sp).read_text(encoding="utf-8")).get("buckets", [])
+                w_sched = json.loads(Path(wp).read_text(encoding="utf-8")).get("buckets", [])
+                phases = sorted(set(int(r["phase"]) for r in d_sched) | set(int(r["phase"]) for r in w_sched))
+                ptabs = st.tabs([f"Phase {p+1}" for p in phases])
+                for i, ph in enumerate(phases):
+                    with ptabs[i]:
+                        dph = [r for r in d_sched if int(r["phase"]) == ph]
+                        wph = [r for r in w_sched if int(r["phase"]) == ph]
+                        dfp = pd.DataFrame({"Time of day": [_seconds_to_hhmm(int(r["bucket_start_s"])) for r in dph], "Trained model (s)": [float(r["median_s"]) for r in dph], "Trained model variation": [float(r.get("std_s", 0)) for r in dph]}) if dph else pd.DataFrame()
+                        if wph:
+                            wf = pd.DataFrame({"Time of day": [_seconds_to_hhmm(int(r["bucket_start_s"])) for r in wph], "Mathematical baseline (s)": [float(r["median_s"]) for r in wph], "Mathematical baseline variation": [float(r.get("std_s", 0)) for r in wph]})
+                            dfp = wf if dfp.empty else dfp.merge(wf, on="Time of day", how="outer")
+                        if not dfp.empty:
+                            cols = [c for c in ["Trained model (s)", "Mathematical baseline (s)"] if c in dfp.columns]
+                            st.line_chart(dfp.set_index("Time of day")[cols])
+                            st.dataframe(dfp, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("Download your timing plans")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown("**Trained model timing plan**")
+            _download_file(st.session_state.last_schedule_path, "Download (.json)", "dl_dqn_schedule", "application/json")
+            st.caption("Fixed-time signal programme derived from your trained model.")
+        with c2:
+            st.markdown("**Mathematical baseline timing plan**")
+            _download_file(st.session_state.last_schedule_webster_path, "Download (.json)", "dl_webster_schedule", "application/json")
+            st.caption("Optimised fixed-time programme calculated from your traffic count data.")
+        with c3:
+            st.markdown("**Full comparison report**")
+            _download_file(st.session_state.last_comparison_csv_path, "Download (.csv)", "dl_comparison", "text/csv")
+            st.caption("Side-by-side performance comparison across all evaluation days.")
+
+        st.caption("Want to try a different reward or more training rounds? Go to **Advanced** and **Run** again. Your uploaded data and intersection configuration will be preserved.")
+    else:
+        st.subheader("Your trained model timing plan")
+        if had_baseline:
+            st.warning(
+                "Baseline comparison was enabled but the comparison report is not available. "
+                "You can still download the RL schedule below. Check the Run tab log if the comparison step failed."
+            )
+        else:
+            st.success(
+                "Baseline comparison was not run. Enable **Run Webster baseline and compare in simulation** "
+                "under **Advanced → Baseline comparison** to get Webster vs RL KPI metrics and extra downloads."
+            )
+        st.markdown("---")
+        _download_file(sched_path, "Download trained model schedule (.json)", "dl_dqn_schedule_only", "application/json")
+        st.caption("Fixed-time signal programme (`schedule.json`) derived from your trained model.")
+
+        with st.expander("View signal timing plan (trained model)", expanded=False):
+            sp = sched_path
+            if sp and os.path.isfile(sp):
+                d_sched = json.loads(Path(sp).read_text(encoding="utf-8")).get("buckets", [])
+                phases = sorted(set(int(r["phase"]) for r in d_sched))
+                ptabs = st.tabs([f"Phase {p+1}" for p in phases])
+                for i, ph in enumerate(phases):
+                    with ptabs[i]:
+                        dph = [r for r in d_sched if int(r["phase"]) == ph]
+                        if dph:
+                            dfp = pd.DataFrame({
+                                "Time of day": [_seconds_to_hhmm(int(r["bucket_start_s"])) for r in dph],
+                                "Trained model (s)": [float(r["median_s"]) for r in dph],
+                                "Trained model variation": [float(r.get("std_s", 0)) for r in dph],
+                            })
+                            st.line_chart(dfp.set_index("Time of day")["Trained model (s)"])
+                            st.dataframe(dfp, use_container_width=True)
+
+        st.caption("Want baseline comparison? Enable it in **Advanced**, then **Run** again.")
+
+
+def _render_tab5_training_header() -> None:
+    try:
+        inter = json.loads(st.session_state.intersection_text) if st.session_state.intersection_text else {}
+    except Exception:
+        inter = {}
+    inter_name = str(inter.get("intersection_name", "(not set)"))
+    epochs = int(st.session_state.get("ui_epochs", 0))
+    tr_days = int(st.session_state.get("ui_train_days", 0))
+    te_days = int(st.session_state.get("ui_test_days", 0))
+    seed = int(st.session_state.get("ui_seed", 0))
+    st.caption(
+        f"Intersection: {inter_name}  |  Epochs: {epochs}  |  Days: train {tr_days} / test {te_days}  |  Seed: {seed}"
+    )
+
+
+def _render_tab5_empty_state() -> None:
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        st.markdown("<div style='text-align:center;font-size:40px;'>📊</div>", unsafe_allow_html=True)
+        st.markdown("### No results yet")
+        st.caption("Complete Data, Intersection, and Run tabs, then start a run to see results here.")
+
+
 def main() -> None:
     st.set_page_config(
         page_title="RL Traffic Signal Optimizer",
@@ -646,7 +1237,7 @@ def main() -> None:
 
             df = st.session_state.csv_df
             if df is not None:
-                st.dataframe(df.head(5), width="stretch", key="df_preview_5")
+                st.dataframe(df.head(5), use_container_width=True)
                 cands = [c for c in df.columns if "time" in str(c).lower()]
                 start_guess = cands[0] if cands else None
                 detected = _detect_slot_minutes(df, start_guess)
@@ -866,30 +1457,31 @@ def main() -> None:
                 help="Python reward class (see `modelling.components.reward` and `config.json` → `reward_configuration`).",
             )
             st.caption("Hyperparameters merge with `reward_configuration` in config.json for the selected class.")
+            rw_defs = _reward_defaults_for_class(base_cfg, rc)
             if rc == "ThroughputCompositeReward":
-                st.slider("alpha (queue penalty)", 0.0, 1.0, 0.3, 0.01, key="rw_alpha", help="Weight applied to queue-related penalty term.")
-                st.slider("beta (lane imbalance penalty)", 0.0, 0.5, 0.1, 0.01, key="rw_beta", help="Penalty for inter-lane imbalance.")
-                st.slider("gamma (throughput reward)", 0.0, 2.0, 1.0, 0.01, key="rw_gamma", help="Weight applied to departure/throughput gain.")
-                st.slider("switch_weight (phase change cost)", 0.0, 1.0, 0.1, 0.01, key="rw_switch_weight", help="Penalty for switching to reduce oscillatory control.")
-                st.checkbox("normalize", value=True, key="rw_norm", help="Apply reward normalization.")
+                st.slider("alpha (queue penalty)", 0.0, 1.0, float(rw_defs.get("alpha", 0.6)), 0.01, key="rw_alpha", help="Weight applied to queue-related penalty term.")
+                st.slider("beta (lane imbalance penalty)", 0.0, 1.0, float(rw_defs.get("beta", 0.35)), 0.01, key="rw_beta", help="Penalty for inter-lane imbalance.")
+                st.slider("gamma (throughput reward)", 0.0, 2.0, float(rw_defs.get("gamma", 1.2)), 0.01, key="rw_gamma", help="Weight applied to departure/throughput gain.")
+                st.slider("switch_weight (phase change cost)", 0.0, 1.0, float(rw_defs.get("switch_weight", 0.05)), 0.01, key="rw_switch_weight", help="Penalty for switching to reduce oscillatory control.")
+                st.checkbox("normalize", value=bool(rw_defs.get("normalise", True)), key="rw_norm", help="Apply reward normalization.")
             elif rc == "ThroughputQueueReward":
-                st.slider("throughput_weight", 0.0, 1.0, 0.5, 0.01, key="rw_throughput_weight", help="Weight for throughput term.")
-                st.slider("queue_weight", 0.0, 1.0, 0.25, 0.01, key="rw_queue_weight", help="Weight for queue penalty term.")
-                st.slider("switch_weight", 0.0, 1.0, 0.5, 0.01, key="rw_switch_weight", help="Cost applied on phase transitions.")
-                st.checkbox("normalize", value=True, key="rw_norm", help="Apply reward normalization.")
+                st.slider("throughput_weight", 0.0, 1.0, float(rw_defs.get("throughput_weight", 0.5)), 0.01, key="rw_throughput_weight", help="Weight for throughput term.")
+                st.slider("queue_weight", 0.0, 1.0, float(rw_defs.get("queue_weight", 0.25)), 0.01, key="rw_queue_weight", help="Weight for queue penalty term.")
+                st.slider("switch_weight", 0.0, 1.0, float(rw_defs.get("switch_weight", 0.5)), 0.01, key="rw_switch_weight", help="Cost applied on phase transitions.")
+                st.checkbox("normalize", value=bool(rw_defs.get("normalise", True)), key="rw_norm", help="Apply reward normalization.")
             elif rc == "WaitingTimeReward":
-                st.slider("switch_weight", 0.0, 1.0, 0.5, 0.01, key="rw_switch_weight", help="Cost applied on phase transitions.")
-                st.checkbox("normalize", value=True, key="rw_norm", help="Apply reward normalization.")
+                st.slider("switch_weight", 0.0, 1.0, float(rw_defs.get("switch_weight", 0.5)), 0.01, key="rw_switch_weight", help="Cost applied on phase transitions.")
+                st.checkbox("normalize", value=bool(rw_defs.get("normalise", True)), key="rw_norm", help="Apply reward normalization.")
             elif rc == "ThroughputWaitTimeReward":
-                st.slider("alpha (wait/queue penalty)", 0.0, 1.0, 0.3, 0.01, key="rw_alpha", help="Weight for waiting-time / queue penalties.")
-                st.slider("beta (imbalance penalty)", 0.0, 0.5, 0.1, 0.01, key="rw_beta", help="Penalty for directional imbalance.")
-                st.slider("gamma (throughput reward)", 0.0, 2.0, 1.0, 0.01, key="rw_gamma", help="Weight for throughput gain.")
-                st.checkbox("normalize", value=True, key="rw_norm", help="Apply reward normalization.")
+                st.slider("alpha (wait/queue penalty)", 0.0, 1.0, float(rw_defs.get("alpha", 0.6)), 0.01, key="rw_alpha", help="Weight for waiting-time / queue penalties.")
+                st.slider("beta (imbalance penalty)", 0.0, 1.0, float(rw_defs.get("beta", 0.3)), 0.01, key="rw_beta", help="Penalty for directional imbalance.")
+                st.slider("gamma (throughput reward)", 0.0, 2.0, float(rw_defs.get("gamma", 1.2)), 0.01, key="rw_gamma", help="Weight for throughput gain.")
+                st.checkbox("normalize", value=bool(rw_defs.get("normalise", True)), key="rw_norm", help="Apply reward normalization.")
             elif rc == "CompositeReward":
-                st.slider("alpha (composite blend)", 0.0, 1.0, 0.65, 0.01, key="rw_alpha", help="Blend coefficient across composite objective terms.")
-                st.checkbox("normalize", value=True, key="rw_norm", help="Apply reward normalization.")
+                st.slider("alpha (composite blend)", 0.0, 1.0, float(rw_defs.get("alpha", 0.65)), 0.01, key="rw_alpha", help="Blend coefficient across composite objective terms.")
+                st.checkbox("normalize", value=bool(rw_defs.get("normalise", True)), key="rw_norm", help="Apply reward normalization.")
             elif rc == "ThroughputReward":
-                st.checkbox("normalize", value=False, key="rw_norm", help="Apply reward normalization (see config.json ThroughputReward).")
+                st.checkbox("normalize", value=bool(rw_defs.get("normalise", False)), key="rw_norm", help="Apply reward normalization (see config.json ThroughputReward).")
             elif rc in ("VehicleCountReward", "DeltaVehicleCountReward", "DeltaWaitingTimeReward"):
                 st.caption("No extra sliders here; tune under `reward_configuration` in config.json for this class.")
             else:
@@ -900,7 +1492,9 @@ def main() -> None:
             st.number_input("train_days", 1, 100, int(train_cfg.get("train_days", 5)), key="ui_train_days", help="Number of days used for optimization.")
             st.number_input("test_days", 1, 50, int(train_cfg.get("test_days", 5)), key="ui_test_days", help="Holdout days for post-train evaluation.")
             labels = {1: "Every second (most responsive)", 5: "Every 5 seconds", 10: "Every 10 seconds (recommended)", 15: "Every 15 seconds", 30: "Every 30 seconds (least reactive)"}
-            picked = st.selectbox("decision_gap (s)", list(labels.values()), index=2, key="ui_decision_gap_lbl", help="Control interval for policy action selection.")
+            default_gap = int(sim_cfg.get("decision_gap", 10))
+            default_index = list(labels.keys()).index(default_gap) if default_gap in labels else 2
+            picked = st.selectbox("decision_gap (s)", list(labels.values()), index=default_index, key="ui_decision_gap_lbl", help="Control interval for policy action selection.")
             st.session_state.ui_decision_gap = [k for k, v in labels.items() if v == picked][0]
             st.number_input("seed", value=int(train_cfg.get("seed", 42)), key="ui_seed", help="Random seed for reproducibility.")
             st.number_input(
@@ -946,6 +1540,12 @@ def main() -> None:
             step_map = {"0.5 seconds - fine-grained": 0.5, "1 second - recommended": 1.0, "2 seconds - faster, less precise": 2.0}
             step_label = st.selectbox("step_length (s)", list(step_map.keys()), index=1, key="ui_step_label", help="SUMO integration timestep in seconds.")
             st.session_state.ui_step_length = step_map[step_label]
+            st.checkbox(
+                "Run SUMO with GUI",
+                value=bool(sim_cfg.get("gui", False)),
+                key="ui_sim_gui",
+                help="When enabled, launches SUMO with GUI windows during training and replay.",
+            )
             cap_map = {"Small (4,000)": 4000, "Medium (8,000) - recommended": 8000, "Large (16,000)": 16000, "Extra large (32,768)": 32768}
             cap_label = st.selectbox("replay_buffer_capacity", list(cap_map.keys()), index=1, key="ui_buffer_label", help="Replay buffer capacity (only applicable if policy uses experience replay).")
             st.session_state.ui_capacity = cap_map[cap_label]
@@ -992,6 +1592,7 @@ def main() -> None:
                 "learning_rate": float(st.session_state.get("ui_learning_rate", policy_lr_default)),
                 "lr_min": float(st.session_state.get("ui_lr_min", train_cfg.get("lr_min", 0.0001))),
                 "step_length": float(st.session_state.get("ui_step_length", sim_cfg.get("step_length", 1.0))),
+                "simulation_gui": bool(st.session_state.get("ui_sim_gui", sim_cfg.get("gui", False))),
                 "sim_begin": int(_time_to_seconds(st.session_state.ui_sim_start)),
                 "sim_end": int(_time_to_seconds(st.session_state.ui_sim_end)),
                 "subslots_per_slot": int(st.session_state.get("ui_subslots", flow_cfg.get("subslots_per_slot", 5))),
@@ -1038,7 +1639,7 @@ def main() -> None:
                                 f"epoch **{latest_epoch}** / {ui_cfg['n_epochs']}"
                             )
                         if st.session_state.eval_progress_rows:
-                            table_box.dataframe(pd.DataFrame(st.session_state.eval_progress_rows), width="stretch")
+                            table_box.dataframe(pd.DataFrame(st.session_state.eval_progress_rows), use_container_width=True)
                     except Exception:
                         pass
 
@@ -1064,7 +1665,7 @@ def main() -> None:
             st.markdown("### Live progress")
             _stage_view()
             if st.session_state.eval_progress_rows:
-                st.dataframe(pd.DataFrame(st.session_state.eval_progress_rows), width="stretch")
+                st.dataframe(pd.DataFrame(st.session_state.eval_progress_rows), use_container_width=True)
             with st.expander("Show detailed technical log", expanded=False):
                 st.caption("Includes status lines, captured [stdout] from the pipeline, and Python tracebacks when available.")
                 if st.session_state.get("pipeline_error_detail"):
@@ -1078,140 +1679,372 @@ def main() -> None:
                 )
 
     with tabs[4]:
-        if not st.session_state.run_complete:
-            st.info("Run training from the **Run** tab first to unlock results.")
+        st.session_state.tab5_mode = "training"
+        if st.session_state.run_complete:
+            _render_tab5_training_header()
+            _render_tab5_training_results()
         else:
-            run_dir = st.session_state.last_run_dir
-            sched_path = st.session_state.last_schedule_path
-            had_baseline = bool(st.session_state.get("last_run_baseline_comparison"))
-            comp_path = st.session_state.last_comparison_csv_path
+            _render_tab5_empty_state()
 
-            if not run_dir or not sched_path or not os.path.isfile(sched_path):
-                st.warning("Results are not available yet.")
-            elif had_baseline and comp_path and os.path.isfile(comp_path):
-                comp = pd.read_csv(comp_path)
-                by = {r["metric"]: r for _, r in comp.iterrows()}
+        st.divider()
+        c1, c2 = st.columns([4, 1])
+        with c1:
+            st.caption("Already have a timing plan? Compare it against the baseline.")
+        with c2:
+            btn_label = "Hide comparison wizard" if st.session_state.get("show_compare_wizard", False) else "Open comparison wizard"
+            if st.button(btn_label, key="toggle_compare_wizard"):
+                st.session_state.show_compare_wizard = not st.session_state.get("show_compare_wizard", False)
 
-                st.subheader("How did your trained model compare to the mathematical baseline?")
-                td = int(st.session_state.get("ui_test_days", 5))
-                st.caption(f"Results measured on {td} evaluation days - data the model never saw during training.")
+        if st.session_state.get("show_compare_wizard", False):
+            S2_USE_DATA = "Use the file I already uploaded in the Data tab"
+            S2_UPLOAD = "Upload a different traffic count file"
+            S3_USE_INTER = "Use the intersection I already configured in the Intersection tab"
+            S3_UPLOAD = "Upload configuration files"
+            S4_REGEN = "Re-generate from uploaded data (recommended if no previous run)"
+            S4_PREV = "Use files from a previous run directory"
 
-                c1, c2, c3, c4 = st.columns(4)
-                m1 = by.get("Throughput total (veh)", {})
-                m2 = by.get("Throughput rate (veh/s)", {})
-                m3 = by.get("Neg lane wait integral", {})
-                m4 = by.get("Phase switches", {})
-                c1.metric("Vehicles cleared per day", f"{float(m1.get('dqn_mean',0)):,.0f}", f"{float(m1.get('delta_mean',0)):+,.0f}")
-                c2.metric("Clearance rate (vehicles/second)", f"{float(m2.get('dqn_mean',0)):.3f}", f"{float(m2.get('delta_mean',0)):+.3f}")
-                c3.metric("Wait time score (higher = less waiting)", f"{float(m3.get('dqn_mean',0)):,.0f}", f"{float(m3.get('delta_mean',0)):+,.0f}")
-                c4.metric("Signal phase changes per day", f"{float(m4.get('dqn_mean',0)):.0f}", f"{float(m4.get('delta_mean',0)):+.0f}")
-                c4.caption("Informational - neither fewer nor more is necessarily better.")
-
-                wins = int(float(m1.get("delta_mean", 0)) > 0) + int(float(m2.get("delta_mean", 0)) > 0) + int(float(m3.get("delta_mean", 0)) > 0)
-                if wins >= 2:
-                    st.success(f"Your trained model outperformed the mathematical baseline on {wins} out of 3 performance metrics across {td} evaluation days.")
-                else:
-                    st.info("The mathematical baseline matched or outperformed your model on some metrics. Consider more training rounds or a different reward class in **Advanced**.")
-
-                st.markdown("---")
-                st.subheader("Performance across evaluation days")
-                dqn_dir = Path(run_dir) / "replay" / "dqn"
-                web_dir = Path(run_dir) / "replay" / "webster"
-                drows = []
-                wrows = []
-                for p in sorted(dqn_dir.glob("kpi_day_*.json")):
-                    obj = json.loads(p.read_text(encoding="utf-8"))
-                    drows.append({"Day": int(p.stem.split("_")[-1]), **obj})
-                for p in sorted(web_dir.glob("kpi_day_*.json")):
-                    obj = json.loads(p.read_text(encoding="utf-8"))
-                    wrows.append({"Day": int(p.stem.split("_")[-1]), **obj})
-                ddf = pd.DataFrame(drows).sort_values("Day") if drows else pd.DataFrame()
-                wdf = pd.DataFrame(wrows).sort_values("Day") if wrows else pd.DataFrame()
-                t1, t2 = st.tabs(["Trained model", "Mathematical baseline"])
-                with t1:
-                    if not ddf.empty:
-                        st.line_chart(ddf.set_index("Day")["kpi_throughput_total"], key="line_dqn_through")
-                        st.line_chart(ddf.set_index("Day")["kpi_neg_lane_waiting_integral"], key="line_dqn_wait")
-                        st.dataframe(ddf.rename(columns={"kpi_throughput_total": "Vehicles cleared", "kpi_throughput_rate": "Clearance rate (vehicles/second)", "kpi_neg_lane_waiting_integral": "Wait time score (higher = less waiting)", "phase_switch_count": "Signal phase changes"}), width="stretch", key="df_dqn_days")
-                with t2:
-                    if not wdf.empty:
-                        st.line_chart(wdf.set_index("Day")["kpi_throughput_total"], key="line_web_through")
-                        st.line_chart(wdf.set_index("Day")["kpi_neg_lane_waiting_integral"], key="line_web_wait")
-                        st.dataframe(wdf.rename(columns={"kpi_throughput_total": "Vehicles cleared", "kpi_throughput_rate": "Clearance rate (vehicles/second)", "kpi_neg_lane_waiting_integral": "Wait time score (higher = less waiting)", "phase_switch_count": "Signal phase changes"}), width="stretch", key="df_web_days")
-
-                with st.expander("View signal timing plans", expanded=False):
-                    sp = st.session_state.last_schedule_path
-                    wp = st.session_state.last_schedule_webster_path
-                    if sp and wp and os.path.isfile(sp) and os.path.isfile(wp):
-                        d_sched = json.loads(Path(sp).read_text(encoding="utf-8")).get("buckets", [])
-                        w_sched = json.loads(Path(wp).read_text(encoding="utf-8")).get("buckets", [])
-                        phases = sorted(set(int(r["phase"]) for r in d_sched) | set(int(r["phase"]) for r in w_sched))
-                        ptabs = st.tabs([f"Phase {p+1}" for p in phases])
-                        for i, ph in enumerate(phases):
-                            with ptabs[i]:
-                                dph = [r for r in d_sched if int(r["phase"]) == ph]
-                                wph = [r for r in w_sched if int(r["phase"]) == ph]
-                                dfp = pd.DataFrame({"Time of day": [_seconds_to_hhmm(int(r["bucket_start_s"])) for r in dph], "Trained model (s)": [float(r["median_s"]) for r in dph], "Trained model variation": [float(r.get("std_s", 0)) for r in dph]}) if dph else pd.DataFrame()
-                                if wph:
-                                    wf = pd.DataFrame({"Time of day": [_seconds_to_hhmm(int(r["bucket_start_s"])) for r in wph], "Mathematical baseline (s)": [float(r["median_s"]) for r in wph], "Mathematical baseline variation": [float(r.get("std_s", 0)) for r in wph]})
-                                    dfp = wf if dfp.empty else dfp.merge(wf, on="Time of day", how="outer")
-                                if not dfp.empty:
-                                    cols = [c for c in ["Trained model (s)", "Mathematical baseline (s)"] if c in dfp.columns]
-                                    st.line_chart(dfp.set_index("Time of day")[cols], key=f"line_phase_{ph}")
-                                    st.dataframe(dfp, width="stretch", key=f"df_phase_{ph}")
-
-                st.markdown("---")
-                st.subheader("Download your timing plans")
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.markdown("**Trained model timing plan**")
-                    _download_file(st.session_state.last_schedule_path, "Download (.json)", "dl_dqn_schedule", "application/json")
-                    st.caption("Fixed-time signal programme derived from your trained model.")
-                with c2:
-                    st.markdown("**Mathematical baseline timing plan**")
-                    _download_file(st.session_state.last_schedule_webster_path, "Download (.json)", "dl_webster_schedule", "application/json")
-                    st.caption("Optimised fixed-time programme calculated from your traffic count data.")
-                with c3:
-                    st.markdown("**Full comparison report**")
-                    _download_file(st.session_state.last_comparison_csv_path, "Download (.csv)", "dl_comparison", "text/csv")
-                    st.caption("Side-by-side performance comparison across all evaluation days.")
-
-                st.caption("Want to try a different reward or more training rounds? Go to **Advanced** and **Run** again. Your uploaded data and intersection configuration will be preserved.")
-            else:
-                st.subheader("Your trained model timing plan")
-                if had_baseline:
+            st.markdown("### Step 1: Upload your timing plan")
+            st.file_uploader(
+                "Upload your signal timing plan",
+                type=["json"],
+                key="upload_schedule_json",
+                help="The timing plan file from a previous training run (expects tls_id J_centre in buckets).",
+            )
+            up_sched = st.session_state.get("upload_schedule_json")
+            step1_ok = False
+            step1_line = "Step 1: ○ Waiting for file"
+            if up_sched is not None:
+                try:
+                    raw = json.loads(up_sched.getvalue().decode("utf-8"))
+                    if _valid_upload_schedule_dict(raw):
+                        st.session_state.upload_schedule_dict = raw
+                        nb = len(raw["buckets"])
+                        ph = len({int(b["phase"]) for b in raw["buckets"]})
+                        step1_ok = True
+                        step1_line = f"Step 1: ✓ Timing plan loaded — {nb} buckets across {ph} phases."
+                        st.success(step1_line.replace("Step 1: ✓ ", "✓ "))
+                    else:
+                        st.session_state.upload_schedule_dict = None
+                        st.warning(
+                            "✗ This file does not look like a valid timing plan. Please upload the correct file."
+                        )
+                        step1_line = "Step 1: ✗ Invalid timing plan file"
+                except Exception:
+                    st.session_state.upload_schedule_dict = None
                     st.warning(
-                        "Baseline comparison was enabled but the comparison report is not available. "
-                        "You can still download the RL schedule below. Check the Run tab log if the comparison step failed."
+                        "✗ This file does not look like a valid timing plan. Please upload the correct file."
                     )
+                    step1_line = "Step 1: ✗ Invalid timing plan file"
+            else:
+                st.session_state.upload_schedule_dict = None
+
+            st.markdown("### Step 2: Provide traffic data")
+            st.radio("Traffic data source", [S2_USE_DATA, S2_UPLOAD], key="upload_step2_traffic_source")
+            step2_ok = False
+            step2_line = "Step 2: ○ Waiting for file"
+            if st.session_state.upload_step2_traffic_source == S2_USE_DATA:
+                if st.session_state.csv_df is not None:
+                    step2_ok = True
+                    step2_line = "Step 2: ✓ Using previously uploaded traffic data."
+                    st.success("✓ Using previously uploaded traffic data.")
                 else:
-                    st.success(
-                        "Baseline comparison was not run. Enable **Run Webster baseline and compare in simulation** "
-                        "under **Advanced → Baseline comparison** to get Webster vs RL KPI metrics and extra downloads."
+                    st.warning(
+                        "⚠ No file found in the Data tab. Please upload one there first, or choose to upload a different file here."
                     )
-                st.markdown("---")
-                _download_file(sched_path, "Download trained model schedule (.json)", "dl_dqn_schedule_only", "application/json")
-                st.caption("Fixed-time signal programme (`schedule.json`) derived from your trained model.")
+            else:
+                cf = st.file_uploader(
+                    "Upload a traffic count file",
+                    type=["csv", "xlsx"],
+                    key="upload_compare_csv",
+                    help="A traffic count file covering the time period you want to evaluate. Used to compute the mathematical baseline.",
+                )
+                if cf is not None:
+                    try:
+                        if cf.name.lower().endswith(".xlsx"):
+                            tdf = pd.read_excel(io.BytesIO(cf.getvalue()))
+                        else:
+                            tdf = pd.read_csv(io.BytesIO(cf.getvalue()))
+                        num_any = any(
+                            pd.api.types.is_numeric_dtype(tdf[c]) for c in tdf.columns
+                        )
+                        if num_any and len(tdf) > 0:
+                            st.session_state.upload_compare_csv_df = tdf
+                            step2_ok = True
+                            step2_line = f"Step 2: ✓ Traffic file loaded — {len(tdf)} rows."
+                            st.success(f"✓ Traffic file loaded — {len(tdf)} rows.")
+                            st.dataframe(tdf.head(3), use_container_width=True)
+                        else:
+                            st.session_state.upload_compare_csv_df = None
+                            st.warning("✗ Could not validate traffic file (need at least one numeric column and rows).")
+                    except Exception:
+                        st.session_state.upload_compare_csv_df = None
+                        st.warning("✗ Could not read traffic file.")
+                else:
+                    st.session_state.upload_compare_csv_df = None
 
-                with st.expander("View signal timing plan (trained model)", expanded=False):
-                    sp = sched_path
-                    if sp and os.path.isfile(sp):
-                        d_sched = json.loads(Path(sp).read_text(encoding="utf-8")).get("buckets", [])
-                        phases = sorted(set(int(r["phase"]) for r in d_sched))
-                        ptabs = st.tabs([f"Phase {p+1}" for p in phases])
-                        for i, ph in enumerate(phases):
-                            with ptabs[i]:
-                                dph = [r for r in d_sched if int(r["phase"]) == ph]
-                                if dph:
-                                    dfp = pd.DataFrame({
-                                        "Time of day": [_seconds_to_hhmm(int(r["bucket_start_s"])) for r in dph],
-                                        "Trained model (s)": [float(r["median_s"]) for r in dph],
-                                        "Trained model variation": [float(r.get("std_s", 0)) for r in dph],
-                                    })
-                                    st.line_chart(dfp.set_index("Time of day")["Trained model (s)"], key=f"line_phase_rl_{ph}")
-                                    st.dataframe(dfp, width="stretch", key=f"df_phase_rl_{ph}")
+            st.markdown("### Step 3: Provide intersection and column mapping")
+            st.radio(
+                "Intersection configuration source",
+                [S3_USE_INTER, S3_UPLOAD],
+                key="upload_step3_config_source",
+            )
+            step3_ok = False
+            step3_line = "Step 3: ○ Waiting"
+            inter_use: dict | None = None
+            col_use: dict | None = None
+            if st.session_state.upload_step3_config_source == S3_USE_INTER:
+                if st.session_state.intersection_text and st.session_state.columns_text:
+                    try:
+                        inter_use = json.loads(st.session_state.intersection_text)
+                        col_use = json.loads(st.session_state.columns_text)
+                        if _valid_intersection_dict_upload(inter_use) and _valid_columns_dict_upload(col_use):
+                            step3_ok = True
+                            nm = inter_use.get("intersection_name", "Intersection")
+                            step3_line = f"Step 3: ✓ Using intersection: {nm}"
+                            st.success(f"✓ Using intersection: {nm}")
+                        else:
+                            st.warning("⚠ Invalid intersection or columns JSON in session.")
+                    except Exception:
+                        st.warning("⚠ Could not parse intersection or columns from the Intersection tab.")
+                else:
+                    st.warning(
+                        "⚠ No intersection configured. Set one up in the Intersection tab, or upload configuration files here."
+                    )
+            else:
+                cL, cR = st.columns(2)
+                with cL:
+                    st.file_uploader(
+                        "Intersection configuration",
+                        type=["json"],
+                        key="upload_compare_intersection",
+                        help="The intersection.json file from your previous run.",
+                    )
+                with cR:
+                    st.file_uploader(
+                        "Column mapping",
+                        type=["json"],
+                        key="upload_compare_columns",
+                        help="The columns.json file that maps your CSV column headers.",
+                    )
+                fi = st.session_state.get("upload_compare_intersection")
+                fc = st.session_state.get("upload_compare_columns")
+                if fi is not None and fc is not None:
+                    try:
+                        inter_use = json.loads(fi.getvalue().decode("utf-8"))
+                        col_use = json.loads(fc.getvalue().decode("utf-8"))
+                        if _valid_intersection_dict_upload(inter_use):
+                            st.success(f"✓ Intersection: {inter_use.get('intersection_name', '')}")
+                        else:
+                            inter_use = None
+                            st.warning("✗ Invalid intersection file.")
+                        if _valid_columns_dict_upload(col_use):
+                            st.success("✓ Column mapping loaded.")
+                        else:
+                            col_use = None
+                            st.warning("✗ Invalid column mapping file.")
+                        step3_ok = bool(inter_use and col_use)
+                        if step3_ok:
+                            step3_line = f"Step 3: ✓ Intersection: {inter_use.get('intersection_name', '')}"
+                    except Exception:
+                        inter_use, col_use = None, None
+                        st.warning("✗ Could not parse uploaded configuration files.")
 
-                st.caption("Want baseline comparison? Enable it in **Advanced**, then **Run** again.")
+            st.markdown("### Step 4: Network and simulation files")
+            st.radio("Network and flows", [S4_REGEN, S4_PREV], key="upload_step4_network_mode")
+            step4_ok = False
+            step4_line = "Step 4: ○ Will be generated"
+            n_eval_note = 0
+            if st.session_state.upload_step4_network_mode == S4_REGEN:
+                st.info(
+                    "The road network and demand files will be built automatically from your traffic data and "
+                    "intersection configuration when you run the comparison. This takes about the same time as "
+                    "the network-building step in a full training run."
+                )
+                st.number_input(
+                    "How many days should be used for evaluation?",
+                    min_value=1,
+                    max_value=30,
+                    value=5,
+                    key="upload_compare_test_days",
+                    help="The comparison will be run across this many simulated test days.",
+                )
+                step4_ok = True
+                step4_line = "Step 4: ✓ Network files ready (will be generated)"
+            else:
+                st.text_input(
+                    "Path to previous run folder",
+                    key="upload_compare_run_dir",
+                    placeholder="e.g. src/data/results/2024-01-15_10-30-00_...",
+                    help="Folder containing processed/ with split.json and sumo/ with network and flows.",
+                )
+                prd = str(st.session_state.get("upload_compare_run_dir") or "").strip()
+                inm = ""
+                if inter_use:
+                    inm = str(inter_use.get("intersection_name", ""))
+                if prd and inm:
+                    okp, msgp, n_ev = _validate_prev_run_dir(prd, inm)
+                    st.caption(msgp)
+                    step4_ok = okp
+                    n_eval_note = n_ev
+                    if okp:
+                        step4_line = f"Step 4: ✓ Network files ready ({n_ev} test days)"
+                elif prd and not inm:
+                    st.caption("⚠ Set intersection (Step 3) before validating the run folder.")
+                else:
+                    st.caption("⚠ Enter a path to your previous run folder.")
+
+            if st.session_state.upload_step4_network_mode == S4_PREV and step4_ok:
+                st.info(f"Using {n_eval_note} test days from the selected run.")
+
+            st.markdown("---")
+            st.markdown("**Readiness**")
+            st.caption(step1_line)
+            st.caption(step2_line)
+            st.caption(step3_line)
+            st.caption(step4_line)
+
+            ready = step1_ok and step2_ok and step3_ok and step4_ok
+            upload_live_stage_ph = st.empty()
+            upload_live_log_ph = st.empty()
+
+            def _render_upload_live() -> None:
+                ust_live = st.session_state.get("upload_compare_stage_statuses", ["waiting"] * 4)
+                ulab_live = [
+                    "Building demand and network files",
+                    "Computing mathematical baseline timing plan",
+                    "Running both timing plans through simulation",
+                    "Comparing results",
+                ]
+                uicon_live = {"waiting": "○", "active": "⏳", "done": "✓", "failed": "✗", "skipped": "–"}
+                lines = [f"{uicon_live.get(ust_live[i], '○')} {i + 1}. {lab}" for i, lab in enumerate(ulab_live)]
+                upload_live_stage_ph.code("\n".join(lines), language="text")
+                upload_live_log_ph.code(
+                    "\n".join(st.session_state.upload_compare_log_lines[-200:]),
+                    language="text",
+                )
+
+            if st.button(
+                "▶  Run comparison",
+                type="primary",
+                key="run_upload_compare",
+                disabled=not ready or st.session_state.upload_compare_in_progress,
+            ):
+                st.session_state.upload_compare_requested = True
+
+            if (
+                st.session_state.get("upload_compare_requested")
+                and ready
+                and not st.session_state.upload_compare_in_progress
+            ):
+                st.session_state.upload_compare_requested = False
+                st.session_state.upload_compare_in_progress = True
+                st.session_state.upload_compare_complete = False
+                st.session_state.upload_compare_error = ""
+                st.session_state.upload_compare_log_lines = []
+                st.session_state.upload_compare_stage_statuses = ["waiting"] * 4
+                st.session_state.upload_compare_results = None
+                _render_upload_live()
+                try:
+                    if st.session_state.upload_step2_traffic_source == S2_USE_DATA:
+                        tdf_run = st.session_state.csv_df.copy()
+                    else:
+                        tdf_run = st.session_state.upload_compare_csv_df.copy()
+                    assert inter_use is not None and col_use is not None
+                    assert st.session_state.upload_schedule_dict is not None
+                    tr_run = int(st.session_state.get("ui_train_days", train_cfg.get("train_days", 5)))
+                    if st.session_state.upload_step4_network_mode == S4_REGEN:
+                        td_run = int(st.session_state.get("upload_compare_test_days", 5))
+                    else:
+                        pr_run = str(st.session_state.get("upload_compare_run_dir") or "").strip()
+                        in_run = str(inter_use.get("intersection_name", "")) if inter_use else ""
+                        _ok_r, _msg_r, n_ev_r = _validate_prev_run_dir(pr_run, in_run)
+                        td_run = int(n_ev_r) if _ok_r else int(st.session_state.get("ui_test_days", 5))
+
+                    ui_uc = {
+                        "n_epochs": int(st.session_state.get("ui_epochs", train_cfg.get("n_epochs", 200))),
+                        "train_days": tr_run,
+                        "test_days": td_run,
+                        "decision_gap": int(st.session_state.get("ui_decision_gap", sim_cfg.get("decision_gap", 10))),
+                        "seed": int(st.session_state.get("ui_seed", train_cfg.get("seed", 42))),
+                        "learning_rate": float(st.session_state.get("ui_learning_rate", policy_lr_default)),
+                        "lr_min": float(st.session_state.get("ui_lr_min", train_cfg.get("lr_min", 0.0001))),
+                        "step_length": float(st.session_state.get("ui_step_length", sim_cfg.get("step_length", 1.0))),
+                        "simulation_gui": bool(st.session_state.get("ui_sim_gui", sim_cfg.get("gui", False))),
+                        "sim_begin": int(_time_to_seconds(st.session_state.ui_sim_start)),
+                        "sim_end": int(_time_to_seconds(st.session_state.ui_sim_end)),
+                        "subslots_per_slot": int(st.session_state.get("ui_subslots", flow_cfg.get("subslots_per_slot", 5))),
+                        "spread": float(st.session_state.get("ui_spread", flow_cfg.get("spread", 0.85))),
+                        "reward_class": str(st.session_state.get("ui_reward_class", default_reward)),
+                        "sumo_home": st.session_state.get("ui_sumo_home", os.environ.get("SUMO_HOME", "")),
+                        "run_baseline_comparison": False,
+                    }
+
+                    def _pcb(msg: str) -> None:
+                        st.session_state.upload_compare_log_lines.append(str(msg))
+                        print(msg, flush=True)
+                        _render_upload_live()
+
+                    def _su(i: int, s: str) -> None:
+                        st.session_state.upload_compare_stage_statuses[i] = s
+                        _render_upload_live()
+
+                    res = _run_upload_compare_pipeline(
+                        _pcb,
+                        _su,
+                        base_cfg=base_cfg,
+                        ui=ui_uc,
+                        compare_root=COMPARE_STANDALONE,
+                        schedule_dict=st.session_state.upload_schedule_dict,
+                        traffic_df=tdf_run,
+                        intersection_dict=inter_use,
+                        columns_dict=col_use,
+                        regenerate_network=st.session_state.upload_step4_network_mode == S4_REGEN,
+                        prev_run_dir=str(st.session_state.get("upload_compare_run_dir") or "").strip(),
+                        sumo_home=str(ui_uc["sumo_home"]),
+                        train_days=tr_run,
+                        test_days=td_run,
+                    )
+                    if res["ok"]:
+                        st.session_state.upload_compare_complete = True
+                        st.session_state.upload_compare_results = res
+                    else:
+                        st.session_state.upload_compare_error = res.get("error") or "Comparison failed."
+                except Exception as ex:
+                    st.session_state.upload_compare_error = traceback.format_exc()
+                finally:
+                    st.session_state.upload_compare_in_progress = False
+
+            if st.session_state.get("upload_compare_error"):
+                st.error("Something went wrong during the upload comparison pipeline.")
+                st.code(st.session_state.upload_compare_error, language="text")
+
+            st.markdown("### Progress")
+            ust = st.session_state.get("upload_compare_stage_statuses", ["waiting"] * 4)
+            ulab = [
+                "Building demand and network files",
+                "Computing mathematical baseline timing plan",
+                "Running both timing plans through simulation",
+                "Comparing results",
+            ]
+            uicon = {"waiting": "○", "active": "⏳", "done": "✓", "failed": "✗", "skipped": "–"}
+            for i, lab in enumerate(ulab):
+                st.write(f"{uicon.get(ust[i], '○')} {i + 1}. {lab}")
+
+            with st.expander("Detailed log", expanded=False):
+                st.text_area(
+                    "Log output",
+                    value="\n".join(st.session_state.upload_compare_log_lines[-800:]),
+                    height=280,
+                    key="upload_compare_log_view",
+                )
+
+            if st.session_state.upload_compare_complete and st.session_state.upload_compare_results:
+                ur = st.session_state.upload_compare_results
+                if ur.get("ok") and ur.get("paths"):
+                    _render_upload_compare_result_section(
+                        ur["paths"],
+                        int(ur.get("n_test_days", 0)),
+                    )
 
 
 if __name__ == "__main__":

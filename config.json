@@ -9,8 +9,8 @@
   },
   "training": {
     "_about": "Trainer loop: epochs, train/test day counts, logging, LR floor, optional cosine scheduler, and divisor for estimated decisions per episode (used for epsilon decay and TOTAL_UPDATES).",
-    "n_epochs": 200,
-    "train_days": 1,
+    "n_epochs": 300,
+    "train_days": 5,
     "test_days": 5,
     "save_every": 999,
     "log_every": 1,
@@ -22,9 +22,9 @@
   "simulation": {
     "_about": "SUMO step length, how often the agent acts (decision_gap in SUMO steps), simulation time window in seconds from midnight, and whether to use GUI.",
     "step_length": 1.0,
-    "decision_gap": 10,
+    "decision_gap": 5,
     "begin": 28800,
-    "end": 36000,
+    "end": 64800,
     "gui": false
   },
   "flow_demand": {
@@ -90,11 +90,11 @@
     "ThroughputCompositeReward": {
       "normalise": true,
       "scale": 1.0,
-      "gamma": 1.0,
-      "alpha": 0.3,
-      "beta": 0.1,
-      "switch_weight": 0.1,
-      "queue_norm_cap": 20.0
+      "gamma": 1.2,
+      "alpha": 0.6,
+      "beta": 0.35,
+      "switch_weight": 0.05,
+      "queue_norm_cap": 10.0
     },
     "DeltaVehicleCountReward": {},
     "VehicleCountReward": {},
@@ -107,16 +107,16 @@
     "ThroughputWaitTimeReward": {
       "normalise": true,
       "scale": 1.0,
-      "gamma": 1.0,
-      "alpha": 0.3,
-      "beta": 0.1
+      "gamma": 1.2,
+      "alpha": 0.6,
+      "beta": 0.3
     },
     "ThroughputWaitTime": {
       "normalise": true,
       "scale": 1.0,
-      "gamma": 1.0,
-      "alpha": 0.3,
-      "beta": 0.1
+      "gamma": 1.2,
+      "alpha": 0.6,
+      "beta": 0.3
     }
   },
   "policy_configuration": {

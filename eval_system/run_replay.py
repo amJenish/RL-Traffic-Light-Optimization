@@ -4,7 +4,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Any
+from typing import Any, Callable
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -29,7 +29,14 @@ def run_replay_pipeline(
     sumo_home: str,
     gui: bool = False,
     tls_id: str = "J_centre",
+    log: Callable[[str], None] | None = None,
+    before_compare: Callable[[], None] | None = None,
 ) -> None:
+    def _emit(msg: str) -> None:
+        if log is not None:
+            log(msg)
+        else:
+            print(msg)
     with open(schedule_path, encoding="utf-8") as f:
         sched_dqn = json.load(f)
     with open(schedule_webster_path, encoding="utf-8") as f:
@@ -71,11 +78,18 @@ def run_replay_pipeline(
     web_list: list[KPIResult] = []
 
     test_days = [int(x) for x in split.get("test", [])]
+    missing_flows: list[str] = []
+    day_failures: list[str] = []
+    n_days = len(test_days)
+    _emit(f"  [replay] evaluating {n_days} test day(s)")
 
-    for day_id in test_days:
+    for day_idx, day_id in enumerate(test_days, start=1):
+        _emit(f"  [replay] day {day_id} ({day_idx}/{n_days}) starting")
         flow_file = os.path.join(flows_dir, f"flows_day_{day_id:02d}.rou.xml")
         if not os.path.isfile(flow_file):
-            print(f"  [replay] skip day {day_id}: missing {flow_file}")
+            msg = f"skip day {day_id}: missing {flow_file}"
+            _emit(f"  [replay] {msg}")
+            missing_flows.append(flow_file)
             continue
 
         ctrl_d = ScheduleController(
@@ -95,7 +109,10 @@ def run_replay_pipeline(
 
         r_d = None
         r_w = None
+        d_err = ""
+        w_err = ""
         try:
+            _emit(f"  [replay] day {day_id}: running uploaded timing plan")
             r_d = runner.run(
                 flow_file,
                 ctrl_d,
@@ -108,10 +125,13 @@ def run_replay_pipeline(
             p_d = os.path.join(dqn_dir, f"kpi_day_{day_id:02d}.json")
             with open(p_d, "w", encoding="utf-8") as f:
                 json.dump(r_d.to_json_dict(), f, indent=2)
+            _emit(f"  [replay] day {day_id}: uploaded timing plan complete")
         except Exception as e:
-            print(f"  [replay] DQN day {day_id} failed: {e}")
+            d_err = str(e)
+            _emit(f"  [replay] DQN day {day_id} failed: {e}")
 
         try:
+            _emit(f"  [replay] day {day_id}: running mathematical baseline")
             r_w = runner.run(
                 flow_file,
                 ctrl_w,
@@ -124,20 +144,63 @@ def run_replay_pipeline(
             p_w = os.path.join(web_dir, f"kpi_day_{day_id:02d}.json")
             with open(p_w, "w", encoding="utf-8") as f:
                 json.dump(r_w.to_json_dict(), f, indent=2)
+            _emit(f"  [replay] day {day_id}: mathematical baseline complete")
         except Exception as e:
-            print(f"  [replay] Webster day {day_id} failed: {e}")
+            w_err = str(e)
+            _emit(f"  [replay] Webster day {day_id} failed: {e}")
 
         if r_d is not None and r_w is not None:
             dqn_list.append(r_d)
             web_list.append(r_w)
+            _emit(f"  [replay] day {day_id} complete ({day_idx}/{n_days})")
+        elif r_d is None or r_w is None:
+            bits = []
+            if r_d is None:
+                bits.append(f"DQN ({d_err or 'no result'})")
+            if r_w is None:
+                bits.append(f"Webster ({w_err or 'no result'})")
+            day_failures.append(f"day {day_id}: " + "; ".join(bits))
+            _emit(f"  [replay] day {day_id} incomplete ({day_idx}/{n_days})")
 
     if dqn_list and web_list:
+        if before_compare is not None:
+            before_compare()
+        _emit("  [replay] writing comparison.csv")
         ReplayComparator().compare(dqn_list, web_list, out_dir)
-    else:
-        print(
-            "  [replay] insufficient KPI results for comparison "
-            f"(dqn={len(dqn_list)} webster={len(web_list)})."
+        _emit("  [replay] comparison.csv complete")
+        return
+
+    lines = [
+        "No evaluation days completed for both timing plans, so comparison.csv was not written.",
+        f"test_days from split: {test_days}",
+        f"flows_dir: {flows_dir}",
+        f"SUMO_HOME: {sumo_home!r}",
+    ]
+    if not (sumo_home or "").strip():
+        lines.append(
+            "SUMO_HOME is empty — set it in Advanced or the SUMO_HOME environment variable."
         )
+    if missing_flows:
+        lines.append(
+            f"Missing {len(missing_flows)} flow file(s) (need flows_day_XX.rou.xml for each test day). "
+            "Use a run folder that contains sumo/flows/ from a full build, not only schedule.json."
+        )
+    if day_failures:
+        lines.append("Simulation errors: " + " | ".join(day_failures[:5]))
+        if len(day_failures) > 5:
+            lines.append(f"(+{len(day_failures) - 5} more days failed)")
+    dqn_buckets = sum(
+        1 for b in (sched_dqn.get("buckets") or []) if b.get("tls_id") == tls_id
+    )
+    w_buckets = sum(
+        1 for b in (sched_w.get("buckets") or []) if b.get("tls_id") == tls_id
+    )
+    if dqn_buckets == 0 or w_buckets == 0:
+        lines.append(
+            f"Schedule JSON may not target tls_id={tls_id!r} (uploaded plan: {dqn_buckets} buckets, "
+            f"Webster plan: {w_buckets} buckets). Buckets must use that tls_id."
+        )
+    raise RuntimeError("\n".join(lines))
 
 
 def main_cli() -> None:

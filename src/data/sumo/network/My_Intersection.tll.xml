@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tlLogics>
   <tlLogic id="J_centre" type="static" programID="0" offset="0">
-    <phase duration="999999" state="rrrgrrrrrrrgrrrr" name="NS_left"/>
-    <phase duration="999999" state="gGGrrrrrgGGrrrrr" name="NS_through"/>
-    <phase duration="999999" state="rrrrrrrgrrrrrrrg" name="EW_left"/>
-    <phase duration="999999" state="rrrrgGGrrrrrgGGr" name="EW_through"/>
+    <phase duration="999999" state="gGGgrrrrgGGgrrrr" name="NS_service"/>
+    <phase duration="999999" state="rrrrgGGgrrrrgGGg" name="EW_service"/>
   </tlLogic>
 </tlLogics>

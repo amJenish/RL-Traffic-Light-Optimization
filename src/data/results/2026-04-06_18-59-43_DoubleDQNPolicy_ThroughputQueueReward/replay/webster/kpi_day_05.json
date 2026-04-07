@@ -1,0 +1,7 @@
+{
+  "label": "Mathematical baseline",
+  "kpi_throughput_total": 274.0,
+  "kpi_throughput_rate": 0.03805555555555556,
+  "kpi_neg_lane_waiting_integral": -198781.0,
+  "phase_switch_count": 302
+}
