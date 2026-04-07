@@ -4,7 +4,7 @@ Grid search runner for RL traffic control.
 This is a lightweight "GridSearchCV equivalent" for your setup:
 - Sweep reward + policy hyperparameters using JSON search spaces.
 - Run each trial end-to-end (train on train days, evaluate on test days).
-- Compute KPIs via `KPIS` (crossings, throughput, neg lane-waiting integral); `schedule.json` per trial when possible.
+- Compute KPIs via `KPIS` (throughput, neg lane-waiting integral); `schedule.json` per trial when possible.
 - Write per-trial results to `results.csv` and an aggregated `leaderboard.csv`.
 """
 
@@ -151,7 +151,7 @@ def _build_agent(
     policy_class_name: str,
     policy_kwargs: dict[str, Any],
     seed: int,
-) -> tuple[Agent, RewardWithCrossingsKPI]:
+) -> Agent:
     reward_cls = REWARD_CLASS_MAP[reward_class_name]
     policy_cls = POLICY_CLASS_MAP[policy_class_name]
 

@@ -8,12 +8,6 @@ From the project root (with your virtualenv activated):
 
 ```bash
 pip install streamlit   # or: pip install -r requirements.txt
-python run_frontend.py
-```
-
-Equivalent direct command:
-
-```bash
 streamlit run streamlit_app.py
 ```
 
@@ -22,7 +16,7 @@ The browser opens automatically. Set **`SUMO_HOME`** in the sidebar (or install 
 ## What it does
 
 1. **Upload** a traffic CSV each session (format similar to `src/data/synthetic_toronto_data.csv`; that file is not auto-loaded).
-2. **Generate from CSV** fills the column map and intersection in memory; refine with the **field editors** (sections 2–3) or under **Raw JSON** (paste / copy). See [STREAMLIT_ARCHITECTURE.md](STREAMLIT_ARCHITECTURE.md) for the full data flow.
+2. **Generate from CSV** fills the column map and intersection in memory; refine with the **field editors** (sections 2–3) or under **Raw JSON** (paste / copy).
 3. Open **Advanced** to change epochs, train/test days, simulation window, etc. (these map to `main.py` constants).  
    **Default EPOCHS in the UI** is **`STREAMLIT_DEFAULT_EPOCHS`** in [`streamlit_app.py`](streamlit_app.py) (set to **10** for quick tests). Change that constant to `60` to match `main.py`, or type any value in Advanced.
 4. **Run training pipeline** — calls `validate_inputs` → `run_build_route` → `run_build_network` → `build_pipeline` → `trainer.run()` from [`main.py`](main.py). Outputs land under `logs/<timestamp>_.../` like the CLI.
